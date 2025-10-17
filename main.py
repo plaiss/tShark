@@ -22,7 +22,7 @@ def tshark_worker(root, cmd, ttl):
     def stderr_reader():
         for line in proc.stderr:
             # root.add_text(f"[tshark stderr] {line.rstrip()}")
-             root.add_text(f"[$$$$$$$$] {line.rstrip()}")
+            root.add_text(f"{line.rstrip()}")
 
     threading.Thread(target=stderr_reader, daemon=True).start()
 
@@ -74,7 +74,7 @@ def tshark_worker(root, cmd, ttl):
             # root.update_tree(mac_n, config._seen_count[mac_n], pretty_time)
 
             # Отправляем вывод в окно приложения
-            root.add_text(f"{pretty_time} Mac={mac} {rssi} dBi Type: {utils.decode_wlan_type_subtype(subtype)}")
+            root.add_text(f"{mac} | {rssi} dBi | {utils.decode_wlan_type_subtype(subtype)} | {pretty_time}")
     finally:
         try:
             proc.terminate()
@@ -122,9 +122,9 @@ def main():
 
 if __name__ == "__main__":
     # Проверяем режим работы wlan0
-    mode = utils.get_wlan_mode(config.interface)
-    if mode:
-        print(f"Режим работы {config.interface}: {mode}")
-    else:
-        print(f"Не удалось определить режим работы {config.interface}.")
+    config.mode = utils.get_wlan_mode(config.interface)
+    # if config.mode:
+    #     print(f"Режим работы {config.interface}: {config.mode}")
+    # else:
+    #     print(f"Не удалось определить режим работы {config.interface}.")
     main()

@@ -2,8 +2,9 @@
 import re
 import sqlite3
 import time
+import subprocess
 
-import config
+# import config
 
 
 def handle_sighup(signum, frame):
@@ -91,46 +92,6 @@ def parse_time_epoch(text):
         return f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))}.{ms:03d}"
     except Exception:
         return text
-
-# def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
-#     """
-#     Декодирует типы и подтипы фреймов Wi-Fi.
-#     """
-#     try:
-#         n = int(val, 0)
-#     except Exception:
-#         return str(val)
-#
-#     subtype = n & 0xF
-#     type_ = (n >> 4) & 0x3
-#     to_ds = (n >> 8) & 0x1
-#     from_ds = (n >> 9) & 0x1
-#     protected = (n >> 14) & 0x1
-#     order = (n >> 15) & 0x1
-#
-#     mgmt_subtypes = {...}
-#     ctrl_subtypes = {...}
-#     data_subtypes = {...}
-#
-#     type_map = {0: "Mgmt", 1: "Ctrl", 2: "Data", 3: "Reserved"}
-#
-#     if type_ == 0:
-#         name = mgmt_subtypes.get(subtype, f"Unknown({subtype})")
-#     elif type_ == 1:
-#         name = ctrl_subtypes.get(subtype, f"Unknown({subtype})")
-#     elif type_ == 2:
-#         name = data_subtypes.get(subtype, f"Unknown({subtype})")
-#     else:
-#         name = f"ReservedType/Subtype({subtype})"
-#
-#     parts = []
-#     parts.append(f"{type_map.get(type_, 'Unknown')}/{name}")
-#     if show_codes:
-#         parts.append(f"(type={type_} subtype={subtype})")
-#     if show_bits:
-#         parts.append(f"[ToDS={to_ds} FromDS={from_ds} Protected={protected} Order={order}]")
-#
-#     return " ".join(parts)
 
 def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
     """
@@ -244,10 +205,6 @@ def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
         parts.append(f"[ToDS={to_ds} FromDS={from_ds} Protected={protected} Order={order}]")
 
     return " ".join(parts)
-
-
-import subprocess
-
 
 def get_wlan_mode(interface='wlan0'):
     try:

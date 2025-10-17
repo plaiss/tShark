@@ -4,6 +4,7 @@ import re
 import sqlite3
 
 interface = 'wlan1'
+mode = ''
 # Конфигурация по умолчанию
 TSHARK_CMD = [
     "tshark", "-i", interface, "-l", "-T", "fields",

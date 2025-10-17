@@ -2,14 +2,19 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 
+import config
+import main
+
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
 
         self.title("WiFi Monitor")
-        self.geometry("1280x768")
+        # self.geometry("1280x768")
         self.minsize(width=1380, height=768)
+
+
 
 
         # Панель сверху с таблицей и полосой прокрутки
@@ -20,8 +25,8 @@ class App(tk.Tk):
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
         columns = ("#1", "#2", "#3")
-        self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
-        self.tree.heading('#1', text='MAC Address', command=lambda: self.sort_column('#1'))
+        self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', yscrollcommand=scroll_y.set, height=20)
+        self.tree.heading('#1', text='Уникальный MAC', command=lambda: self.sort_column('#1'))
         self.tree.heading('#2', text='Count', command=lambda: self.sort_column('#2'))
         self.tree.heading('#3', text='Last Seen', command=lambda: self.sort_column('#3'))
         self.tree.column('#1', width=150)
@@ -31,7 +36,7 @@ class App(tk.Tk):
         scroll_y.config(command=self.tree.yview)
 
         # Область для вывода подробностей
-        self.text_area = scrolledtext.ScrolledText(self, wrap=tk.NONE, width=41)
+        self.text_area = scrolledtext.ScrolledText(self, wrap=tk.NONE,height=20)
         self.text_area.pack(fill=tk.BOTH, expand=True)
 
         # Статусная панель снизу
@@ -66,4 +71,4 @@ class App(tk.Tk):
 
     def update_status(self, total_devices, devices_in_white_list):
         """Обновляет статусную строку"""
-        self.status_label.config(text=f"Found: {total_devices}, White List: {devices_in_white_list}")
+        self.status_label.config(text=f"{config.interface} : {config.mode} mode| Found: {total_devices}, Whitelist: total {len(config._whitelist)} | ignored {devices_in_white_list}")
