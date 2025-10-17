@@ -63,11 +63,11 @@ def tshark_worker(root, cmd, ttl):
 
             pretty_time = utils.parse_time_epoch(raw_time)
             mac = utils.lookup_vendor_db(mac, config.DB_PATH)
-            if len(mac) <= 60:
-                dop = 60 - len(mac)
+            if len(mac) <= 50:
+                dop = 50 - len(mac)
                 mac = mac + ' ' * dop
             else:
-                mac = mac[:60]
+                mac = mac[:50]
 
             # Обновляем таблицу TreeView
             root.update_tree(mac_n, mac_n, pretty_time)

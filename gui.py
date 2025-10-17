@@ -8,7 +8,9 @@ class App(tk.Tk):
         super().__init__()
 
         self.title("WiFi Monitor")
-        self.geometry("1024x768")
+        self.geometry("1280x768")
+        self.minsize(width=1380, height=768)
+
 
         # Панель сверху с таблицей и полосой прокрутки
         tree_frame = tk.Frame(self)
@@ -29,7 +31,7 @@ class App(tk.Tk):
         scroll_y.config(command=self.tree.yview)
 
         # Область для вывода подробностей
-        self.text_area = scrolledtext.ScrolledText(self, wrap=tk.WORD)
+        self.text_area = scrolledtext.ScrolledText(self, wrap=tk.NONE, width=41)
         self.text_area.pack(fill=tk.BOTH, expand=True)
 
         # Статусная панель снизу
