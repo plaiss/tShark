@@ -6,7 +6,7 @@ import main
 
 
 class App(tk.Tk):
-    def __init__(self):  # Исправлено на __init__
+    def __init__(self):
         super().__init__()
 
         self.title("WiFi Monitor")
@@ -24,8 +24,31 @@ class App(tk.Tk):
 
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
-        # Панель сверху с таблицей и полосой прокрутки
-        tree_frame = tk.Frame(self)
+        # Создаем левое пространство с деревом и областью для вывода деталей
+        left_frame = tk.Frame(self)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Правый верхний блок
+        right_top_frame = tk.Frame(left_frame)
+        right_top_frame.pack(side=tk.TOP, anchor="ne")  # Прилепляем вправо-вверх
+
+        # Label состояния справа вверху
+        self.state_label = tk.Label(right_top_frame, text="State: Ready", font=("Arial", 12))
+        self.state_label.pack(pady=5)
+
+        # Кнопочная панель внизу label'а
+        button_panel = tk.Frame(right_top_frame)
+        button_panel.pack()
+
+        buttons = ["Start Scanning", "Stop Scanning", "Reset Data",
+                   "Export to CSV", "Open White List", "Show Details", "Help"]
+
+        for btn_name in buttons:
+            btn = tk.Button(button_panel, text=btn_name, command=lambda b=btn_name: self.on_button_click(b))
+            btn.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Дерево слева
+        tree_frame = tk.Frame(left_frame)
         tree_frame.pack(side=tk.TOP, fill=tk.X)
 
         scroll_y = tk.Scrollbar(tree_frame, orient=tk.VERTICAL)
@@ -47,12 +70,17 @@ class App(tk.Tk):
         scroll_y.config(command=self.tree.yview)
 
         # Область для вывода подробностей
-        self.text_area = scrolledtext.ScrolledText(self, wrap=tk.NONE, height=20)
+        self.text_area = scrolledtext.ScrolledText(left_frame, wrap=tk.NONE, height=20)
         self.text_area.pack(fill=tk.BOTH, expand=True)
 
         # Статусная панель снизу
         self.status_label = tk.Label(self, bd=1, relief=tk.SUNKEN, anchor=tk.W)
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
+
+    def on_button_click(self, button_name):
+        print(f"Button '{button_name}' clicked.")
+        # Тут пишите свою обработку действий кнопок
+        pass
 
     def sort_column(self, col):
         items = [(self.tree.set(child, col), child) for child in self.tree.get_children()]
@@ -61,35 +89,22 @@ class App(tk.Tk):
             self.tree.move(child_id, "", index)
 
     def update_tree(self, mac_address, count, last_seen):
-        """Обновляет дерево TreeView новыми данными."""
         normalized_mac = ':'.join([mac_address[i:i + 2] for i in range(0, len(mac_address), 2)])
         item = next((item for item in self.tree.get_children() if
                      self.tree.item(item)['values'][0] == normalized_mac), None)
         if item:
-            # Если элемент найден - обновляем его значения
             self.tree.set(item, '#2', count)
             self.tree.set(item, '#3', last_seen)
         else:
-            # Если элемент не найден - добавляем новый элемент в TreeView
-            self.tree.insert("", tk.END,
-                             values=(normalized_mac,
-                                     count,
-                                     last_seen))
+            self.tree.insert("", tk.END, values=(normalized_mac, count, last_seen))
 
     def add_text(self, text):
-        """Добавляет текст в поле вывода"""
-        # Вставляем текст в конец ScrolledText поля и прокручиваем вниз.
         self.text_area.insert(tk.END, text + "\n")
-        # Прокручиваем вниз.
         self.text_area.yview_moveto(1.0)
 
     def clear_text(self):
-        """Очищает содержимое поля вывода"""
-        # Удаляем весь текст из ScrolledText поля.
         self.text_area.delete('1.0', tk.END)
 
     def update_status(self, total_devices, devices_in_white_list):
-        """Обновляет статусную строку"""
-        # Обновляем текст статусной строки с информацией о количестве устройств и белом списке.
-        status_message = f"{config.interface} : {config.mode} mode| Found: {total_devices}, Whitelist: total {len(config._whitelist)} | ignored {devices_in_white_list}"
+        status_message = f"{config.interface}: {config.mode} mode | Found: {total_devices}, Whitelist: total {len(config._whitelist)} | Ignored {devices_in_white_list}"
         self.status_label.config(text=status_message)
