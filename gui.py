@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext
+from tkinter.messagebox import showinfo
 
 import config
 import main
@@ -24,19 +25,35 @@ class App(tk.Tk):
 
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
-        # Создаем левое пространство с деревом и областью для вывода деталей
-        left_frame = tk.Frame(self)
-        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Главная контейнерная сетка
+        container = tk.PanedWindow(self, orient=tk.VERTICAL)
+        container.pack(fill=tk.BOTH, expand=True)
 
-        # Правый верхний блок
-        right_top_frame = tk.Frame(left_frame)
-        right_top_frame.pack(side=tk.TOP, anchor="ne")  # Прилепляем вправо-вверх
+        # Верхняя секция с деревом
+        upper_frame = tk.Frame(container)
+        container.add(upper_frame)
+
+        # Верхняя панель с статусом и правой стороной
+        top_frame = tk.Frame(upper_frame)
+        top_frame.pack(side=tk.TOP, fill=tk.X)
+
+        # Status line
+        self.status_label = tk.Label(top_frame, bd=1, relief=tk.SUNKEN, anchor=tk.W)
+        self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
+
+        # Title для TreeView
+        title_label = tk.Label(top_frame, text="Devices Detected:", font=("Arial", 14, 'bold'))
+        title_label.pack(side=tk.TOP, anchor="w", pady=5)
+
+        # Правый блок с лейблом и кнопками
+        right_top_frame = tk.Frame(top_frame)
+        right_top_frame.pack(side=tk.RIGHT, anchor="ne")
 
         # Label состояния справа вверху
         self.state_label = tk.Label(right_top_frame, text="State: Ready", font=("Arial", 12))
         self.state_label.pack(pady=5)
 
-        # Кнопочная панель внизу label'а
+        # Кнопочная панель внизу лейбла
         button_panel = tk.Frame(right_top_frame)
         button_panel.pack()
 
@@ -47,40 +64,47 @@ class App(tk.Tk):
             btn = tk.Button(button_panel, text=btn_name, command=lambda b=btn_name: self.on_button_click(b))
             btn.pack(side=tk.LEFT, padx=5, pady=5)
 
-        # Дерево слева
-        tree_frame = tk.Frame(left_frame)
-        tree_frame.pack(side=tk.TOP, fill=tk.X)
+        # Дерево с устройством (TreeView)
+        tree_frame = tk.Frame(upper_frame)
+        tree_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         scroll_y = tk.Scrollbar(tree_frame, orient=tk.VERTICAL)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
         columns = ("#1", "#2", "#3")
-        self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', yscrollcommand=scroll_y.set, height=20)
+        self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
 
-        self.tree.heading('#1', text='Уникальный MAC', command=lambda: self.sort_column('#1'))
-        self.tree.heading('#2', text='Count', command=lambda: self.sort_column('#2'))
-        self.tree.heading('#3', text='Last Seen', command=lambda: self.sort_column('#3'))
+        self.tree.heading('#1', text='MAC Address')
+        self.tree.heading('#2', text='Count')
+        self.tree.heading('#3', text='Last Seen')
 
         self.tree.column('#1', width=150)
         self.tree.column('#2', width=50)
         self.tree.column('#3', width=250)
 
-        self.tree.pack(side=tk.LEFT, fill=tk.X)
+        self.tree.bind("<Double-1>", self.on_double_click)
+
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         scroll_y.config(command=self.tree.yview)
 
-        # Область для вывода подробностей
-        self.text_area = scrolledtext.ScrolledText(left_frame, wrap=tk.NONE, height=20)
-        self.text_area.pack(fill=tk.BOTH, expand=True)
+        # Нижняя секция с текстом
+        lower_frame = tk.Frame(container)
+        container.add(lower_frame)
 
-        # Статусная панель снизу
-        self.status_label = tk.Label(self, bd=1, relief=tk.SUNKEN, anchor=tk.W)
-        self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
+        # Текстовая область
+        self.text_area = scrolledtext.ScrolledText(lower_frame, wrap=tk.NONE)
+        self.text_area.pack(fill=tk.BOTH, expand=True)
 
     def on_button_click(self, button_name):
         print(f"Button '{button_name}' clicked.")
-        # Тут пишите свою обработку действий кнопок
-        pass
+        # Реализуйте логику обработки кнопок здесь
+
+    def on_double_click(self, event):
+        selected_item = self.tree.selection()[0]
+        data = self.tree.item(selected_item)["values"]
+        message = f"Selected Device:\nMAC: {data[0]}\nCount: {data[1]}\nLast Seen: {data[2]}"
+        showinfo(title="Device Info", message=message)
 
     def sort_column(self, col):
         items = [(self.tree.set(child, col), child) for child in self.tree.get_children()]
@@ -108,3 +132,4 @@ class App(tk.Tk):
     def update_status(self, total_devices, devices_in_white_list):
         status_message = f"{config.interface}: {config.mode} mode | Found: {total_devices}, Whitelist: total {len(config._whitelist)} | Ignored {devices_in_white_list}"
         self.status_label.config(text=status_message)
+
