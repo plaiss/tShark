@@ -70,8 +70,8 @@ def tshark_worker(root, cmd, ttl):
                 mac = mac[:50]
 
             # Обновляем таблицу TreeView
-            root.update_tree(mac_n, mac_n, pretty_time)
-            # root.update_tree(mac_n, config._seen_count[mac_n], pretty_time)
+            # root.update_tree(mac_n, mac_n, pretty_time)
+            root.update_tree(mac_n, config._seen_count[mac_n], pretty_time)
 
             # Отправляем вывод в окно приложения
             root.add_text(f"{mac} | {rssi} dBi | {utils.decode_wlan_type_subtype(subtype)} | {pretty_time}")
@@ -123,8 +123,4 @@ def main():
 if __name__ == "__main__":
     # Проверяем режим работы wlan0
     config.mode = utils.get_wlan_mode(config.interface)
-    # if config.mode:
-    #     print(f"Режим работы {config.interface}: {config.mode}")
-    # else:
-    #     print(f"Не удалось определить режим работы {config.interface}.")
     main()
