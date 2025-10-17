@@ -242,3 +242,37 @@ def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
 
     return " ".join(parts)
 
+
+import subprocess
+
+
+def get_wlan_mode(interface='wlan0'):
+    try:
+        # Выполняем команду iwconfig для получения информации о wlan0
+        result = subprocess.run(['iwconfig', interface], capture_output=True, text=True)
+
+        if result.returncode != 0:
+            print(f"Ошибка при получении информации об интерфейсе {interface}: {result.stderr}")
+            return None
+
+        # Выводим результат
+        output = result.stdout
+
+        # Ищем строку с режимом работы
+        for line in output.split('\n'):
+            if 'Mode:' in line:
+                mode = line.split('Mode:')[1].split()[0]
+                return mode
+
+    except Exception as e:
+        print(f"Произошла ошибка: {e}")
+
+    return None
+
+
+# Проверяем режим работы wlan0
+mode = get_wlan_mode('wlan1')
+if mode:
+    print(f"Режим работы wlan0: {mode}")
+else:
+    print("Не удалось определить режим работы wlan0.")
