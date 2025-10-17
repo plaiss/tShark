@@ -1,5 +1,3 @@
-
-
 # gui.py
 import tkinter as tk
 from tkinter import ttk, scrolledtext
@@ -10,7 +8,7 @@ class App(tk.Tk):
         super().__init__()
 
         self.title("WiFi Monitor")
-        self.geometry("800x700")
+        self.geometry("1024x768")
 
         # Панель сверху с таблицей и полосой прокрутки
         tree_frame = tk.Frame(self)

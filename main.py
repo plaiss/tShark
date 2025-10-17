@@ -21,7 +21,8 @@ def tshark_worker(root, cmd, ttl):
 
     def stderr_reader():
         for line in proc.stderr:
-            root.add_text(f"[tshark stderr] {line.rstrip()}")
+            # root.add_text(f"[tshark stderr] {line.rstrip()}")
+             root.add_text(f"[$$$$$$$$] {line.rstrip()}")
 
     threading.Thread(target=stderr_reader, daemon=True).start()
 
@@ -69,10 +70,11 @@ def tshark_worker(root, cmd, ttl):
                 mac = mac[:60]
 
             # Обновляем таблицу TreeView
-            root.update_tree(mac_n, config._seen_count[mac_n], pretty_time)
+            root.update_tree(mac_n, mac_n, pretty_time)
+            # root.update_tree(mac_n, config._seen_count[mac_n], pretty_time)
 
             # Отправляем вывод в окно приложения
-            root.add_text(f"{mac}")
+            root.add_text(f"{pretty_time} Mac={mac} {rssi} dBi Type: {utils.decode_wlan_type_subtype(subtype)}")
     finally:
         try:
             proc.terminate()

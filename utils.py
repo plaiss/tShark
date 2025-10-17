@@ -89,9 +89,64 @@ def parse_time_epoch(text):
     except Exception:
         return text
 
+# def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
+#     """
+#     Декодирует типы и подтипы фреймов Wi-Fi.
+#     """
+#     try:
+#         n = int(val, 0)
+#     except Exception:
+#         return str(val)
+#
+#     subtype = n & 0xF
+#     type_ = (n >> 4) & 0x3
+#     to_ds = (n >> 8) & 0x1
+#     from_ds = (n >> 9) & 0x1
+#     protected = (n >> 14) & 0x1
+#     order = (n >> 15) & 0x1
+#
+#     mgmt_subtypes = {...}
+#     ctrl_subtypes = {...}
+#     data_subtypes = {...}
+#
+#     type_map = {0: "Mgmt", 1: "Ctrl", 2: "Data", 3: "Reserved"}
+#
+#     if type_ == 0:
+#         name = mgmt_subtypes.get(subtype, f"Unknown({subtype})")
+#     elif type_ == 1:
+#         name = ctrl_subtypes.get(subtype, f"Unknown({subtype})")
+#     elif type_ == 2:
+#         name = data_subtypes.get(subtype, f"Unknown({subtype})")
+#     else:
+#         name = f"ReservedType/Subtype({subtype})"
+#
+#     parts = []
+#     parts.append(f"{type_map.get(type_, 'Unknown')}/{name}")
+#     if show_codes:
+#         parts.append(f"(type={type_} subtype={subtype})")
+#     if show_bits:
+#         parts.append(f"[ToDS={to_ds} FromDS={from_ds} Protected={protected} Order={order}]")
+#
+#     return " ".join(parts)
+
 def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
     """
-    Декодирует типы и подтипы фреймов Wi-Fi.
+    Decode 802.11 frame control type/subtype and key control flags.
+    val can be integer or string (e.g. "0x20" or 32). Expects the full Frame Control
+    first two bytes value (least significant byte first typical order) or at least
+    the first byte containing subtype/type and the second byte containing flags.
+    By convention this function treats val as a 16-bit value where:
+      - bits 0-3  : subtype
+      - bits 4-5  : type
+      - bit 6     : to DS
+      - bit 7     : from DS
+      - bit 8     : more frag (ignored)
+      - bit 9     : retry (ignored)
+      - bit 10    : pwr mgmt (ignored)
+      - bit 11    : more data (ignored)
+      - bit 12    : protected flag
+      - bit 13    : order flag
+    Returns a human-readable string.
     """
     try:
         n = int(val, 0)
@@ -99,15 +154,72 @@ def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
         return str(val)
 
     subtype = n & 0xF
-    type_ = (n >> 4) & 0x3
+    type_ = (n >> 4) & 0x3   # bits 4-5 when considering full frame-control little mapping
+    # If input was the single first byte, original mapping (bits 0-3 subtype, 2-3 type) may apply.
+    # This implementation assumes standard 16-bit Frame Control ordering where type is bits 2-3 of first byte,
+    # but when packed into a 16-bit integer with first byte in LSB, shifting by 4 yields same result.
+    # Extract flags (ToDS/FromDS are bits 8 and 9 in network-order 16-bit, but practical captures often place them in second byte)
     to_ds = (n >> 8) & 0x1
     from_ds = (n >> 9) & 0x1
     protected = (n >> 14) & 0x1
     order = (n >> 15) & 0x1
 
-    mgmt_subtypes = {...}
-    ctrl_subtypes = {...}
-    data_subtypes = {...}
+    mgmt_subtypes = {
+        0: "Assoc Req",
+        1: "Assoc Resp",
+        2: "Reassoc Req",
+        3: "Reassoc Resp",
+        4: "Probe Req",
+        5: "Probe Resp",
+        6: "Reserved",
+        7: "Reserved",
+        8: "Beacon",
+        9: "ATIM",
+        10: "Disassoc",
+        11: "Auth",
+        12: "Deauth",
+        13: "Action",
+        14: "Action No Ack",
+        15: "Reserved"
+    }
+
+    ctrl_subtypes = {
+        0: "Reserved",
+        1: "Reserved",
+        2: "Trigger",
+        3: "Block Ack Poll",
+        4: "Block Ack",
+        5: "PS-Poll",
+        6: "RTS",
+        7: "CTS",
+        8: "ACK",
+        9: "CF-End",
+        10: "CF-End + CF-Ack",
+        11: "Control Wrapper",
+        12: "Block Ack Req",
+        13: "Block Ack (Alt)",
+        14: "Vendor/Reserved",
+        15: "Vendor/Reserved"
+    }
+
+    data_subtypes = {
+        0: "Data",
+        1: "Data + CF-Ack",
+        2: "Data + CF-Poll",
+        3: "Data + CF-Ack + CF-Poll",
+        4: "Null (No Data)",
+        5: "CF-Ack (No Data)",
+        6: "CF-Poll (No Data)",
+        7: "CF-Ack + CF-Poll (No Data)",
+        8: "QoS Data",
+        9: "QoS Data + CF-Ack",
+        10: "QoS Data + CF-Poll",
+        11: "QoS Data + CF-Ack + CF-Poll",
+        12: "QoS Null (No Data)",
+        13: "Reserved",
+        14: "QoS CF-Poll (No Data)",
+        15: "QoS CF-Ack + CF-Poll (No Data)"
+    }
 
     type_map = {0: "Mgmt", 1: "Ctrl", 2: "Data", 3: "Reserved"}
 
@@ -124,7 +236,9 @@ def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
     parts.append(f"{type_map.get(type_, 'Unknown')}/{name}")
     if show_codes:
         parts.append(f"(type={type_} subtype={subtype})")
+
     if show_bits:
         parts.append(f"[ToDS={to_ds} FromDS={from_ds} Protected={protected} Order={order}]")
 
     return " ".join(parts)
+
