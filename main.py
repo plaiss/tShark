@@ -121,4 +121,10 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
+    # Проверяем режим работы wlan0
+    mode = utils.get_wlan_mode(config.interface)
+    if mode:
+        print(f"Режим работы {config.interface}: {mode}")
+    else:
+        print(f"Не удалось определить режим работы {config.interface}.")
     main()

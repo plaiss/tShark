@@ -3,6 +3,9 @@ import re
 import sqlite3
 import time
 
+import config
+
+
 def handle_sighup(signum, frame):
     # Перезагрузка whitelist при получении сигнала SIGHUP
     global WHITELIST_PATH
@@ -270,9 +273,4 @@ def get_wlan_mode(interface='wlan0'):
     return None
 
 
-# Проверяем режим работы wlan0
-mode = get_wlan_mode('wlan1')
-if mode:
-    print(f"Режим работы wlan0: {mode}")
-else:
-    print("Не удалось определить режим работы wlan0.")
+

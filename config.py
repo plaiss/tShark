@@ -3,10 +3,10 @@ import threading
 import re
 import sqlite3
 
-
+interface = 'wlan1'
 # Конфигурация по умолчанию
 TSHARK_CMD = [
-    "tshark", "-i", "wlan1", "-l", "-T", "fields",
+    "tshark", "-i", interface, "-l", "-T", "fields",
     "-e", "frame.time_epoch",
     "-e", "wlan.sa",
     "-e", "wlan_radio.signal_dbm",
