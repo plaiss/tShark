@@ -8,13 +8,11 @@ def create_colored_label():
     text.pack()
 
     # Вставляем текст
-    text.insert(tk.END, "Это обычный текст и это")
+    text.insert(tk.END, "Это обычный текст и это  слово красным.")
 
     # Вставляем слово с выделением
-    start_index = '1.26'  # Начало слова "красным"
+    start_index = '1.16'  # Начало слова "красным"
     end_index = '1.32'  # Конец слова "красным"
-
-    text.insert(tk.END, " слово красным.")
 
     # Создаем тег для выделения
     text.tag_add("red", start_index, end_index)

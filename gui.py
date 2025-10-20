@@ -38,8 +38,10 @@ class App(tk.Tk):
         top_frame.pack(side=tk.TOP, fill=tk.X)
 
         # Status line
-        self.status_label = tk.Label(top_frame, bd=1, relief=tk.SUNKEN, anchor=tk.W)
+        # self.status_label = tk.Label(top_frame, bd=1, relief=tk.SUNKEN, anchor=tk.W)
+        self.status_label = tk.Text(self, bd=0, relief=tk.SUNKEN)
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
+
 
         # Title для TreeView
         title_label = tk.Label(top_frame, text="Devices Detected:", font=("Arial", 14, 'bold'))
@@ -139,7 +141,16 @@ class App(tk.Tk):
 
     def update_status(self, total_devices, devices_in_white_list):
         status_message = f"{config.interface}: {config.mode} mode | Found: {total_devices}, Whitelist: total {len(config._whitelist)} | Ignored {devices_in_white_list}"
-        self.status_label.config(text=status_message)
+        self.status_label.delete('1.0', tk.END)  # Удаляет текст с начала до конца
+        self.status_label.insert(tk.END,status_message)
+
+        if config.mode != ('Monitor'):
+            # Создаем тег для выделения
+            self.status_label.tag_add("red", '1.6', '1.20')
+            # Настраиваем цвет тега
+            self.status_label.tag_config("red", foreground="red")
+
+            self.status_label.config(state=tk.DISABLED)  # Делаем текст недоступным для редактирования
 
 
 class SecondWindow(tk.Toplevel):
