@@ -95,9 +95,17 @@ class App(tk.Tk):
         # Текстовая область
         self.text_area = scrolledtext.ScrolledText(lower_frame, wrap=tk.NONE)
         self.text_area.pack(fill=tk.BOTH, expand=True)
+    # Кнопка для открытия второго окна
+        open_second_window_btn = tk.Button(self, text="Открыть второе окно", command=self.open_second_window)
+        open_second_window_btn.pack(pady=20)
+
+    def open_second_window(self):
+        SecondWindow(self)
+
 
     def on_button_click(self, button_name):
         print(f"Button '{button_name}' clicked.")
+
         # Реализуйте логику обработки кнопок здесь
 
     def on_double_click(self, event):
@@ -133,3 +141,16 @@ class App(tk.Tk):
         status_message = f"{config.interface}: {config.mode} mode | Found: {total_devices}, Whitelist: total {len(config._whitelist)} | Ignored {devices_in_white_list}"
         self.status_label.config(text=status_message)
 
+
+class SecondWindow(tk.Toplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Второе окно")
+        self.geometry("300x200")
+
+        # Пример содержимого второго окна
+        label = tk.Label(self, text="Привет из второго окна!")
+        label.pack(pady=20)
+
+        close_btn = tk.Button(self, text="Закрыть", command=self.destroy)
+        close_btn.pack(pady=10)
