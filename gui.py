@@ -4,6 +4,7 @@ from tkinter.messagebox import showinfo
 
 import config
 import main
+import utils
 
 
 class App(tk.Tk):
@@ -55,16 +56,26 @@ class App(tk.Tk):
         self.state_label = tk.Label(right_top_frame, text="State: Ready", font=("Arial", 12))
         self.state_label.pack(pady=5)
 
+        # Кнопка для открытия второго окна
+        open_second_window_btn = tk.Button(self, text="Открыть второе окно", command=self.open_second_window)
+        open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
+        # open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
+
         # Кнопочная панель внизу лейбла
         button_panel = tk.Frame(right_top_frame)
         button_panel.pack()
 
-        buttons = ["Start Scanning", "Stop Scanning", "Reset Data",
-                   "Export to CSV", "Open White List", "Show Details", "Help"]
+        buttons = ["Start Scanning", "Monitor", "Reset Data",
+                   "Export to CSV", "Open White List", "Show Details", "2name"]
 
         for btn_name in buttons:
             btn = tk.Button(button_panel, text=btn_name, command=lambda b=btn_name: self.on_button_click(b))
-            btn.pack(side=tk.LEFT, padx=5, pady=5)
+            #btn.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Кнопка для открытия второго окна
+        open_second_window_btn = tk.Button(self, text="Открыть второе окно", command=self.open_second_window)
+        open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
+        # open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
 
         # Дерево с устройством (TreeView)
         tree_frame = tk.Frame(upper_frame)
@@ -97,25 +108,18 @@ class App(tk.Tk):
         # Текстовая область
         self.text_area = scrolledtext.ScrolledText(lower_frame, wrap=tk.NONE)
         self.text_area.pack(fill=tk.BOTH, expand=True)
-    # Кнопка для открытия второго окна
-        open_second_window_btn = tk.Button(self, text="Открыть второе окно", command=self.open_second_window)
-        open_second_window_btn.pack(pady=20)
+
 
     def open_second_window(self):
         SecondWindow(self)
 
 
-    def on_button_click(self, button_name):
-        print(f"Button '{button_name}' clicked.")
-
-        # Реализуйте логику обработки кнопок здесь
-
     def on_double_click(self, event):
         selected_item = self.tree.selection()[0]
         data = self.tree.item(selected_item)["values"]
         message = f"Selected Device:\nMAC: {data[0]}\nCount: {data[1]}\nLast Seen: {data[2]}"
-        showinfo(title="Device Info", message=message)
-
+        # showinfo(title="Device Info", message=message)
+        self.open_second_window()
     def sort_column(self, col):
         items = [(self.tree.set(child, col), child) for child in self.tree.get_children()]
         items.sort(reverse=False)
@@ -149,8 +153,29 @@ class App(tk.Tk):
             self.status_label.tag_add("red", '1.6', '1.20')
             # Настраиваем цвет тега
             self.status_label.tag_config("red", foreground="red")
-
             self.status_label.config(state=tk.DISABLED)  # Делаем текст недоступным для редактирования
+
+    def on_button_click(self, button_name):
+        self.open_second_window
+        if button_name=='Start Scanning':
+            print(f"Button '{button_name}' clicked.")
+        elif button_name=='Stop Scanning':
+            print(f"Button '{button_name}' clicked.")
+        elif button_name == 'Monitor':
+            utils.enable_monitor_mode(config.interface)
+            update_status(self, total_devices, devices_in_white_list)
+        elif button_name == 'Export to CSV"':
+            print(f"Button '{button_name}' clicked.")
+        elif button_name == 'Open White List':
+            print(f"Button '{button_name}' clicked.")
+        elif button_name == 'Show Details':
+            print(f"Button '{button_name}' clicked.")
+        elif button_name == '2name':
+            self.open_second_window()
+            print(f"Button '{button_name}' clicked.")
+
+
+        # Реализуйте логику обработки кнопок здесь
 
 
 class SecondWindow(tk.Toplevel):

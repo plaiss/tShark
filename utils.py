@@ -230,4 +230,23 @@ def get_wlan_mode(interface='wlan0'):
     return None
 
 
+import subprocess
+
+
+def enable_monitor_mode(interface):
+    try:
+        # Остановка сетевого сервиса на указанном интерфейсе
+        subprocess.run(['sudo', 'ifconfig', interface, 'down'], input='kali\n', encoding='utf-8', check=True, capture_output=True)
+
+        # Перевод интерфейса в режим мониторинга
+        subprocess.run(['sudo', 'iwconfig', interface, 'mode', 'monitor'])
+
+        # Поднятие интерфейса обратно
+        subprocess.run(['sudo', 'ifconfig', interface, 'up'])
+
+        print(f'Интерфейс {interface} успешно переведен в режим монитора.')
+
+    except Exception as e:
+        print(f'Ошибка перевода интерфейса в режим монитора: {e}')
+
 
