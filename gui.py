@@ -18,6 +18,7 @@ class App(tk.Tk):
         self.center_window()  # Используем общедоступный метод класса
 
         # Общие настройки окон и панелей
+        # container = tk.PanedWindow(self, orient=tk.HORIZONTAL)
         container = tk.PanedWindow(self, orient=tk.VERTICAL)
 
         # Объявляем основные фреймы верхнего уровня ДО установки позиции разделительной полосы
@@ -28,20 +29,15 @@ class App(tk.Tk):
 
         # Упаковка контейнера и установка позиции разделительной полосы
         container.pack(fill=tk.BOTH, expand=True)
-        container.sash_place(0, 0, 2)  # Две трети высоты окна отведены под верхнее окно
+        container.sash_place(0, 0, 2)  # Двухуровневое деление окна
 
         # Заголовок верхней панели
-        title_label = tk.Label(upper_frame, text="Обнаруженные адреса", font=("TkDefaultFont", 10, 'bold'))
+        title_label = tk.Label(upper_frame, text="Обнаруженные уникальные адреса", font=("TkDefaultFont", 10, 'bold'))
         title_label.pack(side=tk.TOP, anchor="w", pady=5)
 
         # Панель с кнопками и лейблами сверху
         top_frame = tk.Frame(upper_frame)
         top_frame.pack(side=tk.RIGHT, fill=tk.X)
-
-        # # Лейбл состояния  отключил, не знаю зачем это
-        # state_label = tk.Label(top_frame, text="State: Ready", font=("Arial", 12))
-        # state_label.pack(side=tk.RIGHT, anchor="ne", pady=5)
-        # self.state_label = state_label
 
         # Создание дерева с устройствами
         tree_frame = tk.Frame(upper_frame)
@@ -53,17 +49,17 @@ class App(tk.Tk):
         columns = ("#1", "#2", "#3", "#4")
         self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
 
-        self.tree.heading('#1', text='MAC Address', command=lambda: self.sort_column("#1"))
-        self.tree.heading('#2', text='Vendor', command=lambda: self.sort_column("#2"))
-        self.tree.heading('#3', text='RSSI', anchor='center', command=lambda: self.sort_column("#3"))
-        self.tree.heading('#4', text='Last Seen', command=lambda: self.sort_column("#4"))
-        # self.tree.heading('#5', text='Last Seen', command=lambda: self.sort_column("#5"))
+        # Центрирование содержимого столбцов
+        self.tree.heading('#1', text='MAC Address', anchor='center')
+        self.tree.heading('#2', text='Vendor', anchor='center')
+        self.tree.heading('#3', text='RSSI', anchor='center')
+        self.tree.heading('#4', text='Last Seen', anchor='center')
 
-        self.tree.column('#1', width=50)
-        self.tree.column('#2', width=90)
-        self.tree.column('#3', width=30)
-        self.tree.column('#4', width=100)
-        # self.tree.column('#5', width=50)
+        # Установка ширины столбцов
+        self.tree.column('#1', width=150, minwidth=90, stretch=False)
+        self.tree.column('#2', width=150, minwidth=90, stretch=False)
+        self.tree.column('#3', width=40, minwidth=10, stretch=False)
+        self.tree.column('#4', width=300, minwidth=90, stretch=False)
 
         self.tree.bind("<Double-1>", self.on_device_double_click)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -71,8 +67,9 @@ class App(tk.Tk):
         scroll_y.config(command=self.tree.yview)
 
         # Текстовая область для вывода журнала и уведомлений
-        self.text_area = scrolledtext.ScrolledText(lower_frame, wrap=tk.NONE)
-        self.text_area.pack(fill=tk.BOTH, expand=True)
+        self.text_area = scrolledtext.ScrolledText(lower_frame, wrap=tk.NONE, height=6)  # Высота в 6 строк
+        self.text_area.pack(fill=tk.BOTH)
+        # self.text_area.pack(fill=tk.BOTH, expand=True)
 
         # Методы добавления и очистки текста
         def add_text(self, text):
