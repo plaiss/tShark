@@ -19,27 +19,29 @@ class App(tk.Tk):
 
         # Общие настройки окон и панелей
         container = tk.PanedWindow(self, orient=tk.VERTICAL)
-        container.pack(fill=tk.BOTH, expand=True)
 
-        # Объявления основных фреймов верхнего уровня
+        # Объявляем основные фреймы верхнего уровня ДО установки позиции разделительной полосы
         upper_frame = tk.Frame(container)
         lower_frame = tk.Frame(container)
         container.add(upper_frame)
         container.add(lower_frame)
 
-        # ---- Верхний фрейм с деревом устройств ----
+        # Упаковка контейнера и установка позиции разделительной полосы
+        container.pack(fill=tk.BOTH, expand=True)
+        container.sash_place(0, 0, 2)  # Две трети высоты окна отведены под верхнее окно
+
         # Заголовок верхней панели
-        title_label = tk.Label(upper_frame, text="Devices Detected:", font=("Arial", 14, 'bold'))
+        title_label = tk.Label(upper_frame, text="Devices Detected:", font=("Arial", 10, 'bold'))
         title_label.pack(side=tk.TOP, anchor="w", pady=5)
 
         # Панель с кнопками и лейблами сверху
         top_frame = tk.Frame(upper_frame)
         top_frame.pack(side=tk.TOP, fill=tk.X)
 
-        # Справа верхний лейбл состояния
-        state_label = tk.Label(top_frame, text="State: Ready", font=("Arial", 12))
-        state_label.pack(side=tk.RIGHT, anchor="ne", pady=5)
-        self.state_label = state_label
+        # # Лейбл состояния  отключил, не знаю зачем это
+        # state_label = tk.Label(top_frame, text="State: Ready", font=("Arial", 12))
+        # state_label.pack(side=tk.RIGHT, anchor="ne", pady=5)
+        # self.state_label = state_label
 
         # Создание дерева с устройствами
         tree_frame = tk.Frame(upper_frame)
@@ -68,7 +70,6 @@ class App(tk.Tk):
 
         scroll_y.config(command=self.tree.yview)
 
-        # ---- Нижний фрейм с выводом текста ----
         # Текстовая область для вывода журнала и уведомлений
         self.text_area = scrolledtext.ScrolledText(lower_frame, wrap=tk.NONE)
         self.text_area.pack(fill=tk.BOTH, expand=True)
@@ -81,9 +82,8 @@ class App(tk.Tk):
         def clear_text(self):
             self.text_area.delete('1.0', tk.END)
 
-        # ---- Статусбар снизу окна ----
         # Полоса статуса с динамическим сообщением
-        self.status_label = tk.Text(self, bd=0, relief=tk.SUNKEN)
+        self.status_label = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, font=("TkDefaultFont", 10))  # Высота в одну строку
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
 
         # Обновляем строку статуса
@@ -97,7 +97,6 @@ class App(tk.Tk):
                 self.status_label.tag_config("red", foreground="red")
                 self.status_label.config(state=tk.DISABLED)
 
-        # ---- Меню с кнопками и диалоговыми окнами ----
         # Обработчик нажатия кнопок
         def on_button_click(self, button_name):
             if button_name == 'Start Scanning':
@@ -122,7 +121,7 @@ class App(tk.Tk):
                 self.open_second_window()
                 print(f"Button '{button_name}' clicked.")
 
-        # Фрейм с кнопочной панелью
+        # Кнопочная панель
         button_panel = tk.Frame(top_frame)
         button_panel.pack()
 
@@ -135,7 +134,7 @@ class App(tk.Tk):
             btn = tk.Button(button_panel, text=btn_name, command=lambda b=btn_name: on_button_click(b))
             btn.pack(side=tk.LEFT, padx=5, pady=5)
 
-        # Переместим сюда создание кнопки для открытия второго окна
+        # Кнопка для открытия второго окна
         open_second_window_btn = tk.Button(self, text="Открыть второе окно", command=self.open_second_window)
         open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
 
@@ -153,7 +152,6 @@ class App(tk.Tk):
         normalized_mac = ':'.join([mac_address[i:i + 2] for i in range(0, len(mac_address), 2)])
         item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac),
                     None)
-
         if item:
             self.tree.set(item, '#2', vendor)
             self.tree.set(item, '#3', rssi)
@@ -165,27 +163,16 @@ class App(tk.Tk):
     def sort_column(self, column_id):
         items = list(self.tree.get_children())
         try:
-            # Если сортируем числовой столбец (например, RSSI), используем преобразование чисел
+            # Сортируем числа или строки соответственно
             items.sort(key=lambda x: int(float(self.tree.set(x, column_id))) if column_id == '#3' else str.lower(
                 self.tree.set(x, column_id)))
         except ValueError:
-            # Если значения нельзя конвертировать в число, сортируем как строки
+            # Если значение не число, сортируем как строки
             items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)))
 
-        # Удаляем старые записи и добавляем отсортированные заново
+        # Применяем новую сортировку
         for i, item in enumerate(items):
             self.tree.move(item, "", i)
-
-    # Центрировка окна вынесена в отдельный общедоступный метод класса
-    def center_window(self):
-        """Метод центрирует главное окно"""
-        window_width = 1380
-        window_height = 768
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
-        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
     # Общедоступный метод для открытия нового окна
     def open_second_window(self, data=None):
@@ -208,6 +195,17 @@ class App(tk.Tk):
             self.status_label.tag_add("red", '1.6', '1.20')  # Выделяем красным название текущего режима
             self.status_label.tag_config("red", foreground="red")
             self.status_label.config(state=tk.DISABLED)
+
+    # Центрировка окна вынесена в отдельный общедоступный метод класса
+    def center_window(self):
+        """Метод центрирует главное окно"""
+        window_width = 1380
+        window_height = 768
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
 
 class SecondWindow(tk.Toplevel):
