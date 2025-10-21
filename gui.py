@@ -1,6 +1,8 @@
 import tkinter as tk
+from pickle import FALSE
 from tkinter import ttk, scrolledtext
 from tkinter.messagebox import showinfo
+from tkinter import simpledialog
 
 import config
 import main
@@ -39,10 +41,8 @@ class App(tk.Tk):
         top_frame.pack(side=tk.TOP, fill=tk.X)
 
         # Status line
-        # self.status_label = tk.Label(top_frame, bd=1, relief=tk.SUNKEN, anchor=tk.W)
         self.status_label = tk.Text(self, bd=0, relief=tk.SUNKEN)
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
-
 
         # Title для TreeView
         title_label = tk.Label(top_frame, text="Devices Detected:", font=("Arial", 14, 'bold'))
@@ -59,23 +59,17 @@ class App(tk.Tk):
         # Кнопка для открытия второго окна
         open_second_window_btn = tk.Button(self, text="Открыть второе окно", command=self.open_second_window)
         open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
-        # open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
 
         # Кнопочная панель внизу лейбла
         button_panel = tk.Frame(right_top_frame)
         button_panel.pack()
 
         buttons = ["Start Scanning", "Monitor", "Reset Data",
-                   "Export to CSV", "Open White List", "Show Details", "2name"]
+                  "Export to CSV", "Open White List", "Show Details", "2name"]
 
         for btn_name in buttons:
             btn = tk.Button(button_panel, text=btn_name, command=lambda b=btn_name: self.on_button_click(b))
-            #btn.pack(side=tk.LEFT, padx=5, pady=5)
-
-        # Кнопка для открытия второго окна
-        open_second_window_btn = tk.Button(self, text="Открыть второе окно", command=self.open_second_window)
-        open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
-        # open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
+            btn.pack(side=tk.LEFT, padx=5, pady=5)
 
         # Дерево с устройством (TreeView)
         tree_frame = tk.Frame(upper_frame)
@@ -109,27 +103,23 @@ class App(tk.Tk):
         self.text_area = scrolledtext.ScrolledText(lower_frame, wrap=tk.NONE)
         self.text_area.pack(fill=tk.BOTH, expand=True)
 
-
-    def open_second_window(self):
-        SecondWindow(self)
-
+    def open_second_window(self, data=None):
+        SecondWindow(self, data=data)
 
     def on_double_click(self, event):
-        selected_item = self.tree.selection()[0]
+        selected_item = self.tree.focus()
         data = self.tree.item(selected_item)["values"]
-        message = f"Selected Device:\nMAC: {data[0]}\nCount: {data[1]}\nLast Seen: {data[2]}"
-        # showinfo(title="Device Info", message=message)
-        self.open_second_window()
+        if data:
+            self.open_second_window(data=data)
+
     def sort_column(self, col):
-        items = [(self.tree.set(child, col), child) for child in self.tree.get_children()]
-        items.sort(reverse=False)
-        for index, (_, child_id) in enumerate(items):
-            self.tree.move(child_id, "", index)
+        sorted_items = sorted(self.tree.get_children(), key=lambda x: float(self.tree.set(x, col)) if col == '#2' else self.tree.set(x, col))
+        for idx, item in enumerate(sorted_items):
+            self.tree.move(item, '', idx)
 
     def update_tree(self, mac_address, count, last_seen):
-        normalized_mac = ':'.join([mac_address[i:i + 2] for i in range(0, len(mac_address), 2)])
-        item = next((item for item in self.tree.get_children() if
-                     self.tree.item(item)['values'][0] == normalized_mac), None)
+        normalized_mac = ':'.join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
+        item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
         if item:
             self.tree.set(item, '#2', count)
             self.tree.set(item, '#3', last_seen)
@@ -145,8 +135,8 @@ class App(tk.Tk):
 
     def update_status(self, total_devices, devices_in_white_list):
         status_message = f"{config.interface}: {config.mode} mode | Found: {total_devices}, Whitelist: total {len(config._whitelist)} | Ignored {devices_in_white_list}"
-        self.status_label.delete('1.0', tk.END)  # Удаляет текст с начала до конца
-        self.status_label.insert(tk.END,status_message)
+        self.status_label.delete('1.0', tk.END)
+        self.status_label.insert(tk.END, status_message)
 
         if config.mode != ('Monitor'):
             # Создаем тег для выделения
@@ -156,15 +146,26 @@ class App(tk.Tk):
             self.status_label.config(state=tk.DISABLED)  # Делаем текст недоступным для редактирования
 
     def on_button_click(self, button_name):
-        self.open_second_window
-        if button_name=='Start Scanning':
+        if button_name == 'Start Scanning':
             print(f"Button '{button_name}' clicked.")
-        elif button_name=='Stop Scanning':
+        elif button_name == 'Stop Scanning':
             print(f"Button '{button_name}' clicked.")
         elif button_name == 'Monitor':
-            utils.enable_monitor_mode(config.interface)
-            update_status(self, total_devices, devices_in_white_list)
-        elif button_name == 'Export to CSV"':
+            # Запускаем окно для ввода пароля
+            root = tk.Tk()
+            root.withdraw()  # Скрываем основное окно Tkinter
+
+            # Диалоговое окно для ввода пароля
+            password = simpledialog.askstring("Ввод пароля", "Введите пароль sudo:", show="*")
+
+            if password is not None and len(password.strip()) > 0:
+                success = utils.enable_monitor_mode(config.interface, password)
+            else:
+                print("Операция отменена.")
+
+            # utils.enable_monitor_mode(config.interface)
+            self.update_status(0, 0)
+        elif button_name == 'Export to CSV':
             print(f"Button '{button_name}' clicked.")
         elif button_name == 'Open White List':
             print(f"Button '{button_name}' clicked.")
@@ -175,18 +176,19 @@ class App(tk.Tk):
             print(f"Button '{button_name}' clicked.")
 
 
-        # Реализуйте логику обработки кнопок здесь
-
-
 class SecondWindow(tk.Toplevel):
-    def __init__(self, parent):
+    def __init__(self, parent, data=None):
         super().__init__(parent)
-        self.title("Второе окно")
-        self.geometry("300x200")
+        self.title("Детали устройства")
+        self.geometry("640x480")
 
-        # Пример содержимого второго окна
-        label = tk.Label(self, text="Привет из второго окна!")
-        label.pack(pady=20)
+        if data is not None:
+            details = f"MAC: {data[0]} | {utils.lookup_vendor_db(data[0], config.DB_PATH, False)}  Count: {data[1]} Last Seen: {data[2]}"
+            label = tk.Label(self, text=details)
+            label.pack(pady=20)
+        else:
+            label = tk.Label(self, text="Нет доступной информации")
+            label.pack(pady=20)
 
         close_btn = tk.Button(self, text="Закрыть", command=self.destroy)
         close_btn.pack(pady=10)

@@ -1,30 +1,36 @@
 import tkinter as tk
+from tkinter import simpledialog
+import subprocess
 
 
-def open_second_window():
-    # Получаем текст из первого окна
-    text_value = entry.get()
+# Функция перевода интерфейса в режим мониторинга
+def enable_monitor_mode(interface, password):
+    commands = [
+        ['sudo', '-S', 'rfkill', 'unblock', 'wifi' ],
+        ['sudo', '-S', 'ifconfig', interface, 'down'],
+        ['sudo', '-S', 'iwconfig', interface, 'mode', 'monitor'],
+        ['sudo', '-S', 'ifconfig', interface, 'up']
+    ]
 
-    # Создаем второе окно
-    second_window = tk.Toplevel(root)
-    second_window.title("Второе окно")
+    for cmd in commands:
+        try:
+            result = subprocess.run(cmd, input=f"{password}\n", encoding="utf-8", check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Ошибка выполнения команды: {cmd}. Сообщение: {e.stderr}")
+            return False
 
-    # Отображаем переданное значение во втором окне
-    label = tk.Label(second_window, text=text_value)
-    label.pack(pady=20)
+    print(f'Интерфейс {interface} успешно переведен в режим монитора.')
+    return True
 
 
-# Основное окно
+# Запускаем окно для ввода пароля
 root = tk.Tk()
-root.title("Первое окно")
+root.withdraw()  # Скрываем основное окно Tkinter
 
-# Поле ввода для передачи значения
-entry = tk.Entry(root)
-entry.pack(pady=20)
+# Диалоговое окно для ввода пароля
+password = simpledialog.askstring("Ввод пароля", "Введите пароль sudo:", show="*")
 
-# Кнопка для открытия второго окна
-button = tk.Button(root, text="Открыть второе окно", command=open_second_window)
-button.pack(pady=20)
-
-# Запуск основного цикла приложения
-root.mainloop()
+if password is not None and len(password.strip()) > 0:
+    success = enable_monitor_mode('wlan1', password)
+else:
+    print("Операция отменена.")
