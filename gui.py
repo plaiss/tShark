@@ -31,12 +31,12 @@ class App(tk.Tk):
         container.sash_place(0, 0, 2)  # Две трети высоты окна отведены под верхнее окно
 
         # Заголовок верхней панели
-        title_label = tk.Label(upper_frame, text="Devices Detected:", font=("Arial", 10, 'bold'))
+        title_label = tk.Label(upper_frame, text="Обнаруженные адреса", font=("TkDefaultFont", 10, 'bold'))
         title_label.pack(side=tk.TOP, anchor="w", pady=5)
 
         # Панель с кнопками и лейблами сверху
         top_frame = tk.Frame(upper_frame)
-        top_frame.pack(side=tk.TOP, fill=tk.X)
+        top_frame.pack(side=tk.RIGHT, fill=tk.X)
 
         # # Лейбл состояния  отключил, не знаю зачем это
         # state_label = tk.Label(top_frame, text="State: Ready", font=("Arial", 12))
@@ -50,20 +50,20 @@ class App(tk.Tk):
         scroll_y = tk.Scrollbar(tree_frame, orient=tk.VERTICAL)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
-        columns = ("#1", "#2", "#3", "#4", "#5")
+        columns = ("#1", "#2", "#3", "#4")
         self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
 
         self.tree.heading('#1', text='MAC Address', command=lambda: self.sort_column("#1"))
         self.tree.heading('#2', text='Vendor', command=lambda: self.sort_column("#2"))
-        self.tree.heading('#3', text='RSSI', command=lambda: self.sort_column("#3"))
+        self.tree.heading('#3', text='RSSI', anchor='center', command=lambda: self.sort_column("#3"))
         self.tree.heading('#4', text='Last Seen', command=lambda: self.sort_column("#4"))
-        self.tree.heading('#5', text='Last Seen', command=lambda: self.sort_column("#5"))
+        # self.tree.heading('#5', text='Last Seen', command=lambda: self.sort_column("#5"))
 
-        self.tree.column('#1', width=150)
-        self.tree.column('#2', width=50)
-        self.tree.column('#3', width=10)
-        self.tree.column('#4', width=50)
-        self.tree.column('#5', width=50)
+        self.tree.column('#1', width=50)
+        self.tree.column('#2', width=90)
+        self.tree.column('#3', width=30)
+        self.tree.column('#4', width=100)
+        # self.tree.column('#5', width=50)
 
         self.tree.bind("<Double-1>", self.on_device_double_click)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
