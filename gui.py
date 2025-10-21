@@ -1,5 +1,4 @@
 import tkinter as tk
-from pickle import FALSE
 from tkinter import ttk, scrolledtext
 from tkinter.messagebox import showinfo
 from tkinter import simpledialog
@@ -13,65 +12,36 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
 
+        # Инициализация окна
         self.title("WiFi Monitor")
         self.minsize(width=1380, height=768)
+        self.center_window()  # Используем общедоступный метод класса
 
-        # Центрируем окно
-        window_width = 1380
-        window_height = 768
-
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
-
-        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-        # Главная контейнерная сетка
+        # Общие настройки окон и панелей
         container = tk.PanedWindow(self, orient=tk.VERTICAL)
         container.pack(fill=tk.BOTH, expand=True)
 
-        # Верхняя секция с деревом
+        # Объявления основных фреймов верхнего уровня
         upper_frame = tk.Frame(container)
+        lower_frame = tk.Frame(container)
         container.add(upper_frame)
+        container.add(lower_frame)
 
-        # Верхняя панель с статусом и правой стороной
+        # ---- Верхний фрейм с деревом устройств ----
+        # Заголовок верхней панели
+        title_label = tk.Label(upper_frame, text="Devices Detected:", font=("Arial", 14, 'bold'))
+        title_label.pack(side=tk.TOP, anchor="w", pady=5)
+
+        # Панель с кнопками и лейблами сверху
         top_frame = tk.Frame(upper_frame)
         top_frame.pack(side=tk.TOP, fill=tk.X)
 
-        # Status line
-        self.status_label = tk.Text(self, bd=0, relief=tk.SUNKEN)
-        self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
+        # Справа верхний лейбл состояния
+        state_label = tk.Label(top_frame, text="State: Ready", font=("Arial", 12))
+        state_label.pack(side=tk.RIGHT, anchor="ne", pady=5)
+        self.state_label = state_label
 
-        # Title для TreeView
-        title_label = tk.Label(top_frame, text="Devices Detected:", font=("Arial", 14, 'bold'))
-        title_label.pack(side=tk.TOP, anchor="w", pady=5)
-
-        # Правый блок с лейблом и кнопками
-        right_top_frame = tk.Frame(top_frame)
-        right_top_frame.pack(side=tk.RIGHT, anchor="ne")
-
-        # Label состояния справа вверху
-        self.state_label = tk.Label(right_top_frame, text="State: Ready", font=("Arial", 12))
-        self.state_label.pack(pady=5)
-
-        # Кнопка для открытия второго окна
-        open_second_window_btn = tk.Button(self, text="Открыть второе окно", command=self.open_second_window)
-        open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
-
-        # Кнопочная панель внизу лейбла
-        button_panel = tk.Frame(right_top_frame)
-        button_panel.pack()
-
-        buttons = ["Start Scanning", "Monitor", "Reset Data",
-                  "Export to CSV", "Open White List", "Show Details", "2name"]
-
-        for btn_name in buttons:
-            btn = tk.Button(button_panel, text=btn_name, command=lambda b=btn_name: self.on_button_click(b))
-            btn.pack(side=tk.LEFT, padx=5, pady=5)
-
-        # Дерево с устройством (TreeView)
+        # Создание дерева с устройствами
         tree_frame = tk.Frame(upper_frame)
         tree_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -81,104 +51,163 @@ class App(tk.Tk):
         columns = ("#1", "#2", "#3", "#4", "#5")
         self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
 
-        self.tree.heading('#1', text='MAC Address')
-        self.tree.heading('#2', text='Vendor')
-        self.tree.heading('#3', text='RSSI')
-        self.tree.heading('#4', text='Last Seen')
-        self.tree.heading('#5', text='Last Seen')
+        self.tree.heading('#1', text='MAC Address', command=lambda: self.sort_column("#1"))
+        self.tree.heading('#2', text='Vendor', command=lambda: self.sort_column("#2"))
+        self.tree.heading('#3', text='RSSI', command=lambda: self.sort_column("#3"))
+        self.tree.heading('#4', text='Last Seen', command=lambda: self.sort_column("#4"))
+        self.tree.heading('#5', text='Last Seen', command=lambda: self.sort_column("#5"))
 
         self.tree.column('#1', width=150)
         self.tree.column('#2', width=50)
-        self.tree.column('#3', width=250)
+        self.tree.column('#3', width=10)
         self.tree.column('#4', width=50)
         self.tree.column('#5', width=50)
 
-        self.tree.bind("<Double-1>", self.on_double_click)
-
+        self.tree.bind("<Double-1>", self.on_device_double_click)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         scroll_y.config(command=self.tree.yview)
 
-        # Нижняя секция с текстом
-        lower_frame = tk.Frame(container)
-        container.add(lower_frame)
-
-        # Текстовая область
+        # ---- Нижний фрейм с выводом текста ----
+        # Текстовая область для вывода журнала и уведомлений
         self.text_area = scrolledtext.ScrolledText(lower_frame, wrap=tk.NONE)
         self.text_area.pack(fill=tk.BOTH, expand=True)
 
+        # Методы добавления и очистки текста
+        def add_text(self, text):
+            self.text_area.insert(tk.END, text + "\n")
+            self.text_area.yview_moveto(1.0)
+
+        def clear_text(self):
+            self.text_area.delete('1.0', tk.END)
+
+        # ---- Статусбар снизу окна ----
+        # Полоса статуса с динамическим сообщением
+        self.status_label = tk.Text(self, bd=0, relief=tk.SUNKEN)
+        self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
+
+        # Обновляем строку статуса
+        def update_status(self, total_devices, devices_in_white_list):
+            status_message = f"{config.interface}: {config.mode} mode | Found: {total_devices}, Whitelist: total {len(config._whitelist)} | Ignored {devices_in_white_list}"
+            self.status_label.delete('1.0', tk.END)
+            self.status_label.insert(tk.END, status_message)
+
+            if config.mode != 'Monitor':
+                self.status_label.tag_add("red", '1.6', '1.20')  # Выделяем красным название текущего режима
+                self.status_label.tag_config("red", foreground="red")
+                self.status_label.config(state=tk.DISABLED)
+
+        # ---- Меню с кнопками и диалоговыми окнами ----
+        # Обработчик нажатия кнопок
+        def on_button_click(self, button_name):
+            if button_name == 'Start Scanning':
+                pass
+            elif button_name == 'Stop Scanning':
+                pass
+            elif button_name == 'Monitor':
+                password = simpledialog.askstring("Ввод пароля", "Введите пароль sudo:", show="*")
+                if password is not None and len(password.strip()) > 0:
+                    success = utils.enable_monitor_mode(config.interface, password)
+                else:
+                    print("Операция отменена.")
+
+                update_status(0, 0)
+            elif button_name == 'Export to CSV':
+                pass
+            elif button_name == 'Open White List':
+                pass
+            elif button_name == 'Show Details':
+                pass
+            elif button_name == '2name':
+                self.open_second_window()
+                print(f"Button '{button_name}' clicked.")
+
+        # Фрейм с кнопочной панелью
+        button_panel = tk.Frame(top_frame)
+        button_panel.pack()
+
+        buttons = [
+            "Start Scanning", "Monitor", "Reset Data",
+            "Export to CSV", "Open White List", "Show Details", "2name"
+        ]
+
+        for btn_name in buttons:
+            btn = tk.Button(button_panel, text=btn_name, command=lambda b=btn_name: on_button_click(b))
+            btn.pack(side=tk.LEFT, padx=5, pady=5)
+
+        # Переместим сюда создание кнопки для открытия второго окна
+        open_second_window_btn = tk.Button(self, text="Открыть второе окно", command=self.open_second_window)
+        open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
+
+    # Общедоступный метод для добавления текста
+    def add_text(self, text):
+        self.text_area.insert(tk.END, text + "\n")
+        self.text_area.yview_moveto(1.0)
+
+    # Общедоступный метод для очистки текста
+    def clear_text(self):
+        self.text_area.delete('1.0', tk.END)
+
+    # Общедоступный метод для обновления дерева
+    def update_tree(self, mac_address, vendor, rssi, last_seen):
+        normalized_mac = ':'.join([mac_address[i:i + 2] for i in range(0, len(mac_address), 2)])
+        item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac),
+                    None)
+
+        if item:
+            self.tree.set(item, '#2', vendor)
+            self.tree.set(item, '#3', rssi)
+            self.tree.set(item, '#4', last_seen)
+        else:
+            self.tree.insert("", tk.END, values=(normalized_mac, vendor, rssi, last_seen))
+
+    # Общедоступный метод сортировки столбцов
+    def sort_column(self, column_id):
+        items = list(self.tree.get_children())
+        try:
+            # Если сортируем числовой столбец (например, RSSI), используем преобразование чисел
+            items.sort(key=lambda x: int(float(self.tree.set(x, column_id))) if column_id == '#3' else str.lower(
+                self.tree.set(x, column_id)))
+        except ValueError:
+            # Если значения нельзя конвертировать в число, сортируем как строки
+            items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)))
+
+        # Удаляем старые записи и добавляем отсортированные заново
+        for i, item in enumerate(items):
+            self.tree.move(item, "", i)
+
+    # Центрировка окна вынесена в отдельный общедоступный метод класса
+    def center_window(self):
+        """Метод центрирует главное окно"""
+        window_width = 1380
+        window_height = 768
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+    # Общедоступный метод для открытия нового окна
     def open_second_window(self, data=None):
         SecondWindow(self, data=data)
 
-    def on_double_click(self, event):
+    # Общедоступный метод обработки двойного щелчка мыши
+    def on_device_double_click(self, event):
         selected_item = self.tree.focus()
         data = self.tree.item(selected_item)["values"]
         if data:
             self.open_second_window(data=data)
 
-    def sort_column(self, col):
-        sorted_items = sorted(self.tree.get_children(), key=lambda x: float(self.tree.set(x, col)) if col == '#2' else self.tree.set(x, col))
-        for idx, item in enumerate(sorted_items):
-            self.tree.move(item, '', idx)
-
-    def update_tree(self, mac_address, vendor, rssi, last_seen):
-        normalized_mac = ':'.join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
-        item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
-        if item:
-            self.tree.set(item, '#2', vendor)
-            self.tree.set(item, '#2', rssi)
-            self.tree.set(item, '#3', last_seen)
-        else:
-            self.tree.insert("", tk.END, values=(normalized_mac, vendor, rssi, last_seen))
-
-    def add_text(self, text):
-        self.text_area.insert(tk.END, text + "\n")
-        self.text_area.yview_moveto(1.0)
-
-    def clear_text(self):
-        self.text_area.delete('1.0', tk.END)
-
+    # Общедоступный метод обновления статуса
     def update_status(self, total_devices, devices_in_white_list):
         status_message = f"{config.interface}: {config.mode} mode | Found: {total_devices}, Whitelist: total {len(config._whitelist)} | Ignored {devices_in_white_list}"
         self.status_label.delete('1.0', tk.END)
         self.status_label.insert(tk.END, status_message)
 
-        if config.mode != ('Monitor'):
-            # Создаем тег для выделения
-            self.status_label.tag_add("red", '1.6', '1.20')
-            # Настраиваем цвет тега
+        if config.mode != 'Monitor':
+            self.status_label.tag_add("red", '1.6', '1.20')  # Выделяем красным название текущего режима
             self.status_label.tag_config("red", foreground="red")
-            self.status_label.config(state=tk.DISABLED)  # Делаем текст недоступным для редактирования
-
-    def on_button_click(self, button_name):
-        if button_name == 'Start Scanning':
-            print(f"Button '{button_name}' clicked.")
-        elif button_name == 'Stop Scanning':
-            print(f"Button '{button_name}' clicked.")
-        elif button_name == 'Monitor':
-            # Запускаем окно для ввода пароля
-            root = tk.Tk()
-            root.withdraw()  # Скрываем основное окно Tkinter
-
-            # Диалоговое окно для ввода пароля
-            password = simpledialog.askstring("Ввод пароля", "Введите пароль sudo:", show="*")
-
-            if password is not None and len(password.strip()) > 0:
-                success = utils.enable_monitor_mode(config.interface, password)
-            else:
-                print("Операция отменена.")
-
-            # utils.enable_monitor_mode(config.interface)
-            self.update_status(0, 0)
-        elif button_name == 'Export to CSV':
-            print(f"Button '{button_name}' clicked.")
-        elif button_name == 'Open White List':
-            print(f"Button '{button_name}' clicked.")
-        elif button_name == 'Show Details':
-            print(f"Button '{button_name}' clicked.")
-        elif button_name == '2name':
-            self.open_second_window()
-            print(f"Button '{button_name}' clicked.")
+            self.status_label.config(state=tk.DISABLED)
 
 
 class SecondWindow(tk.Toplevel):
