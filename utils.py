@@ -1,10 +1,11 @@
-# utils.py
 import re
 import sqlite3
 import time
 import subprocess
+import subprocess
+import getpass
 
-# import config
+import config
 
 
 def handle_sighup(signum, frame):
@@ -24,7 +25,7 @@ def normalize_mac(mac):
     s = re.sub(r'[^0-9A-Fa-f]', '', mac).upper()
     return s if len(s) >= 6 else None
 
-def lookup_vendor_db(mac, db_path, return_full=True):
+def lookup_vendor_db(mac, db_path=config.DB_PATH, return_full=True):
     oui = normalize_mac_OUI(mac)
     if not oui:
         return None
@@ -234,30 +235,6 @@ def get_wlan_mode(interface='wlan0'):
     return None
 
 
-import subprocess
-import getpass
-
-
-# def enable_monitor_mode(interface):
-#     password = getpass.getpass("Введите пароль sudo: ")
-#
-#     commands = [
-#         ['sudo', '-S', 'ifconfig', interface, 'down'],
-#         ['sudo', '-S', 'iwconfig', interface, 'mode', 'monitor'],
-#         ['sudo', '-S', 'ifconfig', interface, 'up']
-#     ]
-#
-#     for cmd in commands:
-#         try:
-#             result = subprocess.run(cmd, input=f"{password}\n", encoding="utf-8", check=True, capture_output=True)
-#         except subprocess.CalledProcessError as e:
-#             print(f"Ошибка выполнения команды: {cmd}. Сообщение: {e.stderr}")
-#             return False
-#
-#     print(f'Интерфейс {interface} успешно переведен в режим монитора.')
-#     return True
-#
-#
 
 
 # Функция перевода интерфейса в режим мониторинга

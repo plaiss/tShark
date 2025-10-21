@@ -78,16 +78,20 @@ class App(tk.Tk):
         scroll_y = tk.Scrollbar(tree_frame, orient=tk.VERTICAL)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
-        columns = ("#1", "#2", "#3")
+        columns = ("#1", "#2", "#3", "#4", "#5")
         self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
 
         self.tree.heading('#1', text='MAC Address')
-        self.tree.heading('#2', text='Count')
-        self.tree.heading('#3', text='Last Seen')
+        self.tree.heading('#2', text='Vendor')
+        self.tree.heading('#3', text='RSSI')
+        self.tree.heading('#4', text='Last Seen')
+        self.tree.heading('#5', text='Last Seen')
 
         self.tree.column('#1', width=150)
         self.tree.column('#2', width=50)
         self.tree.column('#3', width=250)
+        self.tree.column('#4', width=50)
+        self.tree.column('#5', width=50)
 
         self.tree.bind("<Double-1>", self.on_double_click)
 
@@ -117,14 +121,15 @@ class App(tk.Tk):
         for idx, item in enumerate(sorted_items):
             self.tree.move(item, '', idx)
 
-    def update_tree(self, mac_address, count, last_seen):
+    def update_tree(self, mac_address, vendor, rssi, last_seen):
         normalized_mac = ':'.join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
         item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
         if item:
-            self.tree.set(item, '#2', count)
+            self.tree.set(item, '#2', vendor)
+            self.tree.set(item, '#2', rssi)
             self.tree.set(item, '#3', last_seen)
         else:
-            self.tree.insert("", tk.END, values=(normalized_mac, count, last_seen))
+            self.tree.insert("", tk.END, values=(normalized_mac, vendor, rssi, last_seen))
 
     def add_text(self, text):
         self.text_area.insert(tk.END, text + "\n")

@@ -2,7 +2,7 @@
 import threading
 import time
 import signal
-import sys
+# import sys
 import subprocess
 
 import config
@@ -62,7 +62,7 @@ def tshark_worker(root, cmd, ttl):
                 config._seen_count[mac_n] = config._seen_count.get(mac_n, 0) + 1
 
             pretty_time = utils.parse_time_epoch(raw_time)
-            mac = utils.lookup_vendor_db(mac, config.DB_PATH)
+            mac = utils.lookup_vendor_db(mac)
             if len(mac) <= 50:
                 dop = 50 - len(mac)
                 mac = mac + ' ' * dop
@@ -71,7 +71,7 @@ def tshark_worker(root, cmd, ttl):
 
             # Обновляем таблицу TreeView
             # root.update_tree(mac_n, mac_n, pretty_time)
-            root.update_tree(mac_n, config._seen_count[mac_n], pretty_time)
+            root.update_tree(mac_n, utils.lookup_vendor_db(mac_n,config.DB_PATH,False),  rssi, pretty_time)
 
             # Отправляем вывод в окно приложения
             root.add_text(f"{mac} | {rssi} dBi | {utils.decode_wlan_type_subtype(subtype)} | {pretty_time}")
