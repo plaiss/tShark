@@ -1,15 +1,11 @@
-# main.py
 import threading
 import time
 import signal
-# import sys
 import subprocess
 
 import config
 import gui
-# import worker
 import utils
-
 
 def tshark_worker(root, cmd, ttl):
     try:
@@ -21,7 +17,6 @@ def tshark_worker(root, cmd, ttl):
 
     def stderr_reader():
         for line in proc.stderr:
-            # root.add_text(f"[tshark stderr] {line.rstrip()}")
             root.add_text(f"{line.rstrip()}")
 
     threading.Thread(target=stderr_reader, daemon=True).start()
@@ -69,11 +64,7 @@ def tshark_worker(root, cmd, ttl):
             else:
                 mac = mac[:50]
 
-            # Обновляем таблицу TreeView
-            # root.update_tree(mac_n, mac_n, pretty_time)
-            root.update_tree(mac_n, utils.lookup_vendor_db(mac_n,config.DB_PATH,False),  rssi, pretty_time)
-
-            # Отправляем вывод в окно приложения
+            root.update_tree(mac_n, utils.lookup_vendor_db(mac_n, config.DB_PATH, False), rssi, pretty_time)
             root.add_text(f"{mac} | {rssi} dBi | {utils.decode_wlan_type_subtype(subtype)} | {pretty_time}")
     finally:
         try:
@@ -121,6 +112,5 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
-    # Проверяем режим работы wlan0
     config.mode = utils.get_wlan_mode(config.interface)
     main()
