@@ -3,6 +3,7 @@ import threading
 import re
 import sqlite3
 
+
 interface = 'wlan1'
 mode = ''
 # Конфигурация по умолчанию
