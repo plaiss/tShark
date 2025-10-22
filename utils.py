@@ -6,7 +6,7 @@ import subprocess
 import getpass
 
 import config
-
+import main
 
 def handle_sighup(signum, frame):
     # Перезагрузка whitelist при получении сигнала SIGHUP
@@ -254,4 +254,5 @@ def enable_monitor_mode(interface, password):
             return False
 
     print(f'Интерфейс {interface} успешно переведен в режим монитора.')
+    main.tshark_thread.restart()
     return True

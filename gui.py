@@ -12,141 +12,153 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
 
-        # Инициализация окна
+        # Настройка главного окна приложения
         self.title("WiFi Monitor")
         self.minsize(width=1380, height=768)
-        self.center_window()  # Используем общедоступный метод класса
+        self.center_window()  # Центруем окно
 
-        # Общие настройки окон и панелей
-        # container = tk.PanedWindow(self, orient=tk.HORIZONTAL)
-        container = tk.PanedWindow(self, orient=tk.VERTICAL)
+        # Главный фрейм для всего интерфейса
+        main_frame = tk.Frame(self)
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Объявляем основные фреймы верхнего уровня ДО установки позиции разделительной полосы
+        # Панель для разделяемых областей верхнего и нижнего уровня
+        container = tk.PanedWindow(main_frame, orient=tk.VERTICAL)
+        container.pack(fill=tk.BOTH, expand=True)
+
+        # Верхняя секция: Дерево устройств слева
         upper_frame = tk.Frame(container)
-        lower_frame = tk.Frame(container)
         container.add(upper_frame)
+
+        # Нижняя секция: Текстовая область для сообщений справа
+        lower_frame = tk.Frame(container)
         container.add(lower_frame)
 
-        # Упаковка контейнера и установка позиции разделительной полосы
-        container.pack(fill=tk.BOTH, expand=True)
-        container.sash_place(0, 0, 2)  # Двухуровневое деление окна
+        # Фрейм для отображения деревьев устройств
+        tree_frame = tk.Frame(upper_frame)
+        tree_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Заголовок верхней панели
-        title_label = tk.Label(upper_frame, text="Обнаруженные уникальные адреса", font=("TkDefaultFont", 10, 'bold'))
+        # Надпись над деревом устройств
+        title_label = tk.Label(tree_frame, text="Обнаруженные уникальные MAC-адреса",
+                               font=("TkDefaultFont", 10, 'bold'))
         title_label.pack(side=tk.TOP, anchor="w", pady=5)
 
-        # Панель с кнопками и лейблами сверху
-        top_frame = tk.Frame(upper_frame)
-        top_frame.pack(side=tk.RIGHT, fill=tk.X)
-
-        # Создание дерева с устройствами
-        tree_frame = tk.Frame(upper_frame)
-        tree_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
+        # Прокрутка вертикальная для дерева
         scroll_y = tk.Scrollbar(tree_frame, orient=tk.VERTICAL)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
-        columns = ("#1", "#2", "#3", "#4")
+        # Структура таблицы TreeView
+        columns = ("#1", "#2", "#3",
+                   "#4")  # Макет столбцов (#1-MAC адрес, #2-Производитель, #3-RSSI, #4-Время последнего обнаружения)
         self.tree = ttk.Treeview(tree_frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
 
-        # Центрирование содержимого столбцов
-        self.tree.heading('#1', text='MAC Address', anchor='center')
-        self.tree.heading('#2', text='Vendor', anchor='center')
-        self.tree.heading('#3', text='RSSI', anchor='center')
-        self.tree.heading('#4', text='Last Seen', anchor='center')
+        # Подписи заголовков столбцов
+        self.tree.heading('#1', text='MAC Address', anchor='center', command=lambda: self.sort_column("#1"))
+        self.tree.heading('#2', text='Производитель', anchor='center', command=lambda: self.sort_column("#2"))
+        self.tree.heading('#3', text='RSSI', anchor='center', command=lambda: self.sort_column("#3"))
+        self.tree.heading('#4', text='Последнее обнаружение', anchor='center', command=lambda: self.sort_column("#4"))
 
-        # Установка ширины столбцов
+        # Ширина столбцов
         self.tree.column('#1', width=150, minwidth=90, stretch=False)
         self.tree.column('#2', width=150, minwidth=90, stretch=False)
         self.tree.column('#3', width=40, minwidth=10, stretch=False)
         self.tree.column('#4', width=300, minwidth=90, stretch=False)
 
+        # Связывание события двойного клика с обработчиком
         self.tree.bind("<Double-1>", self.on_device_double_click)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
+        # Коннект прокрутки с деревом
         scroll_y.config(command=self.tree.yview)
 
-        # Текстовая область для вывода журнала и уведомлений
+        # Боковая панель с кнопками управления
+        button_frame = tk.Frame(upper_frame)
+        button_frame.pack(side=tk.LEFT, fill=tk.Y)
+
+        # Создаем панель с кнопками
+        button_panel = tk.Frame(button_frame)
+        button_panel.pack(fill=tk.Y)
+
+        # Список кнопок
+        buttons = ["Запустить сканирование", "Мониторинг", "Сброс данных", "Экспорт в CSV", "Открыть белый список",
+                   "Показать детали", "2 Имя"]
+
+        # Размещаем кнопки на панели
+        for btn_name in buttons:
+            btn = tk.Button(button_panel, text=btn_name, command=lambda b=btn_name: self.on_button_click(b))
+            btn.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+
+        # Текстовая область внизу для журналов и сообщений
         self.text_area = scrolledtext.ScrolledText(lower_frame, wrap=tk.NONE, height=6)  # Высота в 6 строк
-        self.text_area.pack(fill=tk.BOTH)
-        # self.text_area.pack(fill=tk.BOTH, expand=True)
+        self.text_area.pack(fill=tk.BOTH, expand=True)
 
-        # Методы добавления и очистки текста
-        def add_text(self, text):
-            self.text_area.insert(tk.END, text + "\n")
-            self.text_area.yview_moveto(1.0)
-
-        def clear_text(self):
-            self.text_area.delete('1.0', tk.END)
-
-        # Полоса статуса с динамическим сообщением
-        self.status_label = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, font=("TkDefaultFont", 10))  # Высота в одну строку
+        # Полоса статуса снизу окна
+        self.status_label = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1,
+                                    font=("TkDefaultFont", 10))  # Высота в одну строку
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
 
-        # Обновляем строку статуса
-        def update_status(self, total_devices, devices_in_white_list):
-            status_message = f"{config.interface}: {config.mode} mode | Found: {total_devices}, Whitelist: total {len(config._whitelist)} | Ignored {devices_in_white_list}"
-            self.status_label.delete('1.0', tk.END)
-            self.status_label.insert(tk.END, status_message)
+    # Централизация окна
+    def center_window(self):
+        w_width = 1380
+        w_height = 768
+        s_width = self.winfo_screenwidth()
+        s_height = self.winfo_screenheight()
+        x = (s_width - w_width) // 2
+        y = (s_height - w_height) // 2
+        self.geometry(f"{w_width}x{w_height}+{x}+{y}")
 
-            if config.mode != 'Monitor':
-                self.status_label.tag_add("red", '1.6', '1.20')  # Выделяем красным название текущего режима
-                self.status_label.tag_config("red", foreground="red")
-                self.status_label.config(state=tk.DISABLED)
+    # Обработка события двойного клика мышью по устройству
+    def on_device_double_click(self, event):
+        selected_item = self.tree.focus()
+        data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
+        if data:
+            self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
 
-        # Обработчик нажатия кнопок
-        def on_button_click(self, button_name):
-            if button_name == 'Start Scanning':
-                pass
-            elif button_name == 'Stop Scanning':
-                pass
-            elif button_name == 'Monitor':
-                password = simpledialog.askstring("Ввод пароля", "Введите пароль sudo:", show="*")
-                if password is not None and len(password.strip()) > 0:
-                    success = utils.enable_monitor_mode(config.interface, password)
-                else:
-                    print("Операция отменена.")
+    # Реакция на нажатие кнопок
+    def on_button_click(self, button_name):
+        if button_name == 'Запустить сканирование':
+            # Логика запуска сканирования
+            main.tshark_thread.start()
 
-                update_status(0, 0)
-            elif button_name == 'Export to CSV':
-                pass
-            elif button_name == 'Open White List':
-                pass
-            elif button_name == 'Show Details':
-                pass
-            elif button_name == '2name':
-                self.open_second_window()
-                print(f"Button '{button_name}' clicked.")
+            pass
+        elif button_name == 'Мониторинг':
+            # Запрашиваем пароль sudo
+            password = simpledialog.askstring("Пароль sudo", "Введите пароль sudo:", show="*")
+            if password is not None and len(password.strip()) > 0:
+                success = utils.enable_monitor_mode(config.interface, password)
+            else:
+                print("Операция отменена.")
 
-        # Кнопочная панель
-        button_panel = tk.Frame(top_frame)
-        button_panel.pack()
+            self.update_status(0, 0)  # Обновляем статус после изменения режима
+        elif button_name == 'Сброс данных':
+            # Очистка всех данных
+            pass
+        elif button_name == 'Экспорт в CSV':
+            # Экспорт в файл CSV
+            pass
+        elif button_name == 'Открыть белый список':
+            # Открытие белого списка
+            pass
+        elif button_name == 'Показать детали':
+            # Показ деталей устройства
+            pass
+        elif button_name == '2 Имя':
+            # Дополнительная логика
+            self.open_second_window()
+            print(f"Кнопка '{button_name}' нажата.")
 
-        buttons = [
-            "Start Scanning", "Monitor", "Reset Data",
-            "Export to CSV", "Open White List", "Show Details", "2name"
-        ]
-
-        for btn_name in buttons:
-            btn = tk.Button(button_panel, text=btn_name, command=lambda b=btn_name: on_button_click(b))
-            btn.pack(side=tk.LEFT, padx=5, pady=5)
-
-        # Кнопка для открытия второго окна
-        open_second_window_btn = tk.Button(self, text="Открыть второе окно", command=self.open_second_window)
-        open_second_window_btn.pack(side=tk.LEFT, padx=5, pady=5)
-
-    # Общедоступный метод для добавления текста
+    # Добавляет текст в журнал
     def add_text(self, text):
         self.text_area.insert(tk.END, text + "\n")
         self.text_area.yview_moveto(1.0)
 
-    # Общедоступный метод для очистки текста
+    # Очищает текстовую область
     def clear_text(self):
         self.text_area.delete('1.0', tk.END)
 
-    # Общедоступный метод для обновления дерева
+    # Обновляет таблицу
     def update_tree(self, mac_address, vendor, rssi, last_seen):
-        normalized_mac = ':'.join([mac_address[i:i + 2] for i in range(0, len(mac_address), 2)])
+        normalized_mac = ":".join(
+            [mac_address[i:i + 2] for i in range(0, len(mac_address), 2)])  # Нормализуем MAC адрес
         item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac),
                     None)
         if item:
@@ -154,65 +166,47 @@ class App(tk.Tk):
             self.tree.set(item, '#3', rssi)
             self.tree.set(item, '#4', last_seen)
         else:
-            self.tree.insert("", tk.END, values=(normalized_mac, vendor, rssi, last_seen))
+            self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
 
-    # Общедоступный метод сортировки столбцов
+    # Сортировка значений в таблице
     def sort_column(self, column_id):
         items = list(self.tree.get_children())
         try:
-            # Сортируем числа или строки соответственно
-            items.sort(key=lambda x: int(float(self.tree.set(x, column_id))) if column_id == '#3' else str.lower(
+            # Попытка числовой сортировки для RSSI
+            items.sort(key=lambda x: float(self.tree.set(x, column_id)) if column_id == '#3' else str.lower(
                 self.tree.set(x, column_id)))
         except ValueError:
-            # Если значение не число, сортируем как строки
+            # В противном случае используем алфавитную сортировку
             items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)))
 
-        # Применяем новую сортировку
-        for i, item in enumerate(items):
-            self.tree.move(item, "", i)
+        # Перестановка элементов согласно сортировке
+        for idx, item in enumerate(items):
+            self.tree.move(item, '', idx)
 
-    # Общедоступный метод для открытия нового окна
+    # Открывает второе окно с информацией о устройстве
     def open_second_window(self, data=None):
         SecondWindow(self, data=data)
 
-    # Общедоступный метод обработки двойного щелчка мыши
-    def on_device_double_click(self, event):
-        selected_item = self.tree.focus()
-        data = self.tree.item(selected_item)["values"]
-        if data:
-            self.open_second_window(data=data)
-
-    # Общедоступный метод обновления статуса
-    def update_status(self, total_devices, devices_in_white_list):
-        status_message = f"{config.interface}: {config.mode} mode | Found: {total_devices}, Whitelist: total {len(config._whitelist)} | Ignored {devices_in_white_list}"
+    # Обновляет полосу статуса
+    def update_status(self, total_devices, ignored_devices):
+        status_message = f"{config.interface}: {config.mode} режим | Найдено: {total_devices}, Белый список: Всего {len(config._whitelist)}, Игнорировано: {ignored_devices}"
         self.status_label.delete('1.0', tk.END)
         self.status_label.insert(tk.END, status_message)
 
-        if config.mode != 'Monitor':
-            self.status_label.tag_add("red", '1.6', '1.20')  # Выделяем красным название текущего режима
+        if config.mode != 'Monitor':  # Выделение красного цвета текущего режима
+            self.status_label.tag_add("red", '1.6', '1.20')
             self.status_label.tag_config("red", foreground="red")
             self.status_label.config(state=tk.DISABLED)
-
-    # Центрировка окна вынесена в отдельный общедоступный метод класса
-    def center_window(self):
-        """Метод центрирует главное окно"""
-        window_width = 1380
-        window_height = 768
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
-        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
 
 class SecondWindow(tk.Toplevel):
     def __init__(self, parent, data=None):
         super().__init__(parent)
-        self.title("Детали устройства")
+        self.title("Подробности устройства")
         self.geometry("640x480")
 
         if data is not None:
-            details = f"MAC: {data[0]} | {utils.lookup_vendor_db(data[0], config.DB_PATH, False)}  Count: {data[1]} Last Seen: {data[2]}"
+            details = f"MAC: {data[0]} | Производитель: {utils.lookup_vendor_db(data[0], config.DB_PATH, False)}\nКол-во сигналов: {data[1]}\nПоследний раз обнаружен: {data[2]}"
             label = tk.Label(self, text=details)
             label.pack(pady=20)
         else:
