@@ -113,7 +113,7 @@ class App(tk.Tk):
 
     # Функция для обновления полосы статуса
     def update_status(self, total_devices, ignored_devices):
-        status_message = f"{config.interface}: {config.mode} режим | Найдено: {total_devices}, Белый список: Всего {len(config._whitelist)}, Игнорировано: {ignored_devices}"
+        status_message = f"{config.interface}: {config.mode} mode.  | Найдено: {total_devices}, Белый список: Всего {len(config._whitelist)}, Игнорировано: {ignored_devices}"
         self.status_label.delete('1.0', tk.END)
         self.status_label.insert(tk.END, status_message)
 
@@ -126,7 +126,7 @@ class App(tk.Tk):
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
         button_names_and_commands = {
-            "Запустить сканирование": {"command": self.toggle_scanning},
+            "Стоп": {"command": self.toggle_scanning, "relief": "sunken"},
             "Мониторинг": {"command": self.switch_to_monitor_mode},
             "Сброс данных": {"command": self.reset_data},
             "Экспорт в CSV": {"command": self.export_csv},
@@ -137,7 +137,7 @@ class App(tk.Tk):
 
         # Создание кнопок и их размещение на панели
         for button_name, props in button_names_and_commands.items():
-            btn = tk.Button(toolbar, text=button_name, command=props["command"], state=tk.NORMAL)
+            btn = tk.Button(toolbar, text=button_name, command=props["command"], state=tk.NORMAL, relief=props["relief"])
             btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
             self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
 
@@ -149,7 +149,7 @@ class App(tk.Tk):
         :param new_state: Новое состояние (tk.ACTIVE, tk.DISABLED, tk.NORMAL)
         """
         if button_name in self.buttons:
-            self.buttons[button_name].config(state=new_state)
+            self.buttons[button_name].config(state=new_state, relief='sunken', text="sunken")
 
     # Функционал для каждой кнопки
     def toggle_scanning(self):
@@ -160,13 +160,16 @@ class App(tk.Tk):
             # Остановка сканирования
             config._stop.set()  # Установка сигнала остановки
             _is_running = False
-            self.set_button_state('Запустить сканирование', tk.NORMAL)
+            # self.set_button_state('Стоп', tk.NORMAL)
+            self.buttons['Стоп'].config(relief='raised', text="Старт")
         else:
             # Начало сканирования
             tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
             tshark_thread.start()
             _is_running = True
-            self.set_button_state('Запустить сканирование', tk.DISABLED)
+            # self.set_button_state('Стоп', tk.DISABLED)
+
+            self.buttons['Стоп'].config(relief='sunken', text="Стоп")
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим"""
