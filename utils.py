@@ -254,5 +254,5 @@ def enable_monitor_mode(interface, password):
             return False
 
     print(f'Интерфейс {interface} успешно переведен в режим монитора.')
-    main.tshark_thread.restart()
+    # main.tshark_thread.restart()
     return True

@@ -126,7 +126,7 @@ class App(tk.Tk):
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
         button_names_and_commands = {
-            "Стоп": {"command": self.toggle_scanning, "relief": "sunken"},
+            "Стоп": {"command": self.toggle_scanning},
             "Мониторинг": {"command": self.switch_to_monitor_mode},
             "Сброс данных": {"command": self.reset_data},
             "Экспорт в CSV": {"command": self.export_csv},
@@ -135,9 +135,17 @@ class App(tk.Tk):
             "Настройки": {"command": self.show_settings}
         }
 
+        # Параметры оформления кнопок (если нужно различное оформление, добавьте дополнительные ключи в словарь)
+        default_style = dict(relief=tk.RAISED, borderwidth=2, activebackground='#ccc')
+
         # Создание кнопок и их размещение на панели
         for button_name, props in button_names_and_commands.items():
-            btn = tk.Button(toolbar, text=button_name, command=props["command"], state=tk.NORMAL, relief=props["relief"])
+            btn_props = default_style.copy()  # Копируем общий стиль
+            if button_name == 'Стоп':
+                btn_props.update(relief='sunken', bg='#F00', activebackground='#F00', command=self.toggle_scanning)  # Добавляем специфичные параметры (например, command)
+            # btn_props.update(props)  # Добавляем специфичные параметры (например, command)
+
+            btn = tk.Button(toolbar, text=button_name, **btn_props)
             btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
             self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
 
@@ -156,12 +164,13 @@ class App(tk.Tk):
         """Начало/остановка сканирования"""
         global _is_running
 
-        if _is_running:
+        if not _is_running:
             # Остановка сканирования
             config._stop.set()  # Установка сигнала остановки
             _is_running = False
             # self.set_button_state('Стоп', tk.NORMAL)
             self.buttons['Стоп'].config(relief='raised', text="Старт")
+
         else:
             # Начало сканирования
             tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
