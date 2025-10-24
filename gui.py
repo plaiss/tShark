@@ -272,9 +272,25 @@ class App(tk.Tk):
         else:
             self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
 
+class SettingsDialog(tk.Toplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Настройки")
+        self.geometry("400x300")
+
+        # Интерфейс настройки пока пустой, можно расширить позже
+        save_btn = tk.Button(self, text="Сохранить", command=self.save_settings)
+        save_btn.pack(pady=10)
+
+    def save_settings(self):
+        # Здесь реализуйте сохранение настроек
+        pass
+
+
 class SecondWindow(tk.Toplevel):
     def __init__(self, parent, data=None):
         super().__init__(parent)
+        self.parent = parent  # Сохраняем ссылку на родительское окно
         self.title("Подробности устройства")
         self.geometry("640x480")
 
@@ -293,19 +309,5 @@ class SecondWindow(tk.Toplevel):
         find_btn.pack(pady=10)
 
     def run_find(self):
-
-        self.toggle_scanning(self)
-
-class SettingsDialog(tk.Toplevel):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.title("Настройки")
-        self.geometry("400x300")
-
-        # Интерфейс настройки пока пустой, можно расширить позже
-        save_btn = tk.Button(self, text="Сохранить", command=self.save_settings)
-        save_btn.pack(pady=10)
-
-    def save_settings(self):
-        # Здесь реализуйте сохранение настроек
-        pass
+        # Вызываем метод toggle_scanning родительского окна
+        self.parent.toggle_scanning()
