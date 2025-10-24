@@ -102,7 +102,8 @@ def main():
 
     tshark_thread = threading.Thread(target=tshark_worker, args=(root, cmd, SEEN_TTL_SECONDS), daemon=True)
     tshark_thread.start()
-    config._is_running = tshark_thread.is_alive()  # Глобальная переменная для отслеживания состояния процесса
+    root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
+    # config._is_running = tshark_thread.is_alive()  # Глобальная переменная для отслеживания состояния процесса
 
     def refresh_status():
         total_devices = len(config._last_seen)
@@ -115,5 +116,5 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
-    config.mode = utils.get_wlan_mode(config.interface)
+
     main()

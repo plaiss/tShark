@@ -9,11 +9,11 @@ import main
 import utils
 
 
-
+_is_running = False
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-
+        config.mode = utils.get_wlan_mode(config.interface)
         # Настройка главного окна приложения
         self.title("WiFi Monitor")
         self.minsize(width=1380, height=768)
@@ -50,7 +50,10 @@ class App(tk.Tk):
         # Полоса статуса снизу окна
         self.status_bar()
 
-    # Центральизация окна
+
+        # print(self.tshark_thread.is_alive()
+
+    # Централизация окна
     def center_window(self):
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
@@ -63,7 +66,7 @@ class App(tk.Tk):
     # Таблица с устройствами
     def tree_view(self, frame):
         # Заголовок дерева
-        title_label = tk.Label(frame, text=f"Обнаруженные уникальные MAC-адреса     _is_running: {config._is_running}", font=("TkDefaultFont", 10, 'bold'))
+        title_label = tk.Label(frame, text=f"Обнаруженные уникальные MAC-адреса  ", font=("TkDefaultFont", 10, 'bold'))
         title_label.pack(side=tk.TOP, anchor="w", pady=5)
 
         # Прокрутка вертикальная для дерева
@@ -164,9 +167,7 @@ class App(tk.Tk):
         """Начало/остановка сканирования"""
         global _is_running
 
-
-        print(main.tshark_thread.is_alive())
-        if not _is_running:
+        if _is_running:
             # Остановка сканирования
             config._stop.set()  # Установка сигнала остановки
             _is_running = False
