@@ -70,7 +70,7 @@ class App(tk.Tk):
         if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
             self.indicator.config(background="red", text='running')
         else:
-            self.indicator.config(background="#ccc", text='stoped')
+            self.indicator.config(background="#ccc", text='stopped')
         self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
 
     # Таблица с устройствами
@@ -189,10 +189,6 @@ class App(tk.Tk):
         """Запуск потока сканирования"""
         self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
         self.tshark_thread.start()
-        #
-        # tshark_thread = threading.Thread(target=tshark_worker, args=(root, cmd, SEEN_TTL_SECONDS), daemon=True)
-        # tshark_thread.start()
-        # root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим"""
@@ -292,6 +288,13 @@ class SecondWindow(tk.Toplevel):
 
         close_btn = tk.Button(self, text="Закрыть", command=self.destroy)
         close_btn.pack(pady=10)
+
+        find_btn = tk.Button(self, text="Искать", command=self.run_find)
+        find_btn.pack(pady=10)
+
+    def run_find(self):
+
+        self.toggle_scanning(self)
 
 class SettingsDialog(tk.Toplevel):
     def __init__(self, parent):
