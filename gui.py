@@ -8,7 +8,7 @@ import config
 import main
 import utils
 
-_is_running = False  # Глобальная переменная для отслеживания состояния процесса
+
 
 class App(tk.Tk):
     def __init__(self):
@@ -63,7 +63,7 @@ class App(tk.Tk):
     # Таблица с устройствами
     def tree_view(self, frame):
         # Заголовок дерева
-        title_label = tk.Label(frame, text="Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10, 'bold'))
+        title_label = tk.Label(frame, text=f"Обнаруженные уникальные MAC-адреса     _is_running: {config._is_running}", font=("TkDefaultFont", 10, 'bold'))
         title_label.pack(side=tk.TOP, anchor="w", pady=5)
 
         # Прокрутка вертикальная для дерева
@@ -164,6 +164,8 @@ class App(tk.Tk):
         """Начало/остановка сканирования"""
         global _is_running
 
+
+        print(main.tshark_thread.is_alive())
         if not _is_running:
             # Остановка сканирования
             config._stop.set()  # Установка сигнала остановки

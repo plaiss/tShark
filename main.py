@@ -7,6 +7,8 @@ import config
 import gui
 import utils
 
+
+
 def tshark_worker(root, cmd, ttl):
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
@@ -100,6 +102,7 @@ def main():
 
     tshark_thread = threading.Thread(target=tshark_worker, args=(root, cmd, SEEN_TTL_SECONDS), daemon=True)
     tshark_thread.start()
+    config._is_running = tshark_thread.is_alive()  # Глобальная переменная для отслеживания состояния процесса
 
     def refresh_status():
         total_devices = len(config._last_seen)
