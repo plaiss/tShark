@@ -25,9 +25,7 @@ _whitelist_lock = threading.Lock()
 _last_seen = {}
 _seen_count = {}  # количество обнаружений для каждого MAC
 _seen_lock = threading.Lock()
-
 _stop = threading.Event()
 
 MAC_RE = re.compile(r'[^0-9a-f]')
-
 DB_PATH = "oui.db"

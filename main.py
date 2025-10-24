@@ -7,8 +7,6 @@ import config
 import gui
 import utils
 
-
-
 def tshark_worker(root, cmd, ttl):
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
@@ -100,10 +98,10 @@ def main():
         t = threading.Thread(target=utils.seen_cleaner, args=(SEEN_TTL_SECONDS,), daemon=True)
         t.start()
 
+    # Запускаем поток и передаем ссылку на него в класс App
     tshark_thread = threading.Thread(target=tshark_worker, args=(root, cmd, SEEN_TTL_SECONDS), daemon=True)
     tshark_thread.start()
     root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
-    # config._is_running = tshark_thread.is_alive()  # Глобальная переменная для отслеживания состояния процесса
 
     def refresh_status():
         total_devices = len(config._last_seen)
@@ -116,5 +114,4 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
-
     main()

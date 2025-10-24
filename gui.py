@@ -9,17 +9,16 @@ import main
 import utils
 
 
-_is_running = False
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        config.mode = utils.get_wlan_mode(config.interface)
+
         # Настройка главного окна приложения
         self.title("WiFi Monitor")
         self.minsize(width=1380, height=768)
         self.center_window()  # Центрируем окно
 
-        # Хранение ссылок на созданные кнопки
+        # Хранилище ссылок на созданные кнопки
         self.buttons = {}  # Словарь для хранения ссылок на кнопки
 
         # Главный фрейм для всего интерфейса
@@ -50,10 +49,13 @@ class App(tk.Tk):
         # Полоса статуса снизу окна
         self.status_bar()
 
+        # Индикатор состояния потока
+        self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
+        self.indicator.pack()
+        self.update_indicator()
 
-        # print(self.tshark_thread.is_alive()
 
-    # Централизация окна
+    # Центральизация окна
     def center_window(self):
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
@@ -63,10 +65,18 @@ class App(tk.Tk):
         y = (screen_height - window_height) // 2
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
+    # Автообновление индикатора состояния потока
+    def update_indicator(self):
+        if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
+            self.indicator.config(background="red", text='running')
+        else:
+            self.indicator.config(background="#ccc", text='stoped')
+        self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
+
     # Таблица с устройствами
     def tree_view(self, frame):
         # Заголовок дерева
-        title_label = tk.Label(frame, text=f"Обнаруженные уникальные MAC-адреса  ", font=("TkDefaultFont", 10, 'bold'))
+        title_label = tk.Label(frame, text="Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10, 'bold'))
         title_label.pack(side=tk.TOP, anchor="w", pady=5)
 
         # Прокрутка вертикальная для дерева
@@ -138,50 +148,51 @@ class App(tk.Tk):
             "Настройки": {"command": self.show_settings}
         }
 
-        # Параметры оформления кнопок (если нужно различное оформление, добавьте дополнительные ключи в словарь)
+        # Стандартные параметры оформления кнопок
         default_style = dict(relief=tk.RAISED, borderwidth=2, activebackground='#ccc')
 
         # Создание кнопок и их размещение на панели
         for button_name, props in button_names_and_commands.items():
-            btn_props = default_style.copy()  # Копируем общий стиль
-            if button_name == 'Стоп':
-                btn_props.update(relief='sunken', bg='#F00', activebackground='#F00', command=self.toggle_scanning)  # Добавляем специфичные параметры (например, command)
-            # btn_props.update(props)  # Добавляем специфичные параметры (например, command)
+            btn_props = default_style.copy()  # Копируем стандартный стиль
+            btn_props.update(props)  # Объединяем с индивидуальными параметрами (включая команду)
 
             btn = tk.Button(toolbar, text=button_name, **btn_props)
             btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
             self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
 
-    # Управление состоянием кнопок
-    def set_button_state(self, button_name, new_state):
+    # Универсальный метод для установки любых свойств кнопки
+    def set_button_properties(self, button_name, properties):
         """
-        Изменяет состояние указанной кнопки (ACTIVE/DISABLED/NORMAL)
+        Изменяет любое количество свойств указанной кнопки.
         :param button_name: Имя кнопки
-        :param new_state: Новое состояние (tk.ACTIVE, tk.DISABLED, tk.NORMAL)
+        :param properties: Словарь новых свойств (например, {'relief': 'sunken', 'bg': 'red'})
         """
         if button_name in self.buttons:
-            self.buttons[button_name].config(state=new_state, relief='sunken', text="sunken")
+            self.buttons[button_name].config(**properties)
 
     # Функционал для каждой кнопки
     def toggle_scanning(self):
         """Начало/остановка сканирования"""
-        global _is_running
-
-        if _is_running:
+        # global _stop
+        from config import _stop
+        if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
             # Остановка сканирования
-            config._stop.set()  # Установка сигнала остановки
-            _is_running = False
-            # self.set_button_state('Стоп', tk.NORMAL)
-            self.buttons['Стоп'].config(relief='raised', text="Старт")
-
+            _stop.set()  # Устанавливаем флаг остановки
+            self.tshark_thread.join()  # Ждём завершения потока
+            del self.tshark_thread  # Удаляем ссылку на поток
         else:
             # Начало сканирования
-            tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
-            tshark_thread.start()
-            _is_running = True
-            # self.set_button_state('Стоп', tk.DISABLED)
+            _stop.clear()  # Снимаем флаг остановки
+            self.start_tshark()
 
-            self.buttons['Стоп'].config(relief='sunken', text="Стоп")
+    def start_tshark(self):
+        """Запуск потока сканирования"""
+        self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
+        self.tshark_thread.start()
+        #
+        # tshark_thread = threading.Thread(target=tshark_worker, args=(root, cmd, SEEN_TTL_SECONDS), daemon=True)
+        # tshark_thread.start()
+        # root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим"""
