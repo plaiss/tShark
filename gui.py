@@ -126,6 +126,7 @@ class App(tk.Tk):
 
     # Функция для обновления полосы статуса
     def update_status(self, total_devices, ignored_devices):
+        config.mode = utils.get_wlan_mode(config.interface)
         status_message = f"{config.interface}: {config.mode} mode.  | Найдено: {total_devices}, Белый список: Всего {len(config._whitelist)}, Игнорировано: {ignored_devices}"
         self.status_label.delete('1.0', tk.END)
         self.status_label.insert(tk.END, status_message)
@@ -173,7 +174,6 @@ class App(tk.Tk):
     # Функционал для каждой кнопки
     def toggle_scanning(self):
         """Начало/остановка сканирования"""
-        # global _stop
         from config import _stop
         if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
             # Остановка сканирования

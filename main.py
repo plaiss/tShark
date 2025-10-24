@@ -106,6 +106,7 @@ def main():
     def refresh_status():
         total_devices = len(config._last_seen)
         devices_in_white_list = sum(1 for mac in config._last_seen if mac in config._whitelist)
+        # utils.get_wlan_mode(config.interface)
         root.update_status(total_devices, devices_in_white_list)
         root.after(1000, refresh_status)
 
