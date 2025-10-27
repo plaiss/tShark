@@ -80,7 +80,7 @@ def main():
     global WHITELIST_PATH, SEEN_TTL_SECONDS
     root = gui.App()
 
-    cmd = config.TSHARK_CMD
+    # cmd = config.TSHARK_CMD
     WHITELIST_PATH = config.WHITELIST_PATH
     SEEN_TTL_SECONDS = config.SEEN_TTL_SECONDS
 
@@ -100,17 +100,9 @@ def main():
 
     if utils.get_wlan_mode(config.interface) == 'Monitor':
         # Запускаем поток и передаем ссылку на него в класс App
-        tshark_thread = threading.Thread(target=tshark_worker, args=(root, cmd, SEEN_TTL_SECONDS), daemon=True)
+        tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD, SEEN_TTL_SECONDS), daemon=True)
         tshark_thread.start()
         root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
-
-    def refresh_status():
-        total_devices = len(config._last_seen)
-        devices_in_white_list = sum(1 for mac in config._last_seen if mac in config._whitelist)
-        root.update_status(total_devices, devices_in_white_list)
-        root.after(1000, refresh_status)
-
-    refresh_status()
 
     root.mainloop()
 

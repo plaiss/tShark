@@ -237,6 +237,7 @@ def get_wlan_mode(interface='wlan0'):
 
 
 
+
 # Функция перевода интерфейса в режим мониторинга
 def enable_monitor_mode(interface, password):
     commands = [

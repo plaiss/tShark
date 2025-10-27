@@ -56,6 +56,8 @@ class App(tk.Tk):
         self.indicator.pack()
         self.update_indicator()
 
+        # self.refresh_status()
+
         # self.open_second_window()
 
     # Центральизация окна
@@ -132,12 +134,21 @@ class App(tk.Tk):
         if data:
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
 
-    # Функция для обновления полосы статуса
-    def update_status(self, total_devices=0, ignored_devices=0):
+    def refresh_status(self):     # Функция для обновления полосы статуса
+
+        total_devices = len(config._last_seen)
+        devices_in_white_list = sum(1 for mac in config._last_seen if mac in config._whitelist)
         config.mode = utils.get_wlan_mode(config.interface)
-        status_message = f"{config.interface}: {config.mode} mode.  | Найдено: {total_devices}, Белый список: Всего {len(config._whitelist)}, Игнорировано: {ignored_devices}"
-        self.status_text.delete('0.0', tk.END)
-        self.status_text.insert(tk.END, status_message)
+
+        if len(self.status_text.get(1.0, tk.END)) == 00:
+            self.status_text.delete('0.0', tk.END)
+            self.status_text.insert(tk.END, status_message)
+            print('было пусто')
+
+
+        status_message = f"{config.interface}: {config.mode} mode.  | Найдено: {total_devices}"
+        self.status_text.replace(1.0, tk.END,status_message)
+
 
         if config.mode != 'Monitor':  # Выделяем красным текущий режим
             self.status_text.tag_add("red", '1.6', '1.20')
@@ -145,9 +156,10 @@ class App(tk.Tk):
             self.status_text.config(state=tk.DISABLED)
         else:
             new_props = {'relief': 'sunken', 'state': 'disabled'}
-            self.set_button_properties('turn ON monitor mode', new_props )
-            self.status_text.delete('0.0', tk.END)
-            self.status_text.insert(tk.END, status_message)
+            self.set_button_properties('turn ON monitor mode', new_props)
+            # self.status_text.delete('0.0', tk.END)
+            # self.status_text.insert(tk.END, status_message)
+        # after_id = self.after(2000, self.refresh_status)
 
 
     # Создание кнопок и сохранение ссылок на них
@@ -211,7 +223,7 @@ class App(tk.Tk):
         if password is not None and len(password.strip()) > 0:
             success = utils.enable_monitor_mode(config.interface, password)
             if success:
-                self.update_status()
+                self.refresh_status()
         else:
             print("Операция отменена.")
 
@@ -288,6 +300,7 @@ class App(tk.Tk):
             self.tree.set(item, '#4', last_seen)
         else:
             self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
+        self.refresh_status()
 
 class SettingsDialog(tk.Toplevel):
     def __init__(self, parent):
