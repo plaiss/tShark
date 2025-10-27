@@ -56,6 +56,7 @@ class App(tk.Tk):
         self.indicator.pack()
         self.update_indicator()
 
+        # self.open_second_window()
 
     # Центральизация окна
     def center_window(self):
@@ -116,8 +117,8 @@ class App(tk.Tk):
 
     # Полоса статуса
     def status_bar(self):
-        self.status_label = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, font=("TkDefaultFont", 10))  # Высота в одну строку
-        self.status_label.pack(side=tk.BOTTOM, fill=tk.X)
+        self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, font=("TkDefaultFont", 10))  # Высота в одну строку
+        self.status_text.pack(side=tk.BOTTOM, fill=tk.X)
 
     # Обработчик двойного клика мыши по устройству
     def on_device_double_click(self, event):
@@ -132,23 +133,29 @@ class App(tk.Tk):
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
 
     # Функция для обновления полосы статуса
-    def update_status(self, total_devices, ignored_devices):
+    def update_status(self, total_devices=0, ignored_devices=0):
         config.mode = utils.get_wlan_mode(config.interface)
         status_message = f"{config.interface}: {config.mode} mode.  | Найдено: {total_devices}, Белый список: Всего {len(config._whitelist)}, Игнорировано: {ignored_devices}"
-        self.status_label.delete('1.0', tk.END)
-        self.status_label.insert(tk.END, status_message)
+        self.status_text.delete('0.0', tk.END)
+        self.status_text.insert(tk.END, status_message)
 
         if config.mode != 'Monitor':  # Выделяем красным текущий режим
-            self.status_label.tag_add("red", '1.6', '1.20')
-            self.status_label.tag_config("red", foreground="red")
-            self.status_label.config(state=tk.DISABLED)
+            self.status_text.tag_add("red", '1.6', '1.20')
+            self.status_text.tag_config("red", foreground="red")
+            self.status_text.config(state=tk.DISABLED)
+        else:
+            new_props = {'relief': 'sunken', 'state': 'disabled'}
+            self.set_button_properties('turn ON monitor mode', new_props )
+            self.status_text.delete('0.0', tk.END)
+            self.status_text.insert(tk.END, status_message)
+
 
     # Создание кнопок и сохранение ссылок на них
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
         button_names_and_commands = {
             "Стоп": {"command": self.toggle_scanning},
-            "Мониторинг": {"command": self.switch_to_monitor_mode},
+            "turn ON monitor mode": {"command": self.switch_to_monitor_mode},
             "Сброс данных": {"command": self.reset_data},
             "Экспорт в CSV": {"command": self.export_csv},
             "Открыть белый список": {"command": self.show_whitelist},
@@ -199,9 +206,12 @@ class App(tk.Tk):
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим"""
-        password = simpledialog.askstring("Пароль sudo", "Введите пароль sudo:", show="*")
+        # password = simpledialog.askstring("Пароль sudo", "Введите пароль sudo:", show="*")
+        password = 'kali'
         if password is not None and len(password.strip()) > 0:
             success = utils.enable_monitor_mode(config.interface, password)
+            if success:
+                self.update_status()
         else:
             print("Операция отменена.")
 

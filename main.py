@@ -98,15 +98,15 @@ def main():
         t = threading.Thread(target=utils.seen_cleaner, args=(SEEN_TTL_SECONDS,), daemon=True)
         t.start()
 
-    # Запускаем поток и передаем ссылку на него в класс App
-    tshark_thread = threading.Thread(target=tshark_worker, args=(root, cmd, SEEN_TTL_SECONDS), daemon=True)
-    tshark_thread.start()
-    root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
+    if utils.get_wlan_mode(config.interface) == 'Monitor':
+        # Запускаем поток и передаем ссылку на него в класс App
+        tshark_thread = threading.Thread(target=tshark_worker, args=(root, cmd, SEEN_TTL_SECONDS), daemon=True)
+        tshark_thread.start()
+        root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
 
     def refresh_status():
         total_devices = len(config._last_seen)
         devices_in_white_list = sum(1 for mac in config._last_seen if mac in config._whitelist)
-        # utils.get_wlan_mode(config.interface)
         root.update_status(total_devices, devices_in_white_list)
         root.after(1000, refresh_status)
 
