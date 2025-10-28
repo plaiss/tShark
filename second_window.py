@@ -10,24 +10,25 @@ import config
 
 
 # Команда для отслеживания сигнала конкретного устройства
-# TSHARK_CMD1 = [
-#     "tshark", "-i", "wlan1",
-#     "-Y", "wlan.addr==48:8B:0A:A1:05:70",
-#     "-T", "fields",
-#     "-E", "separator=\t",
-#     "-e", "radiotap.dbm_antsignal"
-# ]
+TSHARK_CMD1 = [
+    "tshark", "-i", "wlan1",
+    # "-Y", "wlan.addr==48:8B:0A:A1:05:70",
+    "-T", "fields",
+    "-E", "separator=\t",
+    "-e", "radiotap.dbm_antsignal"
+]
 
 TSHARK_CMD1 = [
     "tshark", "-i", "wlan1", "-l", "-T",
     # "-Y", "wlan.addr==48:8B:0A:A1:05:70",
     "fields",
-    "-e", "wlan.sa",
+    # "-e", "wlan.sa",
     "-e", "wlan_radio.signal_dbm"
 ]
 
-# Таймаут для выполнения команды (секунды)
-TIMEOUT = 10
+
+# Максимальное количество точек на графике
+MAX_POINTS_ON_GRAPH = 100
 
 
 def get_data_stream(proc):
@@ -40,7 +41,10 @@ def extract_rssi(data):
     # Возвращаем последнее измеренное значение RSSI
     lines = data.splitlines()
     if lines:
-        return lines[-1].split('\t')[0]
+        value = lines[-1].split('\t')[0]
+        if value.startswith('-'):
+            return value  # RSSI в dBm
+        return '-'  # Недоступные данные
     return '-'
 
 
@@ -64,6 +68,10 @@ class SecondWindow(tk.Toplevel):
         self.channel_label.pack()
         self.rssi_label.pack()
 
+        # Кнопка "Пауза/Старт"
+        self.pause_start_button = tk.Button(self, text="Пауза", command=self.toggle_pause)
+        self.pause_start_button.pack()
+
         # График для отображения RSSI
         fig = plt.figure(figsize=(6, 3), dpi=100)
         self.ax = fig.add_subplot(111)
@@ -77,6 +85,7 @@ class SecondWindow(tk.Toplevel):
 
         # Запускаем фоновый поток для регулярного обновления данных
         self.thread_running = True
+        self.paused = False
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.data_update_thread = threading.Thread(target=self.update_data_from_stream)
         self.data_update_thread.daemon = True
@@ -86,6 +95,26 @@ class SecondWindow(tk.Toplevel):
         # Останавливаем цикл обновления данных
         self.thread_running = False
         self.proc.kill()  # Завершаем процесс tshark
+
+    def pause_or_resume_process(self):
+        if self.paused:
+            # Возобновляем процесс tshark
+            self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            self.data_update_thread = threading.Thread(target=self.update_data_from_stream)
+            self.data_update_thread.daemon = True
+            self.data_update_thread.start()
+        else:
+            # Приостанавливаем процесс tshark
+            self.proc.kill()
+
+    def toggle_pause(self):
+        self.paused = not self.paused
+        if self.paused:
+            self.pause_start_button.config(text="Старт")
+            self.pause_or_resume_process()
+        else:
+            self.pause_start_button.config(text="Пауза")
+            self.pause_or_resume_process()
 
     def update_data_from_stream(self):
         generator = get_data_stream(self.proc)
@@ -105,12 +134,18 @@ class SecondWindow(tk.Toplevel):
                 continue  # Пропускаем итерацию, если значение нельзя обработать
 
             # Обновляем интерфейс
-            self.rssi_label['text'] = f"RSSI: {rssi_value}"
+            self.rssi_label['text'] = f"RSSI: {rssi_value} dBm"
 
             # Обновляем график
             timestamp = time.time()
             self.rssi_values.append(rssi_float)
             self.timestamps.append(timestamp)
+
+            # Удаляем лишние точки (эффект затухания)
+            if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
+                self.rssi_values.pop(0)
+                self.timestamps.pop(0)
+
             self.plot_graph()
 
             # Пауза между обновлениями (можно убрать паузу, так как данные поступают потоком)
@@ -121,9 +156,10 @@ class SecondWindow(tk.Toplevel):
         self.ax.clear()
         self.ax.plot(self.timestamps, self.rssi_values, marker='o', color='blue')
         self.ax.set_xlabel('Time')
-        self.ax.set_ylabel('RSSI')
+        self.ax.set_ylabel('RSSI (dBm)')
         self.ax.grid(True)
-        self.canvas.draw()
+        # self.canvas.draw()
+        self.canvas.draw_idle()
 
     def destroy(self):
         # Завершаем поток при закрытии окна
