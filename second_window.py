@@ -10,28 +10,30 @@ import config
 
 
 # Команда для отслеживания сигнала конкретного устройства
+# TSHARK_CMD1 = [
+#     "tshark", "-i", "wlan1",
+#     "-l"
+#     # "-f", "'ether host b8:27:eb:74:f2:6c'",
+#     "-T", "fields",
+#     "-e", "radiotap.dbm_antsignal"
+# ]
+
 TSHARK_CMD1 = [
     "tshark", "-i", "wlan1",
-    "-Y", "wlan.addr==48:8B:0A:A1:05:70",
+    "-s",  "0",
     "-T", "fields",
-    "-E", "separator=\t",
-    "-e", "radiotap.dbm_antsignal"
-]
-TSHARK_CMD1 = [
-    "tshark", "-i", "wlan1", "-l", "-T",
-    # "-Y", "wlan.addr==48:8B:0A:A1:05:70",
-    "fields",
-    # "-e", "wlan.sa",
     "-e", "wlan_radio.signal_dbm"
+    "-Y", "wlan.ra==28:e3:47:fe:34:44"
 ]
-
 # Максимальное количество точек на графике
 MAX_POINTS_ON_GRAPH = 100
 
 
 def get_data_stream(proc):
     while True:
-        output = proc.stdout.readline().decode().strip()
+        output = proc.stdout.readline().decode()
+        # output = proc.stdout.readline().decode().strip()
+        print(f"[DEBUG] Received from tshark: {output}")  # Вывод полученных данных
         yield output
 
 
@@ -84,6 +86,7 @@ class SecondWindow(tk.Toplevel):
         # Запускаем фоновый поток для регулярного обновления данных
         self.thread_running = True
         self.paused = False
+        print(f"[DEBUG] Starting tshark with command: {' '.join(TSHARK_CMD1)}")  # Печать команды
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.data_update_thread = threading.Thread(target=self.update_data_from_stream)
         self.data_update_thread.daemon = True
@@ -92,6 +95,11 @@ class SecondWindow(tk.Toplevel):
     def stop_updating(self):
         # Останавливаем цикл обновления данных
         self.thread_running = False
+        # Форсированное завершение процесса tshark
+        if self.proc.poll() is None:
+            print("[DEBUG] Killing tshark process...")  # Печать перед завершением
+            self.proc.kill()  # Обязательно завершать процесс, если он еще активен
+            self.proc.wait()  # Ожидаем завершения процесса
 
     def toggle_pause(self):
         self.paused = not self.paused
@@ -118,7 +126,7 @@ class SecondWindow(tk.Toplevel):
             try:
                 rssi_float = float(rssi_value)
             except ValueError:
-                print(f"Пропущено значение RSSI: '{rssi_value}'")
+                print(f"[DEBUG] Skipped invalid RSSI value: '{rssi_value}'")  # Вывод пропущенных значений
                 continue  # Пропускаем итерацию, если значение нельзя обработать
 
             # Обновляем интерфейс
@@ -148,6 +156,12 @@ class SecondWindow(tk.Toplevel):
     def destroy(self):
         # Завершаем поток при закрытии окна
         self.stop_updating()
+        # Дождемся завершения потока
+        self.data_update_thread.join()
+        # Небольшая задержка для гарантии освобождения ресурсов
+        time.sleep(0.5)
+        # Освобождение ресурсов
+        plt.close('all')
         super().destroy()
 
 
