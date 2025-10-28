@@ -49,7 +49,7 @@ class SecondWindow(tk.Toplevel):
 
     def update_data_periodically(self):
         # Непосредственно получаем данные
-        response = get_data()
+        # response = get_data()
         # Извлекаем необходимые данные (пример)
         rssi_value = extract_rssi(response)
         channel_value = extract_channel(response)

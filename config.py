@@ -3,6 +3,8 @@ import threading
 import re
 import sqlite3
 
+# self.entry_mac.insert(0, '48:8B:0A:A1:05:70')  # Пример MAC-адреса
+
 interface = 'wlan1'
 mode = ''
 # Конфигурация по умолчанию
