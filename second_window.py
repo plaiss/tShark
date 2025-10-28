@@ -10,30 +10,30 @@ import config
 
 
 # Команда для отслеживания сигнала конкретного устройства
+# TSHARK_CMD1 = [
+#     "tshark", "-i", "wlan1",
+#     "-Y", "wlan.addr==48:8B:0A:A1:05:70",
+#     "-T", "fields",
+#     "-E", "separator=\t",
+#     "-e", "radiotap.dbm_antsignal"
+# ]
+
 TSHARK_CMD1 = [
-    "tshark", "-i", "wlan1",
-    "-Y", "wlan.addr==48:8B:0A:A1:05:70",
-    "-T", "fields",
-    "-E", "separator=\t",
-    "-e", "radiotap.dbm_antsignal"
+    "tshark", "-i", "wlan1", "-l", "-T", "fields",
+    "-e", "frame.time_epoch",
+    "-e", "wlan.sa",
+    "-e", "wlan_radio.signal_dbm",
+    "-e", "wlan.fc.type_subtype"
 ]
 
 # Таймаут для выполнения команды (секунды)
 TIMEOUT = 10
 
 
-def get_data():
-    try:
-        # Запускаем команду tshark и ждём результата
-        process = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        output, _ = process.communicate(timeout=TIMEOUT)
-        return output.decode().strip()
-    except subprocess.TimeoutExpired:
-        print("Команда timed out!")
-        return ''
-    except Exception as e:
-        print(f"Ошибка при выполнении команды: {e}")
-        return ''
+def get_data_stream(proc):
+    while True:
+        output = proc.stdout.readline().decode().strip()
+        yield output
 
 
 def extract_rssi(data):
@@ -77,18 +77,24 @@ class SecondWindow(tk.Toplevel):
 
         # Запускаем фоновый поток для регулярного обновления данных
         self.thread_running = True
-        self.data_update_thread = threading.Thread(target=self.update_data_periodically)
+        self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        self.data_update_thread = threading.Thread(target=self.update_data_from_stream)
         self.data_update_thread.daemon = True
         self.data_update_thread.start()
 
     def stop_updating(self):
         # Останавливаем цикл обновления данных
         self.thread_running = False
+        self.proc.kill()  # Завершаем процесс tshark
 
-    def update_data_periodically(self):
+    def update_data_from_stream(self):
+        generator = get_data_stream(self.proc)
         while self.thread_running:
             # Получаем свежие данные
-            response = get_data()
+            response = next(generator, '')
+            if not response:
+                continue
+
             rssi_value = extract_rssi(response)
 
             # Проверяем, можно ли преобразовать значение в число
@@ -107,8 +113,8 @@ class SecondWindow(tk.Toplevel):
             self.timestamps.append(timestamp)
             self.plot_graph()
 
-            # Пауза между обновлениями (1 секунда)
-            time.sleep(1)
+            # Пауза между обновлениями (можно убрать паузу, так как данные поступают потоком)
+            # time.sleep(1)
 
     def plot_graph(self):
         # Обновляем график RSSI
