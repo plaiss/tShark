@@ -78,7 +78,45 @@ class App(tk.Tk):
             self.indicator.config(background="#ccc", text='stopped')
         self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
 
-    # Таблица с устройствами
+    # # Таблица с устройствами
+    # def tree_view(self, frame):
+    #     # Заголовок дерева
+    #     title_label = tk.Label(frame, text="Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10, 'bold'))
+    #     title_label.pack(side=tk.TOP, anchor="w", pady=5)
+    #
+    #     # Прокрутка вертикальная для дерева
+    #     scroll_y = tk.Scrollbar(frame, orient=tk.VERTICAL)
+    #     scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
+    #
+    #
+    #     # Структура таблицы TreeView
+    #     columns = ("#1", "#2", "#3", "#4")  # Столбцы (#1-MAC адрес, #2-Производитель, #3-RSSI, #4-Время последнего обнаружения)
+    #     self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
+    #
+    #     # Подписи заголовков столбцов
+    #     self.tree.heading('#1', text='MAC Address', anchor='center', command=lambda: self.sort_column("#1"))
+    #     self.tree.heading('#2', text='Производитель', anchor='center', command=lambda: self.sort_column("#2"))
+    #     self.tree.heading('#3', text='RSSI', anchor='center', command=lambda: self.sort_column("#3"))
+    #     self.tree.heading('#4', text='Последнее обнаружение', anchor='center', command=lambda: self.sort_column("#4"))
+    #
+    #     # Ширина столбцов
+    #     self.tree.column('#1', width=150, minwidth=90, stretch=False)
+    #     self.tree.column('#2', width=150, minwidth=90, stretch=False)
+    #     self.tree.column('#3', width=40, minwidth=10, stretch=False)
+    #     self.tree.column('#4', width=300, minwidth=90, stretch=False)
+    #
+    #     # Связываем событие двойного клика с обработчиком
+    #     self.tree.bind("<Double-1>", self.on_device_double_click)
+    #     self.tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+    #
+    #     # Конфигурируем прокрутку
+    #     scroll_y.config(command=self.tree.yview)
+    #
+    #     # Чекбокс для выбора порядка сортировки по первому столбцу
+    #     self.reverse_check_var = tk.BooleanVar(value=False)
+    #     check_box = tk.Checkbutton(frame, text="Обратный порядок", variable=self.reverse_check_var)
+    #     check_box.place(relx=0.01, rely=-0.05, anchor="nw")  # Расположение чуть выше таблицы
+
     def tree_view(self, frame):
         # Заголовок дерева
         title_label = tk.Label(frame, text="Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10, 'bold'))
@@ -89,7 +127,8 @@ class App(tk.Tk):
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
         # Структура таблицы TreeView
-        columns = ("#1", "#2", "#3", "#4")  # Столбцы (#1-MAC адрес, #2-Производитель, #3-RSSI, #4-Время последнего обнаружения)
+        columns = ("#1", "#2", "#3",
+                   "#4")  # Столбцы (#1-MAC адрес, #2-Производитель, #3-RSSI, #4-Время последнего обнаружения)
         self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
 
         # Подписи заголовков столбцов
@@ -111,6 +150,10 @@ class App(tk.Tk):
         # Конфигурируем прокрутку
         scroll_y.config(command=self.tree.yview)
 
+        # Чекбокс для выбора порядка сортировки по первому столбцу
+        self.reverse_check_var = tk.BooleanVar(value=False)
+        check_box = tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var)
+        check_box.place(in_=title_label, relx=1.0, rely=0.0, anchor="ne", x=300, y=0)  # Рядом с заголовком
     # Журнал сообщений
     def log_view(self, frame):
         # Текстовая область для журналов и сообщений
@@ -263,19 +306,57 @@ class App(tk.Tk):
         settings_dialog = SettingsDialog(self)
         settings_dialog.grab_set()
 
-    # Сортировка значений в таблице
+
+
+    # def sort_column(self, column_id):
+    #     if column_id == '#1':
+    #         # Проверяем, была ли предыдущая сортировка обычным порядком
+    #         if getattr(self, '_first_col_sorted_ascending', True):
+    #             # Меняем направление сортировки
+    #             self.reverse_sort_by_first_column()
+    #             self._first_col_sorted_ascending = False
+    #         else:
+    #             # Обычная сортировка
+    #             items = list(self.tree.get_children())
+    #             try:
+    #                 items.sort(key=lambda x: self.tree.set(x, column_id))
+    #             except ValueError:
+    #                 items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)))
+    #
+    #             for idx, item in enumerate(items):
+    #                 self.tree.move(item, '', idx)
+    #             self._first_col_sorted_ascending = True
+    #     else:
+    #         # Для остальных столбцов оставляем стандартную сортировку
+    #         items = list(self.tree.get_children())
+    #         try:
+    #             items.sort(key=lambda x: float(self.tree.set(x, column_id)) if column_id == '#3' else str.lower(
+    #                 self.tree.set(x, column_id)))
+    #         except ValueError:
+    #             items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)))
+    #
+    #         for idx, item in enumerate(items):
+    #             self.tree.move(item, '', idx)
     def sort_column(self, column_id):
         items = list(self.tree.get_children())
         try:
-            # Попытка числовой сортировки для RSSI
-            items.sort(key=lambda x: float(self.tree.set(x, column_id)) if column_id == '#3' else str.lower(self.tree.set(x, column_id)))
-        except ValueError:
-            # В противном случае используем алфавитную сортировку
-            items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)))
+            # Определим порядок сортировки в зависимости от состояния чекбокса
+            ascending_order = not self.reverse_check_var.get() if column_id == '#1' else True
 
-        # Перестановка элементов согласно сортировке
+            # Если столбец №3 (RSSI), используем числовую сортировку
+            if column_id == '#3':
+                items.sort(key=lambda x: float(self.tree.set(x, column_id)), reverse=not ascending_order)
+            else:
+                # Для остальных столбцов используем алфавитную сортировку
+                items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
+        except ValueError:
+            # Если возникла ошибка преобразования чисел, сортируем строковыми значениями
+            items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
+
+        # Обновляем дерево, перемещая элементы согласно новым позициям
         for idx, item in enumerate(items):
             self.tree.move(item, '', idx)
+
 
     # Открывает второе окно с информацией о устройстве
     def open_second_window(self, data=None):
@@ -301,6 +382,20 @@ class App(tk.Tk):
         else:
             self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
         self.refresh_status()
+
+
+    def reverse_sort_by_first_column(self):
+        items = list(self.tree.get_children())
+        try:
+            # Сортируем по MAC-адресу в обратном порядке
+            items.sort(key=lambda x: self.tree.set(x, '#1'), reverse=True)
+        except ValueError:
+            # Если невозможно выполнить числовую сортировку, сортируем строковым методом
+            items.sort(key=lambda x: str.lower(self.tree.set(x, '#1')), reverse=True)
+
+        # Переставляем элементы в дереве
+        for idx, item in enumerate(items):
+            self.tree.move(item, '', idx)
 
 class SettingsDialog(tk.Toplevel):
     def __init__(self, parent):

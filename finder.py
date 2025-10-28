@@ -10,7 +10,16 @@ def start_tshark(mac_address):
 
     # Команда tshark с фильтром по MAC адрессу
     # cmd = f'tshark -i wlan1 -Y "wlan.addr=={mac_address}" -T fields -e radiotap.dbm_antsignal'
-    cmd = f'tshark -i wlan1 -Y "(wlan.addr eq {mac_address})" -T fields -e radiotap.dbm_antsignal'
+    # cmd = f'tshark -i wlan1 -Y "wlan.addr eq {mac_address})" -T fields -e radiotap.dbm_antsignal'
+    # cmd = f'tshark -i wlan1 -Y "wlan.addr == {mac_address}" -T fields -e radiotap.dbm_antsignal'
+
+    cmd= [
+        "tshark", "-i", "wlan0", "-l", "-T", "fields",
+        "-e", "frame.time_epoch",
+        "-e", "wlan.sa",
+        "-e", "wlan_radio.signal_dbm",
+        "-e", "wlan.fc.type_subtype"
+    ]
 
     process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
 
