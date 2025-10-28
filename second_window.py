@@ -9,14 +9,7 @@ import threading
 import config
 
 
-# Команда для отслеживания сигнала конкретного устройства
-# TSHARK_CMD1 = [
-#     "tshark", "-i", "wlan1",
-#     "-l"
-#     # "-f", "'ether host b8:27:eb:74:f2:6c'",
-#     "-T", "fields",
-#     "-e", "radiotap.dbm_antsignal"
-# ]
+#tshark -i wlan1  -s 0 -T fields -e wlan_radio.signal_dbm -Y wlan.ra==28:e3:47:fe:34:44
 
 TSHARK_CMD1 = [
     "tshark", "-i", "wlan1",
@@ -37,15 +30,16 @@ def get_data_stream(proc):
         yield output
 
 
-def extract_rssi(data):
-    # Возвращаем последнее измеренное значение RSSI
-    lines = data.splitlines()
-    if lines:
-        value = lines[-1].split('\t')[0]
-        if value.startswith('-'):
-            return value  # RSSI в dBm
-        return '-'  # Недоступные данные
-    return '-'
+# def extract_rssi(data):
+#     return data
+#     # Возвращаем последнее измеренное значение RSSI
+#     lines = data.splitlines()
+#     if lines:
+#         value = lines[-1].split('\t')[0]
+#         if value.startswith('-'):
+#             return value  # RSSI в dBm
+#         return '-'  # Недоступные данные
+#     return '-'
 
 
 class SecondWindow(tk.Toplevel):
@@ -163,11 +157,13 @@ class SecondWindow(tk.Toplevel):
         # Освобождение ресурсов
         plt.close('all')
         super().destroy()
+        root.destroy()
 
 
 # Тестовый запуск окна
 if __name__ == "__main__":
     root = tk.Tk()
-    app = SecondWindow(root, mac_address="48:8B:0A:A1:05:70")
+    app = SecondWindow(root)
+    # app = SecondWindow(root, mac_address="48:8B:0A:A1:05:70")
     root.withdraw()  # Скрываем корневое окно
     app.mainloop()
