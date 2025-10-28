@@ -19,11 +19,11 @@ import config
 # ]
 
 TSHARK_CMD1 = [
-    "tshark", "-i", "wlan1", "-l", "-T", "fields",
-    "-e", "frame.time_epoch",
+    "tshark", "-i", "wlan1", "-l", "-T",
+    # "-Y", "wlan.addr==48:8B:0A:A1:05:70",
+    "fields",
     "-e", "wlan.sa",
-    "-e", "wlan_radio.signal_dbm",
-    "-e", "wlan.fc.type_subtype"
+    "-e", "wlan_radio.signal_dbm"
 ]
 
 # Таймаут для выполнения команды (секунды)

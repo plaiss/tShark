@@ -15,6 +15,7 @@ TSHARK_CMD = [
     "-e", "wlan_radio.signal_dbm",
     "-e", "wlan.fc.type_subtype"
 ]
+
 WHITELIST_PATH = 'whitelist.txt'
 SEEN_TTL_SECONDS = None  # если None — не очищать по времени
 
