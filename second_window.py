@@ -12,12 +12,11 @@ import config
 # Команда для отслеживания сигнала конкретного устройства
 TSHARK_CMD1 = [
     "tshark", "-i", "wlan1",
-    # "-Y", "wlan.addr==48:8B:0A:A1:05:70",
+    "-Y", "wlan.addr==48:8B:0A:A1:05:70",
     "-T", "fields",
     "-E", "separator=\t",
     "-e", "radiotap.dbm_antsignal"
 ]
-
 TSHARK_CMD1 = [
     "tshark", "-i", "wlan1", "-l", "-T",
     # "-Y", "wlan.addr==48:8B:0A:A1:05:70",
@@ -25,7 +24,6 @@ TSHARK_CMD1 = [
     # "-e", "wlan.sa",
     "-e", "wlan_radio.signal_dbm"
 ]
-
 
 # Максимальное количество точек на графике
 MAX_POINTS_ON_GRAPH = 100
@@ -94,31 +92,21 @@ class SecondWindow(tk.Toplevel):
     def stop_updating(self):
         # Останавливаем цикл обновления данных
         self.thread_running = False
-        self.proc.kill()  # Завершаем процесс tshark
-
-    def pause_or_resume_process(self):
-        if self.paused:
-            # Возобновляем процесс tshark
-            self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            self.data_update_thread = threading.Thread(target=self.update_data_from_stream)
-            self.data_update_thread.daemon = True
-            self.data_update_thread.start()
-        else:
-            # Приостанавливаем процесс tshark
-            self.proc.kill()
 
     def toggle_pause(self):
         self.paused = not self.paused
         if self.paused:
             self.pause_start_button.config(text="Старт")
-            self.pause_or_resume_process()
         else:
             self.pause_start_button.config(text="Пауза")
-            self.pause_or_resume_process()
 
     def update_data_from_stream(self):
         generator = get_data_stream(self.proc)
         while self.thread_running:
+            if self.paused:
+                time.sleep(1)  # Пауза на секунду, чтобы не нагружать процессор
+                continue
+
             # Получаем свежие данные
             response = next(generator, '')
             if not response:
@@ -148,9 +136,6 @@ class SecondWindow(tk.Toplevel):
 
             self.plot_graph()
 
-            # Пауза между обновлениями (можно убрать паузу, так как данные поступают потоком)
-            # time.sleep(1)
-
     def plot_graph(self):
         # Обновляем график RSSI
         self.ax.clear()
@@ -158,7 +143,6 @@ class SecondWindow(tk.Toplevel):
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('RSSI (dBm)')
         self.ax.grid(True)
-        # self.canvas.draw()
         self.canvas.draw_idle()
 
     def destroy(self):
