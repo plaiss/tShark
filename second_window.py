@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import subprocess
 import time
 import threading
@@ -12,17 +14,17 @@ TSHARK_CMD1 = [
     "tshark", "-i", "wlan1",
     "-Y", "wlan.addr==48:8B:0A:A1:05:70",
     "-T", "fields",
-    "-E", "separator=/t",
+    "-E", "separator=\t",
     "-e", "radiotap.dbm_antsignal"
 ]
 
-# Время ожидания выполнения команды (секунды)
+# Таймаут для выполнения команды (секунды)
 TIMEOUT = 10
 
 
 def get_data():
     try:
-        # Запускаем команду tshark и ждем результата
+        # Запускаем команду tshark и ждём результата
         process = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         output, _ = process.communicate(timeout=TIMEOUT)
         return output.decode().strip()
@@ -42,25 +44,38 @@ def extract_rssi(data):
     return '-'
 
 
-def extract_channel(data):
-    # Примечание: здесь вам нужно дополнить, если нужны данные о канале
-    return '-'  # Просто подставляйте реальную логику
-
-
 class SecondWindow(tk.Toplevel):
-    def __init__(self, parent, data=None):
+    def __init__(self, parent, mac_address=None):
         super().__init__(parent)
         self.parent = parent
         self.title("Подробности устройства")
         self.geometry("640x480")
 
-        # Метки для показа RSSI и канала
-        self.rssi_label = tk.Label(self, text="RSSI:")
-        self.channel_label = tk.Label(self, text="Channel:")
-        self.rssi_label.pack()
-        self.channel_label.pack()
+        # Передаем MAC-адрес устройства
+        self.mac_address = mac_address or "Unknown"
 
-        # Запустим фоновый поток для регулярного обновления данных
+        # Добавляем текстовые метки для MAC-адреса и канала
+        self.mac_label = tk.Label(self, text=f"MAC: {self.mac_address}", font=("Arial", 12))
+        self.channel_label = tk.Label(self, text="Channel: Unknown", font=("Arial", 12))
+        self.rssi_label = tk.Label(self, text="RSSI: N/A", font=("Arial", 12))
+
+        # Упаковка меток
+        self.mac_label.pack()
+        self.channel_label.pack()
+        self.rssi_label.pack()
+
+        # График для отображения RSSI
+        fig = plt.figure(figsize=(6, 3), dpi=100)
+        self.ax = fig.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(fig, master=self)
+        self.canvas_widget = self.canvas.get_tk_widget()
+        self.canvas_widget.pack()
+
+        # Данные для графика
+        self.rssi_values = []
+        self.timestamps = []
+
+        # Запускаем фоновый поток для регулярного обновления данных
         self.thread_running = True
         self.data_update_thread = threading.Thread(target=self.update_data_periodically)
         self.data_update_thread.daemon = True
@@ -75,14 +90,34 @@ class SecondWindow(tk.Toplevel):
             # Получаем свежие данные
             response = get_data()
             rssi_value = extract_rssi(response)
-            channel_value = extract_channel(response)
+
+            # Проверяем, можно ли преобразовать значение в число
+            try:
+                rssi_float = float(rssi_value)
+            except ValueError:
+                print(f"Пропущено значение RSSI: '{rssi_value}'")
+                continue  # Пропускаем итерацию, если значение нельзя обработать
 
             # Обновляем интерфейс
             self.rssi_label['text'] = f"RSSI: {rssi_value}"
-            self.channel_label['text'] = f"Channel: {channel_value}"
+
+            # Обновляем график
+            timestamp = time.time()
+            self.rssi_values.append(rssi_float)
+            self.timestamps.append(timestamp)
+            self.plot_graph()
 
             # Пауза между обновлениями (1 секунда)
             time.sleep(1)
+
+    def plot_graph(self):
+        # Обновляем график RSSI
+        self.ax.clear()
+        self.ax.plot(self.timestamps, self.rssi_values, marker='o', color='blue')
+        self.ax.set_xlabel('Time')
+        self.ax.set_ylabel('RSSI')
+        self.ax.grid(True)
+        self.canvas.draw()
 
     def destroy(self):
         # Завершаем поток при закрытии окна
@@ -91,8 +126,8 @@ class SecondWindow(tk.Toplevel):
 
 
 # Тестовый запуск окна
-# if __name__ == "__main__":
-#     root = tk.Tk()
-#     app = SecondWindow(root)
-#     root.withdraw()  # Скрываем корневое окно
-#     app.mainloop()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = SecondWindow(root, mac_address="48:8B:0A:A1:05:70")
+    root.withdraw()  # Скрываем корневое окно
+    app.mainloop()
