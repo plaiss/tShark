@@ -56,6 +56,11 @@ class App(tk.Tk):
         self.indicator.pack()
         self.update_indicator()
 
+        # Словарь состояний сортировки для каждого столбца
+        self._column_sort_state = {}
+        for col in ["#1", "#2", "#3", "#4"]:
+            self._column_sort_state[col] = True  # По умолчанию сортировка прямого порядка
+
         # self.refresh_status()
 
         # self.open_second_window()
@@ -307,56 +312,48 @@ class App(tk.Tk):
         settings_dialog.grab_set()
 
 
-
     # def sort_column(self, column_id):
-    #     if column_id == '#1':
-    #         # Проверяем, была ли предыдущая сортировка обычным порядком
-    #         if getattr(self, '_first_col_sorted_ascending', True):
-    #             # Меняем направление сортировки
-    #             self.reverse_sort_by_first_column()
-    #             self._first_col_sorted_ascending = False
+    #     items = list(self.tree.get_children())
+    #     try:
+    #         # Определим порядок сортировки в зависимости от состояния чекбокса
+    #         ascending_order = not self.reverse_check_var.get() if column_id == '#1' else True
+    #
+    #         # Если столбец №3 (RSSI), используем числовую сортировку
+    #         if column_id == '#3':
+    #             items.sort(key=lambda x: float(self.tree.set(x, column_id)), reverse=not ascending_order)
     #         else:
-    #             # Обычная сортировка
-    #             items = list(self.tree.get_children())
-    #             try:
-    #                 items.sort(key=lambda x: self.tree.set(x, column_id))
-    #             except ValueError:
-    #                 items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)))
+    #             # Для остальных столбцов используем алфавитную сортировку
+    #             items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
+    #     except ValueError:
+    #         # Если возникла ошибка преобразования чисел, сортируем строковыми значениями
+    #         items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
     #
-    #             for idx, item in enumerate(items):
-    #                 self.tree.move(item, '', idx)
-    #             self._first_col_sorted_ascending = True
-    #     else:
-    #         # Для остальных столбцов оставляем стандартную сортировку
-    #         items = list(self.tree.get_children())
-    #         try:
-    #             items.sort(key=lambda x: float(self.tree.set(x, column_id)) if column_id == '#3' else str.lower(
-    #                 self.tree.set(x, column_id)))
-    #         except ValueError:
-    #             items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)))
-    #
-    #         for idx, item in enumerate(items):
-    #             self.tree.move(item, '', idx)
+    #     # Обновляем дерево, перемещая элементы согласно новым позициям
+    #     for idx, item in enumerate(items):
+    #         self.tree.move(item, '', idx)
+
     def sort_column(self, column_id):
+        # Текущий порядок сортировки для данного столбца
+        ascending_order = self._column_sort_state.get(column_id, True)
+
+        # Инвертируем порядок сортировки
+        self._column_sort_state[column_id] = not ascending_order
+
         items = list(self.tree.get_children())
         try:
-            # Определим порядок сортировки в зависимости от состояния чекбокса
-            ascending_order = not self.reverse_check_var.get() if column_id == '#1' else True
-
-            # Если столбец №3 (RSSI), используем числовую сортировку
-            if column_id == '#3':
+            # Применяем сортировку
+            if column_id == '#3':  # Числовой столбец (RSSI)
                 items.sort(key=lambda x: float(self.tree.set(x, column_id)), reverse=not ascending_order)
+            elif column_id == '#1':  # Первый столбец (MAC-адреса)
+                items.sort(key=lambda x: self.tree.set(x, column_id), reverse=not ascending_order)
             else:
-                # Для остальных столбцов используем алфавитную сортировку
                 items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
         except ValueError:
-            # Если возникла ошибка преобразования чисел, сортируем строковыми значениями
             items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
 
-        # Обновляем дерево, перемещая элементы согласно новым позициям
+        # Обновляем представление
         for idx, item in enumerate(items):
             self.tree.move(item, '', idx)
-
 
     # Открывает второе окно с информацией о устройстве
     def open_second_window(self, data=None):
