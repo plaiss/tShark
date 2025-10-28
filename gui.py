@@ -12,6 +12,54 @@ from second_window import SecondWindow  # Импортируем класс из
 
 
 class App(tk.Tk):
+    # def __init__(self):
+    #     super().__init__()
+    #     #Настройка    главного    окна    приложения
+    #     self.title("WiFi Monitor")
+    #     self.minsize(width=1380, height=768)
+    #     self.center_window()  # Центрируем окно
+    #
+    #     # Хранилище ссылок на созданные кнопки
+    #     self.buttons = {}  # Словарь для хранения ссылок на кнопки
+    #
+    #     # Главный фрейм для всего интерфейса
+    #     main_frame = tk.Frame(self)
+    #     main_frame.pack(fill=tk.BOTH, expand=True)
+    #
+    #     # Панель инструментов с кнопками сверху
+    #     toolbar = tk.Frame(main_frame, bg="#f0f0f0")
+    #     toolbar.pack(side=tk.TOP, fill=tk.X)
+    #
+    #     # Левый контейнер для таблицы (TreeView)
+    #     left_container = tk.Frame(main_frame)
+    #     left_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)  # Растягиваем контейнер по высоте и ширине
+    #
+    #     # Таблица с устройствами
+    #     self.tree_view(left_container)
+    #
+    #     # Новый контейнер для журнала сообщений
+    #     log_container = tk.Frame(main_frame)
+    #     log_container.pack(side=tk.TOP, fill=tk.X)  # Ставим контейнер под таблицей, растянув по ширине
+    #
+    #     # Создаем сам журнал сообщений
+    #     self.log_view(log_container)
+    #
+    #     # Полоса статуса снизу окна
+    #     self.status_bar()
+    #
+    #     # Индикатор состояния потока
+    #     self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
+    #     self.indicator.pack()
+    #     self.update_indicator()
+    #
+    #     # Словарь состояний сортировки для каждого столбца
+    #     self._column_sort_state = {}
+    #     for col in ["#1", "#2", "#3", "#4"]:
+    #         self._column_sort_state[col] = True  # По умолчанию сортировка прямого порядка
+    #
+    #     # self.refresh_status()
+    #
+    #     # self.open_second_window()
     def __init__(self):
         super().__init__()
 
@@ -27,26 +75,30 @@ class App(tk.Tk):
         main_frame = tk.Frame(self)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Панель инструментов с кнопками сверху
-        toolbar = tk.Frame(main_frame, bg="#f0f0f0")
-        toolbar.pack(side=tk.TOP, fill=tk.X)
-
-        # Создание кнопок и хранение ссылок на них
-        self.create_buttons(toolbar)
+        # Центральный контейнер для разделения на левую и правую стороны
+        central_container = tk.Frame(main_frame)
+        central_container.pack(fill=tk.BOTH, expand=True)
 
         # Левый контейнер для таблицы (TreeView)
-        left_container = tk.Frame(main_frame)
-        left_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        table_container = tk.Frame(central_container)
+        table_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)  # Таблица занимает всю левую сторону
 
         # Таблица с устройствами
-        self.tree_view(left_container)
+        self.tree_view(table_container)
 
-        # Правый контейнер для журнала сообщений
-        right_container = tk.Frame(main_frame)
-        right_container.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        # Правый контейнер для панели инструментов
+        toolbar_container = tk.Frame(central_container, bg="#f0f0f0")
+        toolbar_container.pack(side=tk.RIGHT, fill=tk.Y)  # Кнопки располагаются справа, растягиваются по высоте
 
-        # Журнал сообщений
-        self.log_view(right_container)
+        # Создаем сами кнопки
+        self.create_buttons(toolbar_container)
+
+        # Новый контейнер для журнала сообщений
+        log_container = tk.Frame(main_frame)
+        log_container.pack(side=tk.TOP, fill=tk.X)  # Ставим контейнер под центральным контейнером, растянув по ширине
+
+        # Создаем сам журнал сообщений
+        self.log_view(log_container)
 
         # Полоса статуса снизу окна
         self.status_bar()
@@ -60,10 +112,6 @@ class App(tk.Tk):
         self._column_sort_state = {}
         for col in ["#1", "#2", "#3", "#4"]:
             self._column_sort_state[col] = True  # По умолчанию сортировка прямого порядка
-
-        # self.refresh_status()
-
-        # self.open_second_window()
 
     # Центральизация окна
     def center_window(self):
@@ -159,11 +207,12 @@ class App(tk.Tk):
         self.reverse_check_var = tk.BooleanVar(value=False)
         check_box = tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var)
         check_box.place(in_=title_label, relx=1.0, rely=0.0, anchor="ne", x=300, y=0)  # Рядом с заголовком
-    # Журнал сообщений
+
+
     def log_view(self, frame):
         # Текстовая область для журналов и сообщений
-        self.text_area = scrolledtext.ScrolledText(frame, wrap=tk.NONE, height=6)  # Высота в 6 строк
-        self.text_area.pack(fill=tk.BOTH, expand=True)
+        self.text_area = scrolledtext.ScrolledText(frame, wrap=tk.NONE, height=6)  # Ограничиваем высоту в 6 строк
+        self.text_area.pack(fill=tk.BOTH, expand=True)  # Растергиваем по ширине и занимаем весь контейнер
 
     # Полоса статуса
     def status_bar(self):
@@ -211,6 +260,30 @@ class App(tk.Tk):
 
 
     # Создание кнопок и сохранение ссылок на них
+    # def create_buttons(self, toolbar):
+    #     # Определяем названия кнопок и их команды
+    #     button_names_and_commands = {
+    #         "Стоп": {"command": self.toggle_scanning},
+    #         "turn ON monitor mode": {"command": self.switch_to_monitor_mode},
+    #         "Сброс данных": {"command": self.reset_data},
+    #         "Экспорт в CSV": {"command": self.export_csv},
+    #         "Открыть белый список": {"command": self.show_whitelist},
+    #         "Показать детали": {"command": self.show_details},
+    #         "Настройки": {"command": self.show_settings}
+    #     }
+    #
+    #     # Стандартные параметры оформления кнопок
+    #     default_style = dict(relief=tk.RAISED, borderwidth=2, activebackground='#ccc')
+    #
+    #     # Создание кнопок и их размещение на панели
+    #     for button_name, props in button_names_and_commands.items():
+    #         btn_props = default_style.copy()  # Копируем стандартный стиль
+    #         btn_props.update(props)  # Объединяем с индивидуальными параметрами (включая команду)
+    #
+    #         btn = tk.Button(toolbar, text=button_name, **btn_props)
+    #         btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
+    #         self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
+
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
         button_names_and_commands = {
@@ -232,9 +305,9 @@ class App(tk.Tk):
             btn_props.update(props)  # Объединяем с индивидуальными параметрами (включая команду)
 
             btn = tk.Button(toolbar, text=button_name, **btn_props)
-            btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
+            btn.pack(side=tk.TOP, fill=tk.X, expand=True, padx=5,
+                     pady=5)  # Расставляем кнопки вертикально, заполнив ими панель
             self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
-
     # Универсальный метод для установки любых свойств кнопки
     def set_button_properties(self, button_name, properties):
         """
@@ -311,26 +384,6 @@ class App(tk.Tk):
         settings_dialog = SettingsDialog(self)
         settings_dialog.grab_set()
 
-
-    # def sort_column(self, column_id):
-    #     items = list(self.tree.get_children())
-    #     try:
-    #         # Определим порядок сортировки в зависимости от состояния чекбокса
-    #         ascending_order = not self.reverse_check_var.get() if column_id == '#1' else True
-    #
-    #         # Если столбец №3 (RSSI), используем числовую сортировку
-    #         if column_id == '#3':
-    #             items.sort(key=lambda x: float(self.tree.set(x, column_id)), reverse=not ascending_order)
-    #         else:
-    #             # Для остальных столбцов используем алфавитную сортировку
-    #             items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
-    #     except ValueError:
-    #         # Если возникла ошибка преобразования чисел, сортируем строковыми значениями
-    #         items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
-    #
-    #     # Обновляем дерево, перемещая элементы согласно новым позициям
-    #     for idx, item in enumerate(items):
-    #         self.tree.move(item, '', idx)
 
     def sort_column(self, column_id):
         # Текущий порядок сортировки для данного столбца
