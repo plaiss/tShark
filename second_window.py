@@ -31,14 +31,14 @@ def extract_rssi(data):
 
 # Класс окна детальной информации
 class SecondWindow(tk.Toplevel):
-    def __init__(self, parent, mac_address=None):
+    def __init__(self, parent, data=None):
         super().__init__(parent)
         self.parent = parent
         self.title("Подробности устройства")
         self.geometry("640x480")
 
         # Мак-адрес устройства передается из родительского окна или оставляется текущий
-        self.mac_address = mac_address or "2c:57:41:83:32:03"
+        self.mac_address = data[0] or "2c:57:41:83:32:03"
 
         # Новый запрос к tshark
         TSHARK_CMD1 = [
@@ -169,6 +169,9 @@ class SecondWindow(tk.Toplevel):
         self.ax.set_ylabel('RSSI (dBm)')
         self.ax.grid(True)
         self.canvas.draw_idle()
+
+
+
     # def plot_graph(self):
     #     """Рисование графика"""
     #     self.ax.clear()
@@ -192,7 +195,8 @@ class SecondWindow(tk.Toplevel):
         time.sleep(0.5)
         plt.close('all')
         super().destroy()
-        root.destroy()
+        if __name__ == "__main__":
+            root.destroy()
 
 
 # Тестовый запуск окна
