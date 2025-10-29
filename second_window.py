@@ -38,8 +38,8 @@ class SecondWindow(tk.Toplevel):
         self.geometry("640x480")
 
         # Мак-адрес устройства передается из родительского окна или оставляется текущий
-        self.mac_address = data[0] or "2c:57:41:83:32:03"
-
+        # self.mac_address = data[0] or "2c:57:41:83:32:03"
+        self.mac_address = data[0] if data else "2c:57:41:83:32:03"
         # Новый запрос к tshark
         TSHARK_CMD1 = [
             "tshark", "-i", "wlan1",
@@ -151,42 +151,26 @@ class SecondWindow(tk.Toplevel):
 
                 self.plot_graph()
 
+
     # def plot_graph(self):
     #     """Рисование графика"""
     #     self.ax.clear()
-    #     self.ax.plot(self.timestamps, self.rssi_values, marker='o', color='blue')
-    #     self.ax.set_xlabel('Time')
+    #     self.ax.plot(self.timestamps, self.rssi_values, marker='o', color='blue')  # Нет аргументов legend
+    #     # self.ax.set_xlabel('Time')
+    #     self.ax.xaxis.set_visible(False)
     #     self.ax.set_ylabel('RSSI (dBm)')
     #     self.ax.grid(True)
     #     self.canvas.draw_idle()
-    #
     def plot_graph(self):
         """Рисование графика"""
         self.ax.clear()
-        self.ax.plot(self.timestamps, self.rssi_values, marker='o', color='blue')  # Нет аргументов legend
-        # self.ax.set_xlabel('Time')
-        self.ax.xaxis.set_visible(False)
+        self.ax.plot(self.timestamps, self.rssi_values, color='blue')  # Убрали маркер точек
         self.ax.set_ylabel('RSSI (dBm)')
+        self.ax.xaxis.set_visible(False)  # Скрывает оси x
         self.ax.grid(True)
         self.canvas.draw_idle()
 
 
-
-    # def plot_graph(self):
-    #     """Рисование графика"""
-    #     self.ax.clear()
-    #     self.ax.plot(self.timestamps, self.rssi_values, marker='o', color='blue')
-    #
-    #     # Устанавливаем фиксированную ось Y (-100..0 дБм)
-    #     self.ax.set_ylim(-100, 0)
-    #
-    #     # Убираем временную шкалу снизу (ось X)
-    #     self.ax.xaxis.set_visible(False)
-    #
-    #     # Оставляем подписи осей
-    #     self.ax.set_ylabel('RSSI (dBm)')
-    #     self.ax.grid(True)
-    #     self.canvas.draw_idle()
 
     def destroy(self):
         """Завершение потоков и очистка окон"""
