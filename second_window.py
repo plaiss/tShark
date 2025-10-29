@@ -9,55 +9,27 @@ import threading
 import config
 
 
-#tshark -i wlan1  -s 0 -T fields -e wlan_radio.signal_dbm -Y wlan.ra==28:e3:47:fe:34:44
-
-TSHARK_CMD1 = [
-    "tshark", "-i", "wlan1",
-    "-s",  "0",
-    "-T", "fields",
-    "-e", "wlan_radio.signal_dbm",
-    "-Y", "wlan.ra==2c:57:41:83:32:03",
-    "-l"  # Включаем line buffering mode
-]
-# TSHARK_CMD1 = ['tshark -i wlan1 -s 0 -T fields -e wlan_radio.signal_dbm -Y wlan.ra==2c:57:41:83:32:03']
-# Максимальное количество точек на графике
-MAX_POINTS_ON_GRAPH = 100
+# Максимальная длина графика
+MAX_POINTS_ON_GRAPH = 50
 
 
-# def get_data_stream(proc):
-#     while True:
-#         output = proc.stdout.readline().decode()
-#         # output = proc.stdout.readline().decode().strip()
-#         if len(output)!=0:
-#             print(f"[DEBUG] Received from tshark: {output}")  # Вывод полученных данных
-#         yield output
-
+# Генерирует потоки данных из tshark
 def get_data_stream(proc):
     for line in iter(proc.stdout.readline, b''):
         output = line.decode().strip()
         if output:
-            # print(f"[DEBUG] Received from tshark: {output}")
             yield output
 
 
-# def extract_rssi(data):
-#     return data
-#     # Возвращаем последнее измеренное значение RSSI
-#     lines = data.splitlines()
-#     if lines:
-#         value = lines[-1].split('\t')[0]
-#         if value.startswith('-'):
-#             return value  # RSSI в dBm
-#         return '-'  # Недоступные данные
-#     return '-'
+# Функция извлечения RSSI
 def extract_rssi(data):
-    # Просто возвращаем первое значение, которое приходит из строки
     parts = data.strip().split("\t")
-    if parts:
-        return parts[0]
+    if len(parts) >= 4:
+        return parts[3]  # Четвёртое поле - сигнал (RSSI)
     return "-"
 
 
+# Класс окна детальной информации
 class SecondWindow(tk.Toplevel):
     def __init__(self, parent, mac_address=None):
         super().__init__(parent)
@@ -65,25 +37,41 @@ class SecondWindow(tk.Toplevel):
         self.title("Подробности устройства")
         self.geometry("640x480")
 
-        # Передаем MAC-адрес устройства
-        self.mac_address = mac_address or "Unknown"
+        # Мак-адрес устройства передается из родительского окна или оставляется текущий
+        self.mac_address = mac_address or "2c:57:41:83:32:03"
 
-        # Добавляем текстовые метки для MAC-адреса и канала
+        # Новый запрос к tshark
+        TSHARK_CMD1 = [
+            "tshark", "-i", "wlan1",
+            "-s", "0",
+            "-T", "fields",
+            "-e", "wlan.ra",  # Поле RA (Receiver Address)
+            "-e", "wlan.ra.oui_resolved",  # Производитель (OUI Resolved)
+            "-e", "wlan_radio.channel",  # Номер канала
+            "-e", "wlan_radio.signal_dbm",  # Уровень сигнала (RSSI)
+            "-Y", f"wlan.ra=={self.mac_address}",  # Фильтруем по MAC-адресу
+            # "-Y", "wlan.ra==2c:57:41:83:32:03",  # Фильтруем по MAC-адресу
+            "-l"  # Включаем line buffering mode
+            ]
+
+        # Метки для отображения MAC, канала и RSSI
         self.mac_label = tk.Label(self, text=f"MAC: {self.mac_address}", font=("Arial", 12))
         self.channel_label = tk.Label(self, text="Channel: Unknown", font=("Arial", 12))
+        self.manufacturer_label = tk.Label(self, text="Manufacturer: Unknown", font=("Arial", 12))
         self.rssi_label = tk.Label(self, text="RSSI: N/A", font=("Arial", 12))
 
         # Упаковка меток
         self.mac_label.pack()
         self.channel_label.pack()
+        self.manufacturer_label.pack()
         self.rssi_label.pack()
 
-        # Кнопка "Пауза/Старт"
+        # Кнопка паузы/старта
         self.pause_start_button = tk.Button(self, text="Пауза", command=self.toggle_pause)
         self.pause_start_button.pack()
 
-        # График для отображения RSSI
-        fig = plt.figure(figsize=(6, 3), dpi=100)
+        # Создаем фигуру для графика
+        fig = plt.figure(figsize=(6, 4))  # Увеличили высоту фигуры
         self.ax = fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(fig, master=self)
         self.canvas_widget = self.canvas.get_tk_widget()
@@ -93,25 +81,25 @@ class SecondWindow(tk.Toplevel):
         self.rssi_values = []
         self.timestamps = []
 
-        # Запускаем фоновый поток для регулярного обновления данных
+        # Начинаем сбор данных
         self.thread_running = True
         self.paused = False
-        print(f"[DEBUG] Starting tshark with command: {' '.join(TSHARK_CMD1)}")  # Печать команды
+        print(f"[DEBUG] Starting tshark with command: {' '.join(TSHARK_CMD1)}")
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.data_update_thread = threading.Thread(target=self.update_data_from_stream)
         self.data_update_thread.daemon = True
         self.data_update_thread.start()
 
     def stop_updating(self):
-        # Останавливаем цикл обновления данных
+        """Завершить обновление"""
         self.thread_running = False
-        # Форсированное завершение процесса tshark
         if self.proc.poll() is None:
-            print("[DEBUG] Killing tshark process...")  # Печать перед завершением
-            self.proc.kill()  # Обязательно завершать процесс, если он еще активен
-            self.proc.wait()  # Ожидаем завершения процесса
+            print("[DEBUG] Killing tshark process...")
+            self.proc.kill()
+            self.proc.wait()
 
     def toggle_pause(self):
+        """Переключатель паузы"""
         self.paused = not self.paused
         if self.paused:
             self.pause_start_button.config(text="Старт")
@@ -119,58 +107,89 @@ class SecondWindow(tk.Toplevel):
             self.pause_start_button.config(text="Пауза")
 
     def update_data_from_stream(self):
+        """Обновление данных из потока tshark"""
         generator = get_data_stream(self.proc)
         while self.thread_running:
             if self.paused:
-                time.sleep(1)  # Пауза на секунду, чтобы не нагружать процессор
+                time.sleep(1)
                 continue
 
-            # Получаем свежие данные
+            # Читаем новую порцию данных
             response = next(generator, '')
             if not response:
                 continue
 
-            rssi_value = extract_rssi(response)
+            # Парсим вывод tshark
+            parts = response.strip().split("\t")
+            if len(parts) >= 4:
+                ra = parts[0]  # Receiver address
+                manufacturer = parts[1]  # Производитель
+                channel = parts[2]  # Канал
+                rssi_value = parts[3]  # Сигнал (RSSI)
 
-            # Проверяем, можно ли преобразовать значение в число
-            try:
-                rssi_float = float(rssi_value)
-            except ValueError:
-                print(f"[DEBUG] Skipped invalid RSSI value: '{rssi_value}'")  # Вывод пропущенных значений
-                continue  # Пропускаем итерацию, если значение нельзя обработать
+                # Обновляем интерфейс
+                self.channel_label["text"] = f"Channel: {channel}"
+                self.manufacturer_label["text"] = f"Manufacturer: {manufacturer}"
+                self.rssi_label["text"] = f"RSSI: {rssi_value} dBm"
 
-            # Обновляем интерфейс
-            self.rssi_label['text'] = f"RSSI: {rssi_value} dBm"
+                # Сохраняем RSSI для графика
+                try:
+                    rssi_float = float(rssi_value)
+                except ValueError:
+                    print(f"[DEBUG] Skipped invalid RSSI value: '{rssi_value}'")
+                    continue
 
-            # Обновляем график
-            timestamp = time.time()
-            self.rssi_values.append(rssi_float)
-            self.timestamps.append(timestamp)
+                # Обновляем график
+                timestamp = time.time()
+                self.rssi_values.append(rssi_float)
+                self.timestamps.append(timestamp)
 
-            # Удаляем лишние точки (эффект затухания)
-            if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
-                self.rssi_values.pop(0)
-                self.timestamps.pop(0)
+                # Ограничиваем длину графика
+                if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
+                    self.rssi_values.pop(0)
+                    self.timestamps.pop(0)
 
-            self.plot_graph()
+                self.plot_graph()
 
+    # def plot_graph(self):
+    #     """Рисование графика"""
+    #     self.ax.clear()
+    #     self.ax.plot(self.timestamps, self.rssi_values, marker='o', color='blue')
+    #     self.ax.set_xlabel('Time')
+    #     self.ax.set_ylabel('RSSI (dBm)')
+    #     self.ax.grid(True)
+    #     self.canvas.draw_idle()
+    #
     def plot_graph(self):
-        # Обновляем график RSSI
+        """Рисование графика"""
         self.ax.clear()
-        self.ax.plot(self.timestamps, self.rssi_values, marker='o', color='blue')
-        self.ax.set_xlabel('Time')
+        self.ax.plot(self.timestamps, self.rssi_values, marker='o', color='blue')  # Нет аргументов legend
+        # self.ax.set_xlabel('Time')
+        self.ax.xaxis.set_visible(False)
         self.ax.set_ylabel('RSSI (dBm)')
         self.ax.grid(True)
         self.canvas.draw_idle()
+    # def plot_graph(self):
+    #     """Рисование графика"""
+    #     self.ax.clear()
+    #     self.ax.plot(self.timestamps, self.rssi_values, marker='o', color='blue')
+    #
+    #     # Устанавливаем фиксированную ось Y (-100..0 дБм)
+    #     self.ax.set_ylim(-100, 0)
+    #
+    #     # Убираем временную шкалу снизу (ось X)
+    #     self.ax.xaxis.set_visible(False)
+    #
+    #     # Оставляем подписи осей
+    #     self.ax.set_ylabel('RSSI (dBm)')
+    #     self.ax.grid(True)
+    #     self.canvas.draw_idle()
 
     def destroy(self):
-        # Завершаем поток при закрытии окна
+        """Завершение потоков и очистка окон"""
         self.stop_updating()
-        # Дождемся завершения потока
         self.data_update_thread.join()
-        # Небольшая задержка для гарантии освобождения ресурсов
         time.sleep(0.5)
-        # Освобождение ресурсов
         plt.close('all')
         super().destroy()
         root.destroy()
