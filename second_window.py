@@ -15,19 +15,29 @@ TSHARK_CMD1 = [
     "tshark", "-i", "wlan1",
     "-s",  "0",
     "-T", "fields",
-    "-e", "wlan_radio.signal_dbm"
-    "-Y", "wlan.ra==28:e3:47:fe:34:44"
+    "-e", "wlan_radio.signal_dbm",
+    "-Y", "wlan.ra==2c:57:41:83:32:03",
+    "-l"  # Включаем line buffering mode
 ]
+# TSHARK_CMD1 = ['tshark -i wlan1 -s 0 -T fields -e wlan_radio.signal_dbm -Y wlan.ra==2c:57:41:83:32:03']
 # Максимальное количество точек на графике
 MAX_POINTS_ON_GRAPH = 100
 
 
+# def get_data_stream(proc):
+#     while True:
+#         output = proc.stdout.readline().decode()
+#         # output = proc.stdout.readline().decode().strip()
+#         if len(output)!=0:
+#             print(f"[DEBUG] Received from tshark: {output}")  # Вывод полученных данных
+#         yield output
+
 def get_data_stream(proc):
-    while True:
-        output = proc.stdout.readline().decode()
-        # output = proc.stdout.readline().decode().strip()
-        print(f"[DEBUG] Received from tshark: {output}")  # Вывод полученных данных
-        yield output
+    for line in iter(proc.stdout.readline, b''):
+        output = line.decode().strip()
+        if output:
+            # print(f"[DEBUG] Received from tshark: {output}")
+            yield output
 
 
 # def extract_rssi(data):
@@ -40,6 +50,12 @@ def get_data_stream(proc):
 #             return value  # RSSI в dBm
 #         return '-'  # Недоступные данные
 #     return '-'
+def extract_rssi(data):
+    # Просто возвращаем первое значение, которое приходит из строки
+    parts = data.strip().split("\t")
+    if parts:
+        return parts[0]
+    return "-"
 
 
 class SecondWindow(tk.Toplevel):
