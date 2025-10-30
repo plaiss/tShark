@@ -1,11 +1,35 @@
-import threading
 import time
 import signal
 import subprocess
 
-import config
-import gui
+import threading
+import tkinter as tk
+from tkinter import ttk, scrolledtext
+from tkinter.messagebox import showinfo
+from tkinter import simpledialog
+
+#
 import utils
+from config import _stop
+import config
+from wifi_monitor import WifiMonitor  # Импортируем класс из отдельного файла
+
+
+
+class SettingsDialog(tk.Toplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Настройки")
+        self.geometry("400x300")
+
+        # Интерфейс настройки пока пустой, можно расширить позже
+        save_btn = tk.Button(self, text="Сохранить", command=self.save_settings)
+        save_btn.pack(pady=10)
+
+    def save_settings(self):
+        # Здесь реализуйте сохранение настроек
+        pass
+
 
 def tshark_worker(root, cmd, ttl):
     try:
@@ -78,7 +102,7 @@ def tshark_worker(root, cmd, ttl):
 
 def main():
     global WHITELIST_PATH, SEEN_TTL_SECONDS
-    root = gui.App()
+    root = WifiMonitor()
 
     # cmd = config.TSHARK_CMD
     WHITELIST_PATH = config.WHITELIST_PATH
