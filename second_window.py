@@ -90,6 +90,10 @@ class SecondWindow(tk.Toplevel):
         self.data_update_thread.daemon = True
         self.data_update_thread.start()
 
+        # Добавляем начальное значение скользящей средней
+        self.ema_value = None
+        self.alpha = 0.2  # Коэффициент сглаживания (можете настроить этот параметр)
+
     def stop_updating(self):
         """Завершить обновление"""
         self.thread_running = False
@@ -106,8 +110,55 @@ class SecondWindow(tk.Toplevel):
         else:
             self.pause_start_button.config(text="Пауза")
 
+    # def update_data_from_stream(self):
+    #     """Обновление данных из потока tshark"""
+    #     generator = get_data_stream(self.proc)
+    #     while self.thread_running:
+    #         if self.paused:
+    #             time.sleep(1)
+    #             continue
+    #
+    #         # Читаем новую порцию данных
+    #         response = next(generator, '')
+    #         if not response:
+    #             continue
+    #
+    #         # Парсим вывод tshark
+    #         parts = response.strip().split("\t")
+    #         if len(parts) >= 4:
+    #             ra = parts[0]  # Receiver address
+    #             manufacturer = parts[1]  # Производитель
+    #             channel = parts[2]  # Канал
+    #             rssi_value = parts[3]  # Сигнал (RSSI)
+    #
+    #             # Обновляем интерфейс
+    #             self.channel_label["text"] = f"Channel: {channel}"
+    #             self.manufacturer_label["text"] = f"Manufacturer: {manufacturer}"
+    #             self.rssi_label["text"] = f"RSSI: {rssi_value} dBm"
+    #
+    #             # Сохраняем RSSI для графика
+    #             try:
+    #                 rssi_float = float(rssi_value)
+    #             except ValueError:
+    #                 print(f"[DEBUG] Skipped invalid RSSI value: '{rssi_value}'")
+    #                 continue
+    #
+    #             # Обновляем график
+    #             timestamp = time.time()
+    #             self.rssi_values.append(rssi_float)
+    #             self.timestamps.append(timestamp)
+    #
+    #             # Ограничиваем длину графика
+    #             if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
+    #                 self.rssi_values.pop(0)
+    #                 self.timestamps.pop(0)
+    #
+    #             self.plot_graph()
+
     def update_data_from_stream(self):
-        """Обновление данных из потока tshark"""
+        """
+        Обновление данных из потока tshark
+        """
         generator = get_data_stream(self.proc)
         while self.thread_running:
             if self.paused:
@@ -122,34 +173,40 @@ class SecondWindow(tk.Toplevel):
             # Парсим вывод tshark
             parts = response.strip().split("\t")
             if len(parts) >= 4:
-                ra = parts[0]  # Receiver address
-                manufacturer = parts[1]  # Производитель
-                channel = parts[2]  # Канал
-                rssi_value = parts[3]  # Сигнал (RSSI)
+                ra = parts[0]
+                manufacturer = parts[1]
+                channel = parts[2]
+                rssi_value = parts[3]
 
                 # Обновляем интерфейс
                 self.channel_label["text"] = f"Channel: {channel}"
                 self.manufacturer_label["text"] = f"Manufacturer: {manufacturer}"
-                self.rssi_label["text"] = f"RSSI: {rssi_value} dBm"
 
-                # Сохраняем RSSI для графика
+                # Рассчитываем скользящую среднюю
                 try:
-                    rssi_float = float(rssi_value)
+                    current_rssi = float(rssi_value)
+                    if self.ema_value is None:
+                        self.ema_value = current_rssi
+                    else:
+                        self.ema_value = self.alpha * current_rssi + (1 - self.alpha) * self.ema_value
+
+                    # Обновляем метку с RSSI средним значением
+                    self.rssi_label["text"] = f"RSSI: {self.ema_value:.2f} dBm"
+
+                    # Сохраняем последнее измерённое значение для графика
+                    self.rssi_values.append(current_rssi)
+                    self.timestamps.append(time.time())
+
+                    # Ограничиваем длину графика
+                    if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
+                        self.rssi_values.pop(0)
+                        self.timestamps.pop(0)
+
+                    self.plot_graph()
+
                 except ValueError:
                     print(f"[DEBUG] Skipped invalid RSSI value: '{rssi_value}'")
                     continue
-
-                # Обновляем график
-                timestamp = time.time()
-                self.rssi_values.append(rssi_float)
-                self.timestamps.append(timestamp)
-
-                # Ограничиваем длину графика
-                if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
-                    self.rssi_values.pop(0)
-                    self.timestamps.pop(0)
-
-                self.plot_graph()
 
 
     # def plot_graph(self):
