@@ -8,6 +8,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
             "console": "integratedTerminal",
+            "python": "/home/kali/PycharmProjects/tShark/.venv/bin/python"
         }
     ]
 }
