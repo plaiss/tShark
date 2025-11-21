@@ -352,3 +352,18 @@ class WifiMonitor(tk.Tk):
         for idx, item in enumerate(items):
             self.tree.move(item, '', idx)
 
+
+
+class SettingsDialog(tk.Toplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Настройки")
+        self.geometry("400x300")
+
+        # Интерфейс настройки пока пустой, можно расширить позже
+        save_btn = tk.Button(self, text="Сохранить", command=self.save_settings)
+        save_btn.pack(pady=10)
+
+    def save_settings(self):
+        # Здесь реализуйте сохранение настроек
+        pass
