@@ -116,15 +116,10 @@ class WifiMonitor(tk.Tk):
         # Конфигурируем прокрутку
         scroll_y.config(command=self.tree.yview)
         
-        # # Чекбокс для выбора порядка сортировки по первому столбцу
-        # check_box = tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
-        # check_box.place(in_=title_label, tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
-        # check_box.place(in_=title_label, relx=1.0, rely=0.0, tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
-        # check_box.place(in_=title_label, tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
-        # check_box.place(in_=title_label, relx=1.0, rely=0.0, anchor="ne", x=300, y=0)  # Рядом с заголовком
-    # Чекбокс для выбора порядка сортировки по первому столбцу
+        # Чекбокс для выбора порядка сортировки по первому столбцу
         check_box = tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
         check_box.place(in_=title_label, relx=1.0, rely=0.0, anchor="ne", x=300, y=0)  # Рядом с заголовком
+
     def log_view(self, frame):
         # Текстовая область для журналов и сообщений
         self.text_area = scrolledtext.ScrolledText(frame, wrap=tk.NONE, height=6)  # Ограничиваем высоту в 6 строк
@@ -148,27 +143,30 @@ class WifiMonitor(tk.Tk):
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
 
     def sort_column(self, column_id):
-        # Текущий порядок сортировки для данного столбца
-        ascending_order = self._column_sort_state.get(column_id, True)
-        
-        # Инвертируем порядок сортировки
-        self._column_sort_state[column_id] = not ascending_order
+        # Меняем порядок сортировки для указанного столбца
+        current_order = self._column_sort_state.get(column_id, True)
+        self._column_sort_state[column_id] = not current_order  # Инвертируем порядок сортировки
         
         items = list(self.tree.get_children())
         try:
             # Применяем сортировку
             if column_id == '#3':  # Числовой столбец (RSSI)
-                items.sort(key=lambda x: float(self.tree.set(x, column_id)), reverse=not ascending_order)
+                items.sort(key=lambda x: float(self.tree.set(x, column_id)), reverse=current_order)
             elif column_id == '#1':
                 # Специфическая логика для первого столбца
                 if self.reverse_check_var.get():  # Если галочка включена
                     items.sort(key=lambda x: self.tree.set(x, column_id)[::-1])  # Сортировка справа налево
                 else:
                     items.sort(key=lambda x: self.tree.set(x, column_id))  # Обычная сортировка слева направо
+                
+                # Дополнительно меняем выравнивание в зависимости от сортировки
+                alignment = 'e' if self.reverse_check_var.get() else 'w'
+                self.tree.column('#1', anchor=alignment)
+                    
             else:
-                items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
+                items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=current_order)
         except ValueError:
-            items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
+            items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=current_order)
         
         # Обновляем представление
         for idx, item in enumerate(items):
@@ -191,15 +189,33 @@ class WifiMonitor(tk.Tk):
     def clear_text(self):
         self.text_area.delete('1.0', tk.END)
 
+    # # Обновляет таблицу
+    # def update_tree(self, mac_address, vendor, rssi, last_seen):
+    #     normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
+    #     item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
+    #     if item:
+    #         self.tree.set(item, '#2', vendor)
+    #         self.tree.set(item, '#3', rssi)
+    #         self.tree.set(item, '#4', last_seen)
+    #     else:
+    #         self.tree.insert('', tk.END, if item:
+    #         self.tree.set(item, '#2', vendor)
+    #         self.tree.set(item, '#3', rssi)
+    #         self.tree.set(item, '#4', last_seen)
+    #     else:
+    #         self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
+    #     self.refresh_status()
     # Обновляет таблицу
     def update_tree(self, mac_address, vendor, rssi, last_seen):
         normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
         item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
         if item:
+            # Если запись существует, обновляем её поля
             self.tree.set(item, '#2', vendor)
             self.tree.set(item, '#3', rssi)
             self.tree.set(item, '#4', last_seen)
         else:
+            # Иначе добавляем новую запись
             self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
         self.refresh_status()
 
