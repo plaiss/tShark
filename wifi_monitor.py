@@ -3,8 +3,6 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 from tkinter.messagebox import showinfo
 from tkinter import simpledialog
-
-
 from config import _stop
 import config
 import utils
@@ -14,52 +12,55 @@ from second_window import SecondWindow  # Импортируем класс из
 class WifiMonitor(tk.Tk):
     def __init__(self):
         super().__init__()
-
+        
         # Настройка главного окна приложения
         self.title("WiFi Monitor")
         self.minsize(width=1380, height=768)
         self.center_window()  # Центрируем окно
-
+        
+        # Переменная состояния чекбокса (инициализируем до использования)
+        self.reverse_check_var = tk.BooleanVar(value=False)
+        
         # Хранилище ссылок на созданные кнопки
         self.buttons = {}  # Словарь для хранения ссылок на кнопки
-
+        
         # Главный фрейм для всего интерфейса
         main_frame = tk.Frame(self)
         main_frame.pack(fill=tk.BOTH, expand=True)
-
+        
         # Центральный контейнер для разделения на левую и правую стороны
         central_container = tk.Frame(main_frame)
         central_container.pack(fill=tk.BOTH, expand=True)
-
+        
         # Левый контейнер для таблицы (TreeView)
         table_container = tk.Frame(central_container)
         table_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)  # Таблица занимает всю левую сторону
-
+        
         # Таблица с устройствами
         self.tree_view(table_container)
-
+        
         # Правый контейнер для панели инструментов
         toolbar_container = tk.Frame(central_container, bg="#f0f0f0")
         toolbar_container.pack(side=tk.RIGHT, fill=tk.Y)  # Кнопки располагаются справа, растягиваются по высоте
-
+        
         # Создаем сами кнопки
         self.create_buttons(toolbar_container)
-
+        
         # Новый контейнер для журнала сообщений
         log_container = tk.Frame(main_frame)
         log_container.pack(side=tk.TOP, fill=tk.X)  # Ставим контейнер под центральным контейнером, растянув по ширине
-
+        
         # Создаем сам журнал сообщений
         self.log_view(log_container)
-
+        
         # Полоса статуса снизу окна
         self.status_bar()
-
+        
         # Индикатор состояния потока
         self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
         self.indicator.pack()
         self.update_indicator()
-
+        
         # Словарь состояний сортировки для каждого столбца
         self._column_sort_state = {}
         for col in ["#1", "#2", "#3", "#4"]:
@@ -87,62 +88,54 @@ class WifiMonitor(tk.Tk):
         # Заголовок дерева
         title_label = tk.Label(frame, text="Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10, 'bold'))
         title_label.pack(side=tk.TOP, anchor="w", pady=5)
-
+        
         # Прокрутка вертикальная для дерева
         scroll_y = tk.Scrollbar(frame, orient=tk.VERTICAL)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
-
+        
         # Структура таблицы TreeView
-        columns = ("#1", "#2", "#3",
-                   "#4")  # Столбцы (#1-MAC адрес, #2-Производитель, #3-RSSI, #4-Время последнего обнаружения)
+        columns = ("#1", "#2", "#3", "#4")  # Столбцы (#1-MAC адрес, #2-Производитель, #3-RSSI, #4-Время последнего обнаружения)
         self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
-
+        
         # Подписи заголовков столбцов
         self.tree.heading('#1', text='MAC Address', anchor='center', command=lambda: self.sort_column("#1"))
         self.tree.heading('#2', text='Производитель', anchor='center', command=lambda: self.sort_column("#2"))
         self.tree.heading('#3', text='RSSI', anchor='center', command=lambda: self.sort_column("#3"))
         self.tree.heading('#4', text='Последнее обнаружение', anchor='center', command=lambda: self.sort_column("#4"))
-
+        
         # Ширина столбцов
         self.tree.column('#1', width=150, minwidth=90, stretch=False)
         self.tree.column('#2', width=150, minwidth=90, stretch=False)
         self.tree.column('#3', width=40, minwidth=10, stretch=False)
         self.tree.column('#4', width=300, minwidth=90, stretch=False)
-
+        
         # Связываем событие двойного клика с обработчиком
         self.tree.bind("<Double-1>", self.on_device_double_click)
         self.tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
+        
         # Конфигурируем прокрутку
         scroll_y.config(command=self.tree.yview)
-
-        # Чекбокс для выбора порядка сортировки по первому столбцу
-        self.reverse_check_var = tk.BooleanVar(value=False)
-        check_box = tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var)
+        
+        # # Чекбокс для выбора порядка сортировки по первому столбцу
+        # check_box = tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
+        # check_box.place(in_=title_label, tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
+        # check_box.place(in_=title_label, relx=1.0, rely=0.0, tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
+        # check_box.place(in_=title_label, tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
+        # check_box.place(in_=title_label, relx=1.0, rely=0.0, anchor="ne", x=300, y=0)  # Рядом с заголовком
+    # Чекбокс для выбора порядка сортировки по первому столбцу
+        check_box = tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
         check_box.place(in_=title_label, relx=1.0, rely=0.0, anchor="ne", x=300, y=0)  # Рядом с заголовком
-
-
     def log_view(self, frame):
         # Текстовая область для журналов и сообщений
         self.text_area = scrolledtext.ScrolledText(frame, wrap=tk.NONE, height=6)  # Ограничиваем высоту в 6 строк
-        self.text_area.pack(fill=tk.BOTH, expand=True)  # Растергиваем по ширине и занимаем весь контейнер
+        self.text_area.pack(fill=tk.BOTH, expand=True)  # Растягиваем по ширине и занимаем весь контейнер
 
     # Полоса статуса
     def status_bar(self):
         self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, font=("TkDefaultFont", 10))  # Высота в одну строку
         self.status_text.pack(side=tk.BOTTOM, fill=tk.X)
 
-    # # Обработчик двойного клика мыши по устройству
-    # def on_device_double_click(self, event):
-    #     selected_item = self.tree.focus()
-    #     if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
-    #         # Остановка сканирования
-    #         _stop.set()  # Устанавливаем флаг остановки
-    #         self.tshark_thread.join()  # Ждём завершения потока
-    #         del self.tshark_thread  # Удаляем ссылку на поток
-    #     data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
-    #     if data:
-    #         self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
+    # Обработчик двойного клика мыши по устройству
     def on_device_double_click(self, event):
         selected_item = self.tree.focus()
         if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
@@ -152,170 +145,42 @@ class WifiMonitor(tk.Tk):
             del self.tshark_thread  # Удаляем ссылку на поток
         data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
         if data:
-            self.open_second_window(event, data=data)  # Открываем новое окно с деталями устройства
-
-
-    def refresh_status(self):     # Функция для обновления полосы статуса
-
-        total_devices = len(config._last_seen)
-        devices_in_white_list = sum(1 for mac in config._last_seen if mac in config._whitelist)
-        config.mode = utils.get_wlan_mode(config.interface)
-
-        if len(self.status_text.get(1.0, tk.END)) == 00:
-            self.status_text.delete('0.0', tk.END)
-            self.status_text.insert(tk.END, status_message)
-            print('было пусто')
-
-
-        status_message = f"{config.interface}: {config.mode} mode.  | Найдено: {total_devices}"
-        self.status_text.replace(1.0, tk.END,status_message)
-
-
-        if config.mode != 'Monitor':  # Выделяем красным текущий режим
-            self.status_text.tag_add("red", '1.6', '1.20')
-            self.status_text.tag_config("red", foreground="red")
-            self.status_text.config(state=tk.DISABLED)
-        else:
-            new_props = {'relief': 'sunken', 'state': 'disabled'}
-            self.set_button_properties('turn ON monitor mode', new_props)
-            # self.status_text.delete('0.0', tk.END)
-            # self.status_text.insert(tk.END, status_message)
-        # after_id = self.after(2000, self.refresh_status)
-
-    def create_buttons(self, toolbar):
-        # Определяем названия кнопок и их команды
-        button_names_and_commands = {
-            "Стоп": {"command": self.toggle_scanning},
-            "turn ON monitor mode": {"command": self.switch_to_monitor_mode},
-            "Сброс данных": {"command": self.reset_data},
-            "Экспорт в CSV": {"command": self.export_csv},
-            "Открыть белый список": {"command": self.show_whitelist},
-            "Показать детали": {"command": self.show_details},
-            "Настройки": {"command": self.show_settings}
-        }
-
-        # Стандартные параметры оформления кнопок
-        default_style = dict(relief=tk.RAISED, borderwidth=2, activebackground='#ccc')
-
-        # Создание кнопок и их размещение на панели
-        for button_name, props in button_names_and_commands.items():
-            btn_props = default_style.copy()  # Копируем стандартный стиль
-            btn_props.update(props)  # Объединяем с индивидуальными параметрами (включая команду)
-
-            btn = tk.Button(toolbar, text=button_name, **btn_props)
-            btn.pack(side=tk.TOP, fill=tk.X, expand=True, padx=5,
-                     pady=5)  # Расставляем кнопки вертикально, заполнив ими панель
-            self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
-    # Универсальный метод для установки любых свойств кнопки
-    def set_button_properties(self, button_name, properties):
-        """
-        Изменяет любое количество свойств указанной кнопки.
-        :param button_name: Имя кнопки
-        :param properties: Словарь новых свойств (например, {'relief': 'sunken', 'bg': 'red'})
-        """
-        if button_name in self.buttons:
-            self.buttons[button_name].config(**properties)
-
-    # Функционал для каждой кнопки
-    def toggle_scanning(self):
-        """Начало/остановка сканирования"""
-
-        if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
-            # Остановка сканирования
-            _stop.set()  # Устанавливаем флаг остановки
-            self.tshark_thread.join()  # Ждём завершения потока
-            del self.tshark_thread  # Удаляем ссылку на поток
-        else:
-            # Начало сканирования
-            _stop.clear()  # Снимаем флаг остановки
-            self.start_tshark()
-
-    def start_tshark(self):
-        """Запуск потока сканирования"""
-        self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
-        self.tshark_thread.start()
-
-    def switch_to_monitor_mode(self):
-        """Перевод интерфейса в мониторный режим"""
-        # password = simpledialog.askstring("Пароль sudo", "Введите пароль sudo:", show="*")
-        password = 'kali'
-        if password is not None and len(password.strip()) > 0:
-            success = utils.enable_monitor_mode(config.interface, password)
-            if success:
-                self.refresh_status()
-        else:
-            print("Операция отменена.")
-
-    def reset_data(self):
-        """Сброс всех собранных данных"""
-        config._last_seen.clear()
-        config._seen_count.clear()
-        self.tree.delete(*self.tree.get_children())
-        self.clear_text()
-
-    def export_csv(self):
-        """Экспорт данных в CSV-файл"""
-        filename = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
-        if filename:
-            with open(filename, 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["MAC Адрес", "Производитель", "RSSI", "Время последнего обнаружения"])
-                for item in self.tree.get_children():
-                    row = self.tree.item(item)["values"]
-                    writer.writerow(row)
-
-    def show_whitelist(self):
-        """Отображает содержимое белого списка"""
-        whitelist_str = '\n'.join(config._whitelist.keys())
-        messagebox.showinfo("Белый список", whitelist_str)
-
-    def show_details(self):
-        """Покажет дополнительную информацию о выделенном устройстве"""
-        selected_item = self.tree.focus()
-        data = self.tree.item(selected_item)["values"]
-        if data:
-            details = f"MAC: {data[0]} | Производитель: {utils.lookup_vendor_db(data[0], config.DB_PATH, False)}\nКол-во сигналов: {data[1]}\nПоследний раз обнаружен: {data[2]}"
-            messagebox.showinfo("Детали устройства", details)
-
-    def show_settings(self):
-        """Окно настроек"""
-        settings_dialog = SettingsDialog(self)
-        settings_dialog.grab_set()
-
+            self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
 
     def sort_column(self, column_id):
         # Текущий порядок сортировки для данного столбца
         ascending_order = self._column_sort_state.get(column_id, True)
-
+        
         # Инвертируем порядок сортировки
         self._column_sort_state[column_id] = not ascending_order
-
+        
         items = list(self.tree.get_children())
         try:
             # Применяем сортировку
             if column_id == '#3':  # Числовой столбец (RSSI)
                 items.sort(key=lambda x: float(self.tree.set(x, column_id)), reverse=not ascending_order)
-            elif column_id == '#1':  # Первый столбец (MAC-адреса)
-                items.sort(key=lambda x: self.tree.set(x, column_id), reverse=not ascending_order)
+            elif column_id == '#1':
+                # Специфическая логика для первого столбца
+                if self.reverse_check_var.get():  # Если галочка включена
+                    items.sort(key=lambda x: self.tree.set(x, column_id)[::-1])  # Сортировка справа налево
+                else:
+                    items.sort(key=lambda x: self.tree.set(x, column_id))  # Обычная сортировка слева направо
             else:
                 items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
         except ValueError:
             items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=not ascending_order)
-
+        
         # Обновляем представление
         for idx, item in enumerate(items):
             self.tree.move(item, '', idx)
 
     # Открывает второе окно с информацией о устройстве
-    def open_second_window(self, event, *, data=None):
-        selected_item = event.widget.selection()[0]  # Получаем выбранный элемент
-        # data = event.widget.item(selected_item)['values']  # Получаем значения элементов строки
+    def open_second_window(self, *, data=None):
+        selected_item = self.tree.focus()
+        data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
         mac_address = data[0]  # Первая колонка — MAC-адрес
         manufacturer = data[1]  # Вторая колонка — Производитель
-        # Номер канала берётся отдельно, предположим, он хранится в отдельной переменной
-        channel_number = "Your Channel Number Here"  # Заменяй значением из своего проекта
         SecondWindow(self, mac_address, manufacturer)
-
 
     # Добавляет текст в журнал
     def add_text(self, text):
@@ -338,32 +203,116 @@ class WifiMonitor(tk.Tk):
             self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
         self.refresh_status()
 
+    def refresh_status(self):
+        total_devices = len(config._last_seen)
+        devices_in_white_list = sum(1 for mac in config._last_seen if mac in config._whitelist)
+        config.mode = utils.get_wlan_mode(config.interface)
 
-    def reverse_sort_by_first_column(self):
-        items = list(self.tree.get_children())
-        try:
-            # Сортируем по MAC-адресу в обратном порядке
-            items.sort(key=lambda x: self.tree.set(x, '#1'), reverse=True)
-        except ValueError:
-            # Если невозможно выполнить числовую сортировку, сортируем строковым методом
-            items.sort(key=lambda x: str.lower(self.tree.set(x, '#1')), reverse=True)
+        status_message = f"{config.interface}: {config.mode} mode.  | Найдено: {total_devices}"
+        self.status_text.replace(1.0, tk.END, status_message)
 
-        # Переставляем элементы в дереве
-        for idx, item in enumerate(items):
-            self.tree.move(item, '', idx)
+        if config.mode != 'Monitor':  # Выделяем красный цветом текущий режим
+            self.status_text.tag_add("red", '1.6', '1.20')
+            self.status_text.tag_config("red", foreground="red")
+            self.status_text.config(state=tk.DISABLED)
+        else:
+            new_props = {'relief': 'sunken', 'state': 'disabled'}
+            self.set_button_properties('turn ON monitor mode', new_props)
 
+    def create_buttons(self, toolbar):
+        # Определяем названия кнопок и их команды
+        button_names_and_commands = {
+            "Стоп": {"command": self.toggle_scanning},
+            "turn ON monitor mode": {"command": self.switch_to_monitor_mode},
+            "Сброс данных": {"command": self.reset_data},
+            "Экспорт в CSV": {"command": self.export_csv},
+            "Открыть белый список": {"command": self.show_whitelist},
+            "Показать детали": {"command": self.show_details},
+            "Настройки": {"command": self.show_settings}
+        }
 
+        # Стандартные параметры оформления кнопок
+        default_style = dict(relief=tk.RAISED, borderwidth=2, activebackground='#ccc')
 
-class SettingsDialog(tk.Toplevel):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.title("Настройки")
-        self.geometry("400x300")
+        # Создание кнопок и их размещение на панели
+        for button_name, props in button_names_and_commands.items():
+            btn_props = default_style.copy()  # Копируем стандартный стиль
+            btn_props.update(props)  # Объединяем с индивидуальными параметрами (включая команду)
 
-        # Интерфейс настройки пока пустой, можно расширить позже
-        save_btn = tk.Button(self, text="Сохранить", command=self.save_settings)
-        save_btn.pack(pady=10)
+            btn = tk.Button(toolbar, text=button_name, **btn_props)
+            btn.pack(side=tk.TOP, fill=tk.X, expand=True, padx=5, pady=5)  # Располагаем кнопки вертикально
+            self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
 
-    def save_settings(self):
-        # Здесь реализуйте сохранение настроек
-        pass
+    # Универсальный метод для установки любых свойств кнопки
+    def set_button_properties(self, button_name, properties):
+        """
+        Изменяет любые свойства указанной кнопки.
+        :param button_name: Имя кнопки
+        :param properties: Словарь новых свойств (например, {'relief': 'sunken', 'bg': 'red'})
+        """
+        if button_name in self.buttons:
+            self.buttons[button_name].config(**properties)
+
+    # Функционал для каждой кнопки
+    def toggle_scanning(self):
+        """Начало/остановка сканирования."""
+        if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
+            # Остановка сканирования
+            _stop.set()  # Устанавливаем флаг остановки
+            self.tshark_thread.join()  # Ждём завершения потока
+            del self.tshark_thread  # Удаляем ссылку на поток
+        else:
+            # Начало сканирования
+            _stop.clear()  # Снимаем флаг остановки
+            self.start_tshark()
+
+    def start_tshark(self):
+        """Запуск потока сканирования."""
+        self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
+        self.tshark_thread.start()
+
+    def switch_to_monitor_mode(self):
+        """Перевод интерфейса в мониторный режим."""
+        password = 'kali'  # Пароль жёстко закодирован!
+        if password is not None and len(password.strip()) > 0:
+            success = utils.enable_monitor_mode(config.interface, password)
+            if success:
+                self.refresh_status()
+        else:
+            print("Операция отменена.")
+
+    def reset_data(self):
+        """Сброс всех собранных данных."""
+        config._last_seen.clear()
+        config._seen_count.clear()
+        self.tree.delete(*self.tree.get_children())
+        self.clear_text()
+
+    def export_csv(self):
+        """Экспорт данных в CSV-файл."""
+        filename = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
+        if filename:
+            with open(filename, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(["MAC Адрес", "Производитель", "RSSI", "Время последнего обнаружения"])
+                for item in self.tree.get_children():
+                    row = self.tree.item(item)["values"]
+                    writer.writerow(row)
+
+    def show_whitelist(self):
+        """Отображает содержимое белого списка."""
+        whitelist_str = '\n'.join(config._whitelist.keys())
+        messagebox.showinfo("Белый список", whitelist_str)
+
+    def show_details(self):
+        """Покажет дополнительную информацию о выделенном устройстве."""
+        selected_item = self.tree.focus()
+        data = self.tree.item(selected_item)["values"]
+        if data:
+            details = f"MAC: {data[0]} | Производитель: {utils.lookup_vendor_db(data[0], config.DB_PATH, False)}\nКол-во сигналов: {data[1]}\nПоследний раз обнаружен: {data[2]}"
+            messagebox.showinfo("Детали устройства", details)
+
+    def show_settings(self):
+        """Окно настроек."""
+        settings_dialog = SettingsDialog(self)
+        settings_dialog.grab_set()
