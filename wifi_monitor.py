@@ -238,7 +238,7 @@ class WifiMonitor(tk.Tk):
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
         button_names_and_commands = {
-            "Стоп": {"command": self.toggle_scanning},
+            "Старт / Стоп": {"command": self.toggle_scanning},
             "turn ON monitor mode": {"command": self.switch_to_monitor_mode},
             "Сброс данных": {"command": self.reset_data},
             "Экспорт в CSV": {"command": self.export_csv},
