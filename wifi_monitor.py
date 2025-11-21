@@ -132,7 +132,17 @@ class WifiMonitor(tk.Tk):
         self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, font=("TkDefaultFont", 10))  # Высота в одну строку
         self.status_text.pack(side=tk.BOTTOM, fill=tk.X)
 
-    # Обработчик двойного клика мыши по устройству
+    # # Обработчик двойного клика мыши по устройству
+    # def on_device_double_click(self, event):
+    #     selected_item = self.tree.focus()
+    #     if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
+    #         # Остановка сканирования
+    #         _stop.set()  # Устанавливаем флаг остановки
+    #         self.tshark_thread.join()  # Ждём завершения потока
+    #         del self.tshark_thread  # Удаляем ссылку на поток
+    #     data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
+    #     if data:
+    #         self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
     def on_device_double_click(self, event):
         selected_item = self.tree.focus()
         if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
@@ -142,7 +152,8 @@ class WifiMonitor(tk.Tk):
             del self.tshark_thread  # Удаляем ссылку на поток
         data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
         if data:
-            self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
+            self.open_second_window(event, data=data)  # Открываем новое окно с деталями устройства
+
 
     def refresh_status(self):     # Функция для обновления полосы статуса
 
@@ -296,8 +307,15 @@ class WifiMonitor(tk.Tk):
             self.tree.move(item, '', idx)
 
     # Открывает второе окно с информацией о устройстве
-    def open_second_window(self, data=None):
-        SecondWindow(self, data=data)
+    def open_second_window(self, event, *, data=None):
+        selected_item = event.widget.selection()[0]  # Получаем выбранный элемент
+        # data = event.widget.item(selected_item)['values']  # Получаем значения элементов строки
+        mac_address = data[0]  # Первая колонка — MAC-адрес
+        manufacturer = data[1]  # Вторая колонка — Производитель
+        # Номер канала берётся отдельно, предположим, он хранится в отдельной переменной
+        channel_number = "Your Channel Number Here"  # Заменяй значением из своего проекта
+        SecondWindow(self, mac_address, manufacturer)
+
 
     # Добавляет текст в журнал
     def add_text(self, text):
