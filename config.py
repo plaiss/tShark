@@ -11,9 +11,10 @@ mode = ''
 TSHARK_CMD = [
     "tshark", "-i", interface, "-l", "-T", "fields",
     "-e", "frame.time_epoch",
-    "-e", "wlan.sa",
+    "-e", "wlan.ta",
     "-e", "wlan_radio.signal_dbm",
-    "-e", "wlan.fc.type_subtype"
+    "-e", "wlan.fc.type_subtype", 
+    "-e", "wlan_radio.channel",  # канал
 ]
 
 WHITELIST_PATH = 'whitelist.txt'
