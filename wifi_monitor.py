@@ -142,35 +142,68 @@ class WifiMonitor(tk.Tk):
         if data:
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
 
-    def sort_column(self, column_id):
-        # Меняем порядок сортировки для указанного столбца
-        current_order = self._column_sort_state.get(column_id, True)
-        self._column_sort_state[column_id] = not current_order  # Инвертируем порядок сортировки
+    # def sort_column(self, column_id):
+    #     # Меняем порядок сортировки для указанного столбца
+    #     current_order = self._column_sort_state.get(column_id, True)
+    #     self._column_sort_state[column_id] = not current_order  # Инвертируем порядок сортировки
         
+    #     items = list(self.tree.get_children())
+    #     try:
+    #         # Применяем сортировку
+    #         if column_id == '#3':  # Числовой столбец (RSSI)
+    #             items.sort(key=lambda x: float(self.tree.set(x, column_id)), reverse=current_order)
+    #         elif column_id == '#1':
+    #             # Специфическая логика для первого столбца
+    #             if self.reverse_check_var.get():  # Если галочка включена
+    #                 items.sort(key=lambda x: self.tree.set(x, column_id)[::-1])  # Сортировка справа налево
+    #             else:
+    #                 items.sort(key=lambda x: self.tree.set(x, column_id))  # Обычная сортировка слева направо
+                
+    #             # Дополнительно меняем выравнивание в зависимости от сортировки
+    #             alignment = 'e' if self.reverse_check_var.get() else 'w'
+    #             self.tree.column('#1', anchor=alignment)
+                    
+    #         else:
+    #             items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=current_order)
+    #     except ValueError:
+    #         items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=current_order)
+        
+    #     # Обновляем представление
+    #     for idx, item in enumerate(items):
+    #         self.tree.move(item, '', idx)
+
+    def sort_column(self, column_id):
+        # Сохраняем текущее состояние сортировки для столбца
+        current_order = self._column_sort_state.get(column_id, True)
+        new_order = not current_order  # Новый порядок сортировки
+        self._column_sort_state[column_id] = new_order  # Запоминаем новый порядок
+
         items = list(self.tree.get_children())
+        values = [(item, self.tree.set(item, column_id)) for item in items]
+
         try:
             # Применяем сортировку
             if column_id == '#3':  # Числовой столбец (RSSI)
-                items.sort(key=lambda x: float(self.tree.set(x, column_id)), reverse=current_order)
+                values.sort(key=lambda x: float(x[1]), reverse=new_order)
             elif column_id == '#1':
-                # Специфическая логика для первого столбца
-                if self.reverse_check_var.get():  # Если галочка включена
-                    items.sort(key=lambda x: self.tree.set(x, column_id)[::-1])  # Сортировка справа налево
+                # Специальная логика для первого столбца
+                if self.reverse_check_var.get():
+                    values.sort(key=lambda x: x[1][::-1], reverse=new_order)
                 else:
-                    items.sort(key=lambda x: self.tree.set(x, column_id))  # Обычная сортировка слева направо
-                
-                # Дополнительно меняем выравнивание в зависимости от сортировки
-                alignment = 'e' if self.reverse_check_var.get() else 'w'
-                self.tree.column('#1', anchor=alignment)
-                    
+                    values.sort(key=lambda x: x[1], reverse=new_order)
             else:
-                items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=current_order)
+                values.sort(key=lambda x: str.lower(x[1]), reverse=new_order)
         except ValueError:
-            items.sort(key=lambda x: str.lower(self.tree.set(x, column_id)), reverse=current_order)
-        
+            values.sort(key=lambda x: str.lower(x[1]), reverse=new_order)
+
         # Обновляем представление
-        for idx, item in enumerate(items):
+        for idx, (item, _) in enumerate(values):
             self.tree.move(item, '', idx)
+
+        # Меняем выравнивание для первого столбца отдельно
+        if column_id == '#1':
+            alignment = 'e' if self.reverse_check_var.get() else 'w'
+            self.tree.column('#1', anchor=alignment)
 
     # Открывает второе окно с информацией о устройстве
     def open_second_window(self, *, data=None):
