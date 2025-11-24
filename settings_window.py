@@ -3,6 +3,7 @@ from tkinter import messagebox
 import os
 import re
 import utils
+import config
 
 # Глобальная переменная с состоянием интерфейса
 interface = "wlan1"  # Текущий интерфейс (можете заменить на свою глобальную переменную)
@@ -63,8 +64,8 @@ class SettingsWindow(tk.Toplevel):
         """Применяет выбранный интерфейс"""
         new_interface = self.var_interface.get()
         global interface
-        interface = new_interface
-        messagebox.showinfo("Success", f"Changed network interface to {new_interface}. Please restart the application.")
+        config.interface = new_interface
+        messagebox.showinfo("Success", f"Changed network interface to {new_interface}. Please restart the scanning.")
         self.destroy()
 
 if __name__ == "__main__":

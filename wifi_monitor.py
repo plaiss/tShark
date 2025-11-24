@@ -65,7 +65,7 @@ class WifiMonitor(tk.Tk):
         
         # Словарь состояний сортировки для каждого столбца
         self._column_sort_state = {}
-        for col in ["#1", "#2", "#3", "#4"]:
+        for col in ["#1", "#2", "#3", "#4", "#5"]:
             self._column_sort_state[col] = True  # По умолчанию сортировка прямого порядка
 
     # Централизация окна
@@ -261,7 +261,7 @@ class WifiMonitor(tk.Tk):
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
         button_names_and_commands = {
-            "Старт / Стоп": {"command": self.toggle_scanning},
+            "Стоп": {"command": self.toggle_scanning},
             "turn ON monitor mode": {"command": self.switch_to_monitor_mode},
             "Сброс данных": {"command": self.reset_data},
             "Экспорт в CSV": {"command": self.export_csv},
