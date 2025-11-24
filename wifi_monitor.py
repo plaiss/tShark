@@ -8,6 +8,8 @@ import config
 import utils
 import main
 from second_window import SecondWindow  # Импортируем класс из отдельного файла
+from settings_window import SettingsWindow
+from export_dialog import ExportDialog
 
 class WifiMonitor(tk.Tk):
     def __init__(self):
@@ -80,8 +82,12 @@ class WifiMonitor(tk.Tk):
     def update_indicator(self):
         if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
             self.indicator.config(background="red", text='running')
+            new_props = {'relief': 'sunken'}
+            self.set_button_properties('Стоп', new_props)
         else:
             self.indicator.config(background="#ccc", text='stopped')
+            new_props = {'relief': 'raised'}
+            self.set_button_properties('Стоп', new_props)
         self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
 
     def tree_view(self, frame):
@@ -222,22 +228,6 @@ class WifiMonitor(tk.Tk):
     def clear_text(self):
         self.text_area.delete('1.0', tk.END)
 
-    # # Обновляет таблицу
-    # def update_tree(self, mac_address, vendor, rssi, last_seen):
-    #     normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
-    #     item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
-    #     if item:
-    #         self.tree.set(item, '#2', vendor)
-    #         self.tree.set(item, '#3', rssi)
-    #         self.tree.set(item, '#4', last_seen)
-    #     else:
-    #         self.tree.insert('', tk.END, if item:
-    #         self.tree.set(item, '#2', vendor)
-    #         self.tree.set(item, '#3', rssi)
-    #         self.tree.set(item, '#4', last_seen)
-    #     else:
-    #         self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
-    #     self.refresh_status()
     # Обновляет таблицу
     def update_tree(self, mac_address, vendor, rssi, last_seen):
         normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
@@ -339,14 +329,15 @@ class WifiMonitor(tk.Tk):
 
     def export_csv(self):
         """Экспорт данных в CSV-файл."""
-        filename = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv"), ("All Files", "*.*")])
-        if filename:
-            with open(filename, 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["MAC Адрес", "Производитель", "RSSI", "Время последнего обнаружения"])
-                for item in self.tree.get_children():
-                    row = self.tree.item(item)["values"]
-                    writer.writerow(row)
+        self.toggle_scanning()  # Сначала останавливаем сканирование
+        # Затем открываем окно настроек
+        export_window = ExportDialog(self.master,self.tree)
+        export_window.grab_set()  # Фокусируется на окне настроек
+
+
+
+        SecondWindow(self)
+
 
     def show_whitelist(self):
         """Отображает содержимое белого списка."""
@@ -362,6 +353,9 @@ class WifiMonitor(tk.Tk):
             messagebox.showinfo("Детали устройства", details)
 
     def show_settings(self):
-        """Окно настроек."""
-        settings_dialog = SettingsDialog(self)
-        settings_dialog.grab_set()
+        #    """Открывает окно настроек и останавливает процесс сканирования перед открытием"""
+        self.toggle_scanning()  # Сначала останавливаем сканирование
+    
+        # Затем открываем окно настроек
+        settings_window = SettingsWindow(self.master)
+        settings_window.grab_set()  # Фокусируется на окне настроек

@@ -36,7 +36,10 @@ def lookup_vendor_db(mac, db_path=config.DB_PATH, return_full=True):
         if is_locally_administered(mac):
             description = 'locally administered'
         else:
-            description = str(row[0])
+            if row:
+                description = str(row[0])
+            else:
+                description = None
 
         if not return_full:
             return description
@@ -257,3 +260,14 @@ def enable_monitor_mode(interface, password):
     print(f'Интерфейс {interface} успешно переведен в режим монитора.')
     # main.tshark_thread.restart()
     return True
+
+
+# Функция парсинга информации о Wi-Fi канале
+def parse_wifi_info(output):
+    pattern = r'channel\s*(\d+)\s*([^)]+)'
+    match = re.search(pattern, output)
+    if match:
+        channel_num = match.group(1)
+        frequency = match.group(2)[1:]  # Убираем первый символ ":"
+        return channel_num, frequency
+    return None, None

@@ -8,20 +8,21 @@ import threading
 import config
 import os
 import re
+import utils
 
 # Максимальная длина графика
 MAX_POINTS_ON_GRAPH = 100
 
 # Парсер информации о Wi-Fi
-def parse_wifi_info(output):
-    pattern = r'channel\s*(\d+)\s*([^)]+)'
-    # pattern = r'channel\s*(\d+)\s*$([^)]+)$'
-    match = re.search(pattern, output)
-    if match:
-        channel_num = match.group(1)
-        frequency = match.group(2)[1:]
-        return channel_num, frequency
-    return None, None
+# def parse_wifi_info(output):
+#     pattern = r'channel\s*(\d+)\s*([^)]+)'
+#     # pattern = r'channel\s*(\d+)\s*$([^)]+)$'
+#     match = re.search(pattern, output)
+#     if match:
+#         channel_num = match.group(1)
+#         frequency = match.group(2)[1:]
+#         return channel_num, frequency
+#     return None, None
 
 # Генерирует потоки данных из tshark
 def get_data_stream(proc):
@@ -50,7 +51,7 @@ class SecondWindow(tk.Toplevel):
 
         # Получаем информацию о Wi-Fi-канале
         wifi_info = os.popen(f"iw dev wlan1 info").read()
-        channel_num, frequency = parse_wifi_info(wifi_info)
+        channel_num, frequency = utils.parse_wifi_info(wifi_info)
 
         # Команда для tshark
         TSHARK_CMD1 = [
