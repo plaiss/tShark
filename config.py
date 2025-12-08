@@ -13,8 +13,8 @@ TSHARK_CMD = [
     "-e", "frame.time_epoch",
     "-e", "wlan.ta",
     "-e", "wlan_radio.signal_dbm",
-    "-e", "wlan.fc.type_subtype", 
     "-e", "wlan_radio.channel",  # канал
+    "-e", "wlan.fc.type_subtype" 
 ]
 
 WHITELIST_PATH = 'whitelist.txt'

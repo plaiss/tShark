@@ -1,6 +1,7 @@
 import threading
 import tkinter as tk
 from tkinter import ttk, scrolledtext
+from tkinter import messagebox
 from tkinter.messagebox import showinfo
 from tkinter import simpledialog
 from config import _stop
@@ -99,21 +100,24 @@ class WifiMonitor(tk.Tk):
         scroll_y = tk.Scrollbar(frame, orient=tk.VERTICAL)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Структура таблицы TreeView
-        columns = ("#1", "#2", "#3", "#4")  # Столбцы (#1-MAC адрес, #2-Производитель, #3-RSSI, #4-Время последнего обнаружения)
+
+
+        columns = ("#1", "#2", "#3", "#4", "#5")  # Добавили новый столбец №5 для номера канала
         self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
         
-        # Подписи заголовков столбцов
+        # Названия столбцов
         self.tree.heading('#1', text='MAC Address', anchor='center', command=lambda: self.sort_column("#1"))
         self.tree.heading('#2', text='Производитель', anchor='center', command=lambda: self.sort_column("#2"))
         self.tree.heading('#3', text='RSSI', anchor='center', command=lambda: self.sort_column("#3"))
-        self.tree.heading('#4', text='Последнее обнаружение', anchor='center', command=lambda: self.sort_column("#4"))
+        self.tree.heading('#4', text='Последнее обнаружение', anchor='n', command=lambda: self.sort_column("#4"))
+        self.tree.heading('#5', text='Канал', anchor='center')  # Название нового столбца
         
-        # Ширина столбцов
+        # Размеры столбцов
         self.tree.column('#1', width=150, minwidth=90, stretch=False)
-        self.tree.column('#2', width=150, minwidth=90, stretch=False)
+        self.tree.column('#2', width=350, minwidth=90, stretch=False)
         self.tree.column('#3', width=40, minwidth=10, stretch=False)
         self.tree.column('#4', width=300, minwidth=90, stretch=False)
+        self.tree.column('#5', width=50, minwidth=10, stretch=False)  # Ширина нового столбца
         
         # Связываем событие двойного клика с обработчиком
         self.tree.bind("<Double-1>", self.on_device_double_click)
@@ -229,7 +233,18 @@ class WifiMonitor(tk.Tk):
         self.text_area.delete('1.0', tk.END)
 
     # Обновляет таблицу
-    def update_tree(self, mac_address, vendor, rssi, last_seen):
+    # def update_tree(self, mac_address, vendor, rssi, last_seen):
+    #     normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
+    #     item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
+    #     if item:
+    #         # Если запись существует, обновляем её поля
+    #         self.tree.set(item, '#2', vendor)
+    #         self.tree.set(item, '#3', rssi)
+    #         self.tree.set(item, '#4', last_seen)
+    #     else:
+    #         # Иначе добавляем новую запись
+    #         self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
+    def update_tree(self, mac_address, vendor, rssi, last_seen, channel_number):
         normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
         item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
         if item:
@@ -237,9 +252,10 @@ class WifiMonitor(tk.Tk):
             self.tree.set(item, '#2', vendor)
             self.tree.set(item, '#3', rssi)
             self.tree.set(item, '#4', last_seen)
+            self.tree.set(item, '#5', channel_number)  # Учитываем номер канала
         else:
             # Иначе добавляем новую запись
-            self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
+            self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen, channel_number))
         self.refresh_status()
 
     def refresh_status(self):

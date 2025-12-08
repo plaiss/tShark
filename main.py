@@ -37,12 +37,13 @@ def tshark_worker(root, cmd, ttl):
             if not raw:
                 continue
             parts = raw.split("\t")
-            if len(parts) < 2:
+            if len(parts) < 5:  # Теперь ожидаем минимум пять частей (добавлен канал)
                 continue
             raw_time = parts[0]
             mac = parts[1] if len(parts) > 1 else ""
             rssi = parts[2] if len(parts) > 2 else ""
-            subtype = parts[3] if len(parts) > 3 else ""
+            channel = parts[3] if len(parts) > 3 else ""  # Новая переменная для канала
+            subtype = parts[4] if len(parts) > 4 else ""
 
             mac_n = utils.normalize_mac(mac)
             if not mac_n:
@@ -72,8 +73,9 @@ def tshark_worker(root, cmd, ttl):
             else:
                 mac = mac[:50]
 
-            root.update_tree(mac_n, utils.lookup_vendor_db(mac_n, config.DB_PATH, False), rssi, pretty_time)
-            root.add_text(f"{mac} | {rssi} dBi | {utils.decode_wlan_type_subtype(subtype)} | {pretty_time}")
+            # Передаем номер канала вместе с остальными значениями
+            root.update_tree(mac_n, utils.lookup_vendor_db(mac_n, config.DB_PATH, False), rssi, pretty_time, channel)
+            root.add_text(f"{mac} | {rssi} dBi | {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
     finally:
         try:
             proc.terminate()
@@ -83,6 +85,75 @@ def tshark_worker(root, cmd, ttl):
             proc.wait(timeout=1)
         except Exception:
             pass
+
+# def tshark_worker(root, cmd, ttl):
+#     try:
+#         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+#     except Exception as e:
+#         root.add_text(f"Ошибка при старте tshark: {e}")
+#         config._stop.set()
+#         return
+
+#     def stderr_reader():
+#         for line in proc.stderr:
+#             root.add_text(f"{line.rstrip()}")
+
+#     threading.Thread(target=stderr_reader, daemon=True).start()
+
+#     try:
+#         for raw in proc.stdout:
+#             if config._stop.is_set():
+#                 break
+#             raw = raw.rstrip("\n")
+#             if not raw:
+#                 continue
+#             parts = raw.split("\t")
+#             if len(parts) < 2:
+#                 continue
+#             raw_time = parts[0]
+#             mac = parts[1] if len(parts) > 1 else ""
+#             rssi = parts[2] if len(parts) > 2 else ""
+#             subtype = parts[3] if len(parts) > 3 else ""
+
+#             mac_n = utils.normalize_mac(mac)
+#             if not mac_n:
+#                 continue
+
+#             if config._whitelist:
+#                 allowed = mac_n not in config._whitelist
+#             else:
+#                 allowed = True
+
+#             now = time.time()
+#             with config._seen_lock:
+#                 last = config._last_seen.get(mac_n)
+#                 if last is not None:
+#                     if ttl is None:
+#                         continue
+#                     if now - last <= ttl:
+#                         continue
+#                 config._last_seen[mac_n] = now
+#                 config._seen_count[mac_n] = config._seen_count.get(mac_n, 0) + 1
+
+#             pretty_time = utils.parse_time_epoch(raw_time)
+#             mac = utils.lookup_vendor_db(mac)
+#             if len(mac) <= 50:
+#                 dop = 50 - len(mac)
+#                 mac = mac + ' ' * dop
+#             else:
+#                 mac = mac[:50]
+
+#             root.update_tree(mac_n, utils.lookup_vendor_db(mac_n, config.DB_PATH, False), rssi, pretty_time)
+#             root.add_text(f"{mac} | {rssi} dBi | {utils.decode_wlan_type_subtype(subtype)} | {pretty_time}")
+#     finally:
+#         try:
+#             proc.terminate()
+#         except Exception:
+#             pass
+#         try:
+#             proc.wait(timeout=1)
+#         except Exception:
+#             pass
 
 def main():
     global WHITELIST_PATH, SEEN_TTL_SECONDS
