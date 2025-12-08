@@ -128,7 +128,7 @@ class WifiMonitor(tk.Tk):
         scroll_y.config(command=self.tree.yview)
         
         # Чекбокс для выбора порядка сортировки по первому столбцу
-        check_box = tk.Checkbutton(frame, text="Сортировка по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
+        check_box = tk.Checkbutton(frame, text="по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
         check_box.place(in_=title_label, relx=1.0, rely=0.0, anchor="ne", x=300, y=0)  # Рядом с заголовком
 
     def log_view(self, frame):
