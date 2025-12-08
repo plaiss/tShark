@@ -254,7 +254,7 @@ class WifiMonitor(tk.Tk):
             "Сброс данных": {"command": self.reset_data},
             "Экспорт в CSV": {"command": self.export_csv},
             "Открыть белый список": {"command": self.show_whitelist},
-            "Показать детали": {"command": self.show_details},
+            "Выбор каналов": {"command": self.show_channel_selector},
             "Настройки": {"command": self.show_settings}
         }
 
@@ -347,3 +347,23 @@ class WifiMonitor(tk.Tk):
         # Затем открываем окно настроек
         settings_window = SettingsWindow(self.master)
         settings_window.grab_set()  # Фокусируется на окне настроек
+    
+    def show_channel_selector(self):
+        dialog = ChannelSelectorDialog(self, config.interface)
+        if dialog.result:
+            selected_channels = dialog.selected_channels
+            delay_time = dialog.delay_time
+            self.scan_selected_channels(selected_channels, delay_time)
+
+    def scan_selected_channels(self, channels, delay_time):
+        def change_channel(channel):
+            subprocess.run(["iw", "dev", config.interface, "set", "channel", str(channel)], capture_output=True)
+
+        def run_scanner():
+            while True:
+                for channel in channels:
+                    change_channel(channel)
+                    time.sleep(delay_time)
+
+        scanner_thread = threading.Thread(target=run_scanner, daemon=True)
+        scanner_thread.start()
