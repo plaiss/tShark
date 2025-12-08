@@ -21,7 +21,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         # Диапазон 2.4 GHz
         tk.Label(container, text="Диапазон 2.4 GHz").grid(row=0, column=0, sticky=tk.W)
         self.checkboxes_2_4 = []
-        for i, ch in enumerate(range(1, 15)):  # Каналы 2.4 GHz
+        for i, ch in enumerate(range(1, 14)):  # Каналы 2.4 GHz
             var = tk.BooleanVar()
             cb = tk.Checkbutton(container, text=str(ch), variable=var)
             cb.grid(row=i+1, column=0, sticky=tk.W)
@@ -66,10 +66,10 @@ class ChannelSelectorDialog(simpledialog.Dialog):
 
     def apply(self):
         self.selected_channels = []
-        for _, var in self.checkboxes_2_4 + self.checkboxes_5:
-            if var.get():
-                self.selected_channels.append(int(var.cget("text")))  # Получаем выбранные каналы
-        self.delay_time = float(self.delay_choice.get())  # Берём выбранное время задержки
+        for widget, _ in self.checkboxes_2_4 + self.checkboxes_5:
+            if _.get():  # Проверяем, отмечен ли чекбокс
+                self.selected_channels.append(int(widget['text']))  # Забираем текст из самого чекбокса
+        self.delay_time = float(self.delay_choice.get())  # Взять выбранное время задержки
 
 if __name__ == "__main__":
     root = tk.Tk()

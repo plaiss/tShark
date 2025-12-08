@@ -11,6 +11,7 @@ import main
 from second_window import SecondWindow  # Импортируем класс из отдельного файла
 from settings_window import SettingsWindow
 from export_dialog import ExportDialog
+from choose_channels import ChannelSelectorDialog
 
 class WifiMonitor(tk.Tk):
     def __init__(self):
@@ -18,7 +19,7 @@ class WifiMonitor(tk.Tk):
         
         # Настройка главного окна приложения
         self.title("WiFi Monitor")
-        self.minsize(width=1380, height=768)
+        self.minsize(width=800, height=480)
         self.center_window()  # Центрируем окно
         
         # Переменная состояния чекбокса (инициализируем до использования)
@@ -73,8 +74,8 @@ class WifiMonitor(tk.Tk):
     def center_window(self):
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
-        window_width = 1380
-        window_height = 768
+        window_width = 800
+        window_height = 480
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
@@ -114,9 +115,9 @@ class WifiMonitor(tk.Tk):
         
         # Размеры столбцов
         self.tree.column('#1', width=150, minwidth=90, stretch=False)
-        self.tree.column('#2', width=350, minwidth=90, stretch=False, anchor='center')
+        self.tree.column('#2', width=150, minwidth=90, stretch=False, anchor='center')
         self.tree.column('#3', width=40, minwidth=10, stretch=False, anchor='center')
-        self.tree.column('#4', width=300, minwidth=90, stretch=False, anchor='center')
+        self.tree.column('#4', width=200, minwidth=90, stretch=False, anchor='center')
         self.tree.column('#5', width=50, minwidth=10, stretch=False, anchor='center')  
         
         # Связываем событие двойного клика с обработчиком
@@ -349,6 +350,7 @@ class WifiMonitor(tk.Tk):
         settings_window.grab_set()  # Фокусируется на окне настроек
     
     def show_channel_selector(self):
+        self.toggle_scanning()  # Сначала останавливаем сканирование
         dialog = ChannelSelectorDialog(self, config.interface)
         if dialog.result:
             selected_channels = dialog.selected_channels
