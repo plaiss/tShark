@@ -96,8 +96,8 @@ class WifiMonitor(tk.Tk):
 
     def tree_view(self, frame):
         # Заголовок дерева
-        title_label = tk.Label(frame, text="Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10))
-        title_label.pack(side=tk.TOP, anchor="w", pady=5)
+        self.title_label = tk.Label(frame, text="Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10))  # Здесь делаем title_label атрибутом класса
+        self.title_label.pack(side=tk.TOP, anchor="w", pady=5)
         
         # Прокрутка вертикальная для дерева
         scroll_y = tk.Scrollbar(frame, orient=tk.VERTICAL)
@@ -130,7 +130,7 @@ class WifiMonitor(tk.Tk):
         
         # Чекбокс для выбора порядка сортировки по первому столбцу
         check_box = tk.Checkbutton(frame, text="по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
-        check_box.place(in_=title_label, relx=1.0, rely=0.0, anchor="ne", x=250, y=0)  # Рядом с заголовком
+        check_box.place(in_=self.title_label, relx=1.0, rely=0.0, anchor="ne", x=200, y=0)  # Рядом с заголовком
 
     def log_view(self, frame):
         # Текстовая область для журналов и сообщений
@@ -257,8 +257,6 @@ class WifiMonitor(tk.Tk):
             btn = tk.Button(toolbar, text=button_name, **btn_props)
             btn.pack(side=tk.TOP, fill=tk.X, expand=True, padx=5, pady=5)  # Располагаем кнопки вертикально
             self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
-                # Прямо здесь устанавливаем начальный текст кнопки
-        # self.set_button_properties('Стоп', {'text': 'Пуск'})
 
     # Универсальный метод для установки любых свойств кнопки
     def set_button_properties(self, button_name, properties):
@@ -292,7 +290,7 @@ class WifiMonitor(tk.Tk):
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим."""
-        password = config.password  # Пароль жёстко закодирован!
+        password = 'kali'  # Пароль жёстко закодирован!
         if password is not None and len(password.strip()) > 0:
             success = utils.enable_monitor_mode(config.interface, password)
             if success:
@@ -344,9 +342,6 @@ class WifiMonitor(tk.Tk):
             self.scan_selected_channels(selected_channels, delay_time)
 
     def scan_selected_channels(self, channels, delay_time):
-        # def change_channel(channel):
-        #     subprocess.run(["iw", "dev", config.interface, "set", "channel", str(channel)], capture_output=True)
-        
         def change_channel(channel, password=config.password):
             # Формируем команду
             command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
@@ -357,11 +352,10 @@ class WifiMonitor(tk.Tk):
             if process.returncode != 0:
                 print(f"Ошибка: {process.stderr.decode()}")  # Выводим сообщение об ошибке
             else:
-                print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
-                # Планируем обновление лейбла в главном потоке Tkinter
-                self.after(0, lambda: self.update_title_with_channel(channel))
-        
-
+                # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
+                # Обновляем лейбл с номером канала
+                updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
+                self.title_label.config(text=updated_text)
 
         def run_scanner():
             while True:
@@ -371,14 +365,6 @@ class WifiMonitor(tk.Tk):
 
         scanner_thread = threading.Thread(target=run_scanner, daemon=True)
         scanner_thread.start()
-
-
-    def update_title_with_channel(self, channel):
-        # Безопасное обновление лейбла в главном потоке
-        updated_text = f"Обнаруженные уникальные MAC-адреса (Канала: {channel})"
-        self.title_label.config(text=updated_text)
-
-
 
 if __name__ == "__main__":
     app = WifiMonitor()
