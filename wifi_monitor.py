@@ -1,4 +1,6 @@
+import subprocess
 import threading
+import time
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 from tkinter import messagebox

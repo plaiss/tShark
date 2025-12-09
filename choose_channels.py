@@ -21,15 +21,20 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         # Диапазон 2.4 GHz
         tk.Label(container, text="Диапазон 2.4 GHz").grid(row=0, column=0, sticky=tk.W)
         self.checkboxes_2_4 = []
-        for i, ch in enumerate(range(1, 14)):  # Каналы 2.4 GHz
+        for i, ch in enumerate(range(1, 15)):  # Каналы 2.4 GHz
             var = tk.BooleanVar()
             cb = tk.Checkbutton(container, text=str(ch), variable=var)
             cb.grid(row=i//4, column=1+i%4, sticky=tk.W)  # Уплотнили каналы по столбцам
             self.checkboxes_2_4.append((cb, var))
 
         # Кнопка для быстрого выбора/отмены диапазона 2.4 GHz
-        self.btn_range_2_4 = tk.Button(container, text="Выбрать все", command=lambda: self.toggle_range_selection(self.checkboxes_2_4))
-        self.btn_range_2_4.grid(row=3, column=0, columnspan=4, sticky=tk.EW)
+        self.btn_range_2_4 = tk.Button(
+            container, 
+            text="Выбрать весь диапазон", 
+            command=lambda: self.toggle_range_selection(self.checkboxes_2_4),
+            width=2, height=1, font=("Arial", 8)  # Установили небольшие размеры и маленький шрифт
+        )
+        self.btn_range_2_4.grid(row=2, column=0, columnspan=1, sticky=tk.EW)
 
         # Диапазон 5 GHz
         tk.Label(container, text="Диапазон 5 GHz").grid(row=4, column=0, sticky=tk.W)
@@ -42,11 +47,21 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             self.checkboxes_5.append((cb, var))
 
         # Кнопка для быстрого выбора/отмены диапазона 5 GHz
-        self.btn_range_5 = tk.Button(container, text="Выбрать все", command=lambda: self.toggle_range_selection(self.checkboxes_5))
-        self.btn_range_5.grid(row=8, column=0, columnspan=4, sticky=tk.EW)
+        self.btn_range_5 = tk.Button(
+            container, 
+            text="Выбрать весь диапазон", 
+            command=lambda: self.toggle_range_selection(self.checkboxes_5),
+            width=5, height=1, font=("Arial", 8)  # Установили небольшие размеры и маленький шрифт
+        )
+        self.btn_range_5.grid(row=8, column=0, columnspan=1, sticky=tk.EW)
 
         # Основная кнопка "Выбрать/снять все"
-        self.toggle_button = tk.Button(master, text="Выбрать все", command=self.toggle_selection)
+        self.toggle_button = tk.Button(
+            master, 
+            text="Выбрать все", 
+            command=self.toggle_selection,
+            width=30, height=1, font=("Arial", 10, 'bold')  # Установили небольшие размеры и маленький шрифт
+        )
         self.toggle_button.pack(pady=5)
 
         # Выбор времени задержки (предварительно настроено)
@@ -62,9 +77,9 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         for var in all_vars:
             var.set(not initial_state)
         if initial_state:
-            self.btn_range_2_4.config(text="Выбрать все") if group == self.checkboxes_2_4 else self.btn_range_5.config(text="Выбрать все")
+            self.btn_range_2_4.config(text="Выбрать весь диапазон") if group == self.checkboxes_2_4 else self.btn_range_5.config(text="Выбрать весь диапазон")
         else:
-            self.btn_range_2_4.config(text="Снять все") if group == self.checkboxes_2_4 else self.btn_range_5.config(text="Снять все")
+            self.btn_range_2_4.config(text="Снять весь диапазон") if group == self.checkboxes_2_4 else self.btn_range_5.config(text="Снять весь диапазон")
 
     def toggle_selection(self):
         if self.all_channels_selected:
