@@ -344,8 +344,20 @@ class WifiMonitor(tk.Tk):
             self.scan_selected_channels(selected_channels, delay_time)
 
     def scan_selected_channels(self, channels, delay_time):
-        def change_channel(channel):
-            subprocess.run(["iw", "dev", config.interface, "set", "channel", str(channel)], capture_output=True)
+        # def change_channel(channel):
+        #     subprocess.run(["iw", "dev", config.interface, "set", "channel", str(channel)], capture_output=True)
+        
+        def change_channel(channel, password='kali'):
+            # Формируем команду
+            command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
+
+            # Выполнение команды с передачей пароля через stdin
+            process = subprocess.run(command, input=f'{password}\n', encoding='utf-8', capture_output=True)
+
+            if process.returncode != 0:
+                print(f"Ошибка: {process.stderr.decode()}")  # Выводим сообщение об ошибке
+            else:
+                print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
 
         def run_scanner():
             while True:

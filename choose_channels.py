@@ -104,6 +104,8 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             if _.get():  # Проверяем, отмечен ли чекбокс
                 self.selected_channels.append(int(widget['text']))
         self.delay_time = float(self.delay_choice.get())
+         # Тут самое важное — присваиваем результат
+        self.result = (self.selected_channels, self.delay_time)
         print(self.selected_channels)
         print(self.delay_time)
         
