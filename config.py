@@ -7,6 +7,7 @@ import sqlite3
 
 interface = 'wlan1'
 mode = ''
+password='kali'
 # Конфигурация по умолчанию
 TSHARK_CMD = [
     "tshark", "-i", interface, "-l", "-T", "fields",

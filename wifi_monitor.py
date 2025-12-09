@@ -292,7 +292,7 @@ class WifiMonitor(tk.Tk):
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим."""
-        password = 'kali'  # Пароль жёстко закодирован!
+        password = config.password  # Пароль жёстко закодирован!
         if password is not None and len(password.strip()) > 0:
             success = utils.enable_monitor_mode(config.interface, password)
             if success:
@@ -347,7 +347,7 @@ class WifiMonitor(tk.Tk):
         # def change_channel(channel):
         #     subprocess.run(["iw", "dev", config.interface, "set", "channel", str(channel)], capture_output=True)
         
-        def change_channel(channel, password='kali'):
+        def change_channel(channel, password=config.password):
             # Формируем команду
             command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
 
@@ -358,6 +358,10 @@ class WifiMonitor(tk.Tk):
                 print(f"Ошибка: {process.stderr.decode()}")  # Выводим сообщение об ошибке
             else:
                 print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
+                # Планируем обновление лейбла в главном потоке Tkinter
+                self.after(0, lambda: self.update_title_with_channel(channel))
+        
+
 
         def run_scanner():
             while True:
@@ -367,6 +371,14 @@ class WifiMonitor(tk.Tk):
 
         scanner_thread = threading.Thread(target=run_scanner, daemon=True)
         scanner_thread.start()
+
+
+    def update_title_with_channel(self, channel):
+        # Безопасное обновление лейбла в главном потоке
+        updated_text = f"Обнаруженные уникальные MAC-адреса (Канала: {channel})"
+        self.title_label.config(text=updated_text)
+
+
 
 if __name__ == "__main__":
     app = WifiMonitor()
