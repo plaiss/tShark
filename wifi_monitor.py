@@ -334,37 +334,72 @@ class WifiMonitor(tk.Tk):
         settings_window.grab_set()  # Фокусируется на окне настроек
 
     def show_channel_selector(self):
-        # Вызов окна выбора каналов
-        dialog = ChannelSelectorDialog(self, config.interface)
+        dialog = ChannelSelectorDialog(self, config.interface, channels=getattr(self, 'prev_channels', None), delay_time=getattr(self, 'prev_delay_time', None))
         if dialog.result:
-            selected_channels = dialog.selected_channels
-            delay_time = dialog.delay_time
-            self.scan_selected_channels(selected_channels, delay_time)
-
-    def scan_selected_channels(self, channels, delay_time):
-        def change_channel(channel, password=config.password):
-            # Формируем команду
-            command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
-
-            # Выполнение команды с передачей пароля через stdin
-            process = subprocess.run(command, input=f'{password}\n', encoding='utf-8', capture_output=True)
-
-            if process.returncode != 0:
-                print(f"Ошибка: {process.stderr.decode()}")  # Выводим сообщение об ошибке
+            selected_channels, delay_time = dialog.result
+            if selected_channels:
+                self.scan_selected_channels(selected_channels, delay_time)
             else:
-                # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
-                # Обновляем лейбл с номером канала
-                updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
-                self.title_label.config(text=updated_text)
+                # Если выбрали пустой список каналов, то остановим сканирование
+                self.stop_scanning()
 
+
+
+    def scan_selected_channels(self, channels, delay_time=0.25):
+        if len(channels) == 1:
+            # Единственный канал — фиксируем на нём
+            self.change_channel(channels[0])
+            return
+        
+        # Циклическое сканирование по нескольким каналам
         def run_scanner():
             while True:
                 for channel in channels:
-                    change_channel(channel)
+                    self.change_channel(channel)
                     time.sleep(delay_time)
 
-        scanner_thread = threading.Thread(target=run_scanner, daemon=True)
-        scanner_thread.start()
+        self.scanner_thread = threading.Thread(target=run_scanner, daemon=True)
+        self.scanner_thread.start()
+
+
+    
+
+    def change_channel(channel, password=config.password):
+        # Формируем команду
+        command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
+
+        # Выполнение команды с передачей пароля через stdin
+        process = subprocess.run(command, input=f'{password}\n', encoding='utf-8', capture_output=True)
+
+        if process.returncode != 0:
+            print(f"Ошибка: {process.stderr}")  # Выводим сообщение об ошибке
+        else:
+            # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
+            # Обновляем лейбл с номером канала
+            updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
+            self.title_label.config(text=updated_text)
+
+    def run_scanner():
+        while True:
+            for channel in channels:
+                change_channel(channel)
+                time.sleep(delay_time)
+
+    
+    def stop_scanning(self):
+        # Завершаем запущенный поток сканирования
+        if hasattr(self, 'scanner_thread') and self.scanner_thread.is_alive():
+            self.scanner_thread.cancel()  # Cancel the thread if it's a ThreadPoolExecutor task
+            del self.scanner_thread  # Удаляем ссылку на поток
+        
+        # Очищаем временной кэш и статы
+        config._last_seen.clear()
+        config._seen_count.clear()
+        self.tree.delete(*self.tree.get_children())  # Очищаем таблицу
+        self.clear_text()  # Очищаем текстовый журнал
+        
+        # Сообщаем о завершении процесса
+        self.add_text("Процесс сканирования остановлен.")
 
 if __name__ == "__main__":
     app = WifiMonitor()
