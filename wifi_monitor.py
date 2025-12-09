@@ -94,7 +94,7 @@ class WifiMonitor(tk.Tk):
 
     def tree_view(self, frame):
         # Заголовок дерева
-        title_label = tk.Label(frame, text="Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10, 'bold'))
+        title_label = tk.Label(frame, text="Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10))
         title_label.pack(side=tk.TOP, anchor="w", pady=5)
         
         # Прокрутка вертикальная для дерева
@@ -129,7 +129,7 @@ class WifiMonitor(tk.Tk):
         
         # Чекбокс для выбора порядка сортировки по первому столбцу
         check_box = tk.Checkbutton(frame, text="по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
-        check_box.place(in_=title_label, relx=1.0, rely=0.0, anchor="ne", x=300, y=0)  # Рядом с заголовком
+        check_box.place(in_=title_label, relx=1.0, rely=0.0, anchor="ne", x=250, y=0)  # Рядом с заголовком
 
     def log_view(self, frame):
         # Текстовая область для журналов и сообщений
