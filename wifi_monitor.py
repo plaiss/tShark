@@ -207,18 +207,6 @@ class WifiMonitor(tk.Tk):
     def clear_text(self):
         self.text_area.delete('1.0', tk.END)
 
-    # Обновляет таблицу
-    # def update_tree(self, mac_address, vendor, rssi, last_seen):
-    #     normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
-    #     item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
-    #     if item:
-    #         # Если запись существует, обновляем её поля
-    #         self.tree.set(item, '#2', vendor)
-    #         self.tree.set(item, '#3', rssi)
-    #         self.tree.set(item, '#4', last_seen)
-    #     else:
-    #         # Иначе добавляем новую запись
-    #         self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen))
     def update_tree(self, mac_address, vendor, rssi, last_seen, channel_number):
         normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
         item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)

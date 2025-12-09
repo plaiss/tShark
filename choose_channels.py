@@ -67,7 +67,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         # Выбор времени задержки (предварительно настроено)
         tk.Label(master, text="Время на канале (секунды):").pack()
         self.delay_options = ["0.25", "0.5", "1", "2"]
-        self.delay_choice = tk.StringVar(value=self.delay_options[2])
+        self.delay_choice = tk.StringVar(value=self.delay_options[0])
         tk.OptionMenu(master, self.delay_choice, *self.delay_options).pack()
 
     def toggle_range_selection(self, group):
@@ -104,9 +104,12 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             if _.get():  # Проверяем, отмечен ли чекбокс
                 self.selected_channels.append(int(widget['text']))
         self.delay_time = float(self.delay_choice.get())
+        print(self.selected_channels)
+        print(self.delay_time)
+        
 
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Скрываем основное окно
-    app = ChannelSelectorDialog(root, "wlan0mon")  # Можете поменять интерфейс на нужный
+    app = ChannelSelectorDialog(root, "wlan1")  # Можете поменять интерфейс на нужный
     root.mainloop()
