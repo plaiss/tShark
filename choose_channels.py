@@ -89,6 +89,19 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             index = next((i for i, x in enumerate(self.delay_options) if float(x) == self.delay_time), None)
             if index is not None:
                 self.delay_choice.set(self.delay_options[index])
+        
+        # Сначала проверяем, переданы ли каналы
+        if not self.channels:
+            # Нет переданных каналов => оставляем чекбоксы пустыми
+            pass
+        else:
+            cur_channel = utils.get_current_channel()
+            for checkbox_group in [self.checkboxes_2_4, self.checkboxes_5]:
+                for widget, var in checkbox_group:
+                    if str(widget["text"]) == str(cur_channel):
+                        var.set(True)                     # Ставим галочку
+                        widget.config(font=("Arial", 11, "bold"))  # Делаем текст жирным
+                        break
 
     def toggle_range_selection(self, group):
         all_vars = [var for _, var in group]
@@ -123,4 +136,5 @@ if __name__ == "__main__":
     previous_channels = [1, 6, 11, 36]  # Например, были выбраны каналы 1, 6 и 11
     previous_delay = 0.5             # Предыдущая задержка была 0.5 секунды
     app = ChannelSelectorDialog(root, "wlan1", channels=previous_channels, delay_time=previous_delay)
+    # app = ChannelSelectorDialog(root, "wlan1")
     root.mainloop()
