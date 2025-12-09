@@ -13,7 +13,7 @@ import main
 from second_window import SecondWindow  # Импортируем класс из отдельного файла
 from settings_window import SettingsWindow
 from export_dialog import ExportDialog
-from choose_channels import ChannelSelectorDialog
+from choose_channels import ChannelSelectorDialog  # Новое окно выбора каналов
 
 class WifiMonitor(tk.Tk):
     def __init__(self):
@@ -103,8 +103,7 @@ class WifiMonitor(tk.Tk):
         scroll_y = tk.Scrollbar(frame, orient=tk.VERTICAL)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
         
-
-
+        # Структура таблицы TreeView
         columns = ("#1", "#2", "#3", "#4", "#5")  # Добавили новый столбец №5 для номера канала
         self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
         
@@ -154,8 +153,6 @@ class WifiMonitor(tk.Tk):
         data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
         if data:
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
-
-
 
     def sort_column(self, column_id):
         # Сохраняем текущее состояние сортировки для столбца
@@ -245,7 +242,7 @@ class WifiMonitor(tk.Tk):
             "Сброс данных": {"command": self.reset_data},
             "Экспорт в CSV": {"command": self.export_csv},
             "Открыть белый список": {"command": self.show_whitelist},
-            "Выбор каналов": {"command": self.show_channel_selector},
+            "Выбор каналов": {"command": self.show_channel_selector},  # Новая кнопка
             "Настройки": {"command": self.show_settings}
         }
 
@@ -260,6 +257,8 @@ class WifiMonitor(tk.Tk):
             btn = tk.Button(toolbar, text=button_name, **btn_props)
             btn.pack(side=tk.TOP, fill=tk.X, expand=True, padx=5, pady=5)  # Располагаем кнопки вертикально
             self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
+                # Прямо здесь устанавливаем начальный текст кнопки
+        # self.set_button_properties('Стоп', {'text': 'Пуск'})
 
     # Универсальный метод для установки любых свойств кнопки
     def set_button_properties(self, button_name, properties):
@@ -279,10 +278,12 @@ class WifiMonitor(tk.Tk):
             _stop.set()  # Устанавливаем флаг остановки
             self.tshark_thread.join()  # Ждём завершения потока
             del self.tshark_thread  # Удаляем ссылку на поток
+            self.set_button_properties('Стоп', {'text': 'Пуск'})  # Меняем текст на "Пуск"
         else:
             # Начало сканирования
             _stop.clear()  # Снимаем флаг остановки
             self.start_tshark()
+            self.set_button_properties('Стоп', {'text': 'Стоп'})  # Меняем текст на "Стоп"
 
     def start_tshark(self):
         """Запуск потока сканирования."""
@@ -313,11 +314,6 @@ class WifiMonitor(tk.Tk):
         export_window = ExportDialog(self.master,self.tree)
         export_window.grab_set()  # Фокусируется на окне настроек
 
-
-
-        SecondWindow(self)
-
-
     def show_whitelist(self):
         """Отображает содержимое белого списка."""
         whitelist_str = '\n'.join(config._whitelist.keys())
@@ -338,9 +334,9 @@ class WifiMonitor(tk.Tk):
         # Затем открываем окно настроек
         settings_window = SettingsWindow(self.master)
         settings_window.grab_set()  # Фокусируется на окне настроек
-    
+
     def show_channel_selector(self):
-        self.toggle_scanning()  # Сначала останавливаем сканирование
+        # Вызов окна выбора каналов
         dialog = ChannelSelectorDialog(self, config.interface)
         if dialog.result:
             selected_channels = dialog.selected_channels
@@ -359,3 +355,7 @@ class WifiMonitor(tk.Tk):
 
         scanner_thread = threading.Thread(target=run_scanner, daemon=True)
         scanner_thread.start()
+
+if __name__ == "__main__":
+    app = WifiMonitor()
+    app.mainloop()
