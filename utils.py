@@ -1,9 +1,14 @@
+from code import interact
+from email import utils
+import os
 import re
 import sqlite3
+import sys
 import time
 import subprocess
 import subprocess
 import getpass
+from tkinter import messagebox
 
 import config
 import main
@@ -271,3 +276,14 @@ def parse_wifi_info(output):
         frequency = match.group(2)[1:]  # Убираем первый символ ":"
         return channel_num, frequency
     return None, None
+
+def get_current_channel():
+        # Получаем информацию о Wi-Fi канале
+        try:
+            wifi_info = os.popen(f"iw dev {config.interface} info").read()
+            channel_num, frequency = parse_wifi_info(wifi_info)
+            return channel_num
+        except Exception as e:
+            error_message = f"Error retrieving Wi-Fi information: {e}"
+            print(error_message)
+            messagebox.showerror("Wi-Fi Info Error", error_message)

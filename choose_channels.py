@@ -106,8 +106,8 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         self.delay_time = float(self.delay_choice.get())
          # Тут самое важное — присваиваем результат
         self.result = (self.selected_channels, self.delay_time)
-        print(self.selected_channels)
-        print(self.delay_time)
+        # print(self.selected_channels)
+        # print(self.delay_time)
         
 
 if __name__ == "__main__":

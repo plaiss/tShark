@@ -96,7 +96,7 @@ class WifiMonitor(tk.Tk):
 
     def tree_view(self, frame):
         # Заголовок дерева
-        self.title_label = tk.Label(frame, text="Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10))  # Здесь делаем title_label атрибутом класса
+        self.title_label = tk.Label(frame, text=f"Обнаруженные уникальные MAC-адреса (Канал: {utils.get_current_channel()})", font=("TkDefaultFont", 10))  # Здесь делаем title_label атрибутом класса
         self.title_label.pack(side=tk.TOP, anchor="w", pady=5)
         
         # Прокрутка вертикальная для дерева
@@ -239,7 +239,7 @@ class WifiMonitor(tk.Tk):
         button_names_and_commands = {
             "Стоп": {"command": self.toggle_scanning},
             "turn ON monitor mode": {"command": self.switch_to_monitor_mode},
-            "Сброс данных": {"command": self.reset_data},
+            "Очистить список": {"command": self.reset_data},
             "Экспорт в CSV": {"command": self.export_csv},
             "Открыть белый список": {"command": self.show_whitelist},
             "Выбор каналов": {"command": self.show_channel_selector},  # Новая кнопка
@@ -290,7 +290,7 @@ class WifiMonitor(tk.Tk):
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим."""
-        password = 'kali'  # Пароль жёстко закодирован!
+        password = config.password  # Пароль жёстко закодирован!
         if password is not None and len(password.strip()) > 0:
             success = utils.enable_monitor_mode(config.interface, password)
             if success:
