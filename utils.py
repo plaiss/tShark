@@ -45,7 +45,7 @@ def lookup_vendor_db(mac, db_path=config.DB_PATH, return_full=True):
             return description
         else:
             # mac = mac + ' ('+ description + ')'
-            mac = f' {mac}  |   ({description})'
+            mac = f' {mac}|({description})'
 
         return mac
 
