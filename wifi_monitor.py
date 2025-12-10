@@ -71,6 +71,8 @@ class WifiMonitor(tk.Tk):
         self._column_sort_state = {}
         for col in ["#1", "#2", "#3", "#4", "#5"]:
             self._column_sort_state[col] = True  # По умолчанию сортировка прямого порядка
+        # Флаг активности сканирования
+        self.scanning_active = False  
 
     # Централизация окна
     def center_window(self):
@@ -348,17 +350,19 @@ class WifiMonitor(tk.Tk):
     def scan_selected_channels(self, channels, delay_time=0.25):
         if len(channels) == 1:
             # Единственный канал — фиксируем на нём
+            self.stop_scanning
             self.change_channel(channels[0])
             return
         
         # Циклическое сканирование по нескольким каналам
         def run_scanner():
-            while True:
+            while self.scanning_active:
                 for channel in channels:
                     self.change_channel(channel)
                     time.sleep(delay_time)
 
         self.scanner_thread = threading.Thread(target=run_scanner, daemon=True)
+        self.scanning_active = True  # Включаем сканирование
         self.scanner_thread.start()
 
 
@@ -366,14 +370,12 @@ class WifiMonitor(tk.Tk):
 
     def change_channel(self, channel, password=config.password):
         # Формируем команду
-        # password='kali'
         command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
-
         # Выполнение команды с передачей пароля через stdin
         process = subprocess.run(command, input=f'{password}\n', encoding='utf-8', capture_output=True)
 
         if process.returncode != 0:
-            print(f"Ошибка111: {process.stderr}")  # Выводим сообщение об ошибке
+            print(f"Ошибка: {process.stderr}")  # Выводим сообщение об ошибке
         else:
             # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
             # Обновляем лейбл с номером канала
@@ -381,21 +383,35 @@ class WifiMonitor(tk.Tk):
             self.title_label.config(text=updated_text)
 
 
-    
     def stop_scanning(self):
-        # Завершаем запущенный поток сканирования
-        if hasattr(self, 'scanner_thread') and self.scanner_thread.is_alive():
-            self.scanner_thread.cancel()  # Cancel the thread if it's a ThreadPoolExecutor task
-            del self.scanner_thread  # Удаляем ссылку на поток
+        # Отключаем флаг активности сканирования
+        self.scanning_active = False
+        # Ждем завершения потока (если надо, можете добавить таймаут ожидания)
+        if hasattr(self, 'scanner_thread'):
+            self.scanner_thread.join(timeout=1.0)  # Дожидаемся завершения потока
+            del self.scanner_thread  # Освобождаем память
         
-        # Очищаем временной кэш и статы
+        # Остальная очистка данных...
         config._last_seen.clear()
         config._seen_count.clear()
-        self.tree.delete(*self.tree.get_children())  # Очищаем таблицу
-        self.clear_text()  # Очищаем текстовый журнал
-        
-        # Сообщаем о завершении процесса
+        self.tree.delete(*self.tree.get_children())
+        self.clear_text()
         self.add_text("Процесс сканирования остановлен.")
+
+    # def stop_scanning(self):
+    #     # Завершаем запущенный поток сканирования
+    #     if hasattr(self, 'scanner_thread') and self.scanner_thread.is_alive():
+    #         self.scanner_thread.cancel()  # Cancel the thread if it's a ThreadPoolExecutor task
+    #         del self.scanner_thread  # Удаляем ссылку на поток
+        
+    #     # Очищаем временной кэш и статы
+    #     config._last_seen.clear()
+    #     config._seen_count.clear()
+    #     self.tree.delete(*self.tree.get_children())  # Очищаем таблицу
+    #     self.clear_text()  # Очищаем текстовый журнал
+        
+    #     # Сообщаем о завершении процесса
+    #     self.add_text("Процесс сканирования остановлен.")
 
 if __name__ == "__main__":
     app = WifiMonitor()
