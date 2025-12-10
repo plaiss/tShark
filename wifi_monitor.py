@@ -117,7 +117,7 @@ class WifiMonitor(tk.Tk):
         self.tree.heading('#2', text='Производитель', anchor='center', command=lambda: self.sort_column("#2"))
         self.tree.heading('#3', text='RSSI', anchor='center', command=lambda: self.sort_column("#3"))
         self.tree.heading('#4', text='Последнее обнаружение', anchor='n', command=lambda: self.sort_column("#4"))
-        self.tree.heading('#5', text='Канал', anchor='center')  # Название нового столбца
+        self.tree.heading('#5', text='Канал', anchor='center', command=lambda: self.sort_column("#5"))  # Привязываем сортировку
         
         # Размеры столбцов
         self.tree.column('#1', width=150, minwidth=90, stretch=False)
@@ -172,6 +172,8 @@ class WifiMonitor(tk.Tk):
             # Применяем сортировку
             if column_id == '#3':  # Числовой столбец (RSSI)
                 values.sort(key=lambda x: float(x[1]), reverse=new_order)
+            elif column_id == '#5':  # Столбец Канала тоже числовой
+                values.sort(key=lambda x: int(x[1]), reverse=new_order)
             elif column_id == '#1':
                 # Специальная логика для первого столбца
                 if self.reverse_check_var.get():
@@ -310,34 +312,6 @@ class WifiMonitor(tk.Tk):
         self.tree.delete(*self.tree.get_children())
         self.clear_text()
 
-    # def export_csv(self):
-    #     """Экспорт данных в CSV-файл."""
-    #     self.toggle_scanning()  # Сначала останавливаем сканирование
-    #     # Затем открываем окно
-    #     export_window = ExportDialog(self.master,self.tree)
-    #     export_window.grab_set()  # Фокусируется на окне настроек
-
-
-    # def export_csv(self):
-    #     """Экспорт данных в CSV‑файл."""
-    #     try:
-    #         # Останавливаем сканирование перед открытием диалогового окна
-    #         self.toggle_scanning()
-    #         # Создаём диалоговое окно экспорта
-    #         export_window = ExportDialog(self.master, self.tree)
-    #         # Устанавливаем модальный захват (блокирует взаимодействие с главным окном)
-    #         export_window.grab_set()
-    #         # Регистрируем обработчик закрытия окна для корректного освобождения захвата
-    #         export_window.protocol("WM_DELETE_WINDOW", lambda: self._on_export_dialog_close(export_window))
-            
-    #     except Exception as e:
-    #         # Логируем ошибку (если используется логирование)
-    #         print(f"Ошибка при открытии окна экспорта: {e}")
-    #         # Дополнительно можно показать сообщение пользователю
-    #         messagebox.showerror("Ошибка", "Не удалось открыть окно экспорта данных.")
-    #         # Если сканирование было остановлено, но окно не открылось — возобновляем
-    #         if self.scanning_paused:
-    #             self.toggle_scanning()
     def export_csv(self):
         """Экспорт данных в CSV-файл."""
         try:
@@ -365,7 +339,6 @@ class WifiMonitor(tk.Tk):
         dialog_window.destroy()
         
         # Дополнительно: можно обновить интерфейс или выполнить другие действия после закрытия
-
 
     def show_whitelist(self):
         """Отображает содержимое белого списка."""
@@ -401,8 +374,6 @@ class WifiMonitor(tk.Tk):
                 # Если выбрали пустой список каналов, то остановим сканирование
                 self.stop_scanning()
 
-
-
     def scan_selected_channels(self, channels, delay_time=0.25):
         if len(channels) == 1:
             # Единственный канал — фиксируем на нём
@@ -421,9 +392,6 @@ class WifiMonitor(tk.Tk):
         self.scanning_active = True  # Включаем сканирование
         self.scanner_thread.start()
 
-
-    
-
     def change_channel(self, channel, password=config.password):
         # Формируем команду
         command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
@@ -437,7 +405,6 @@ class WifiMonitor(tk.Tk):
             # Обновляем лейбл с номером канала
             updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
             self.title_label.config(text=updated_text)
-
 
     def stop_scanning(self):
         # Отключаем флаг активности сканирования
