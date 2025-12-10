@@ -307,12 +307,62 @@ class WifiMonitor(tk.Tk):
         self.tree.delete(*self.tree.get_children())
         self.clear_text()
 
+    # def export_csv(self):
+    #     """Экспорт данных в CSV-файл."""
+    #     self.toggle_scanning()  # Сначала останавливаем сканирование
+    #     # Затем открываем окно
+    #     export_window = ExportDialog(self.master,self.tree)
+    #     export_window.grab_set()  # Фокусируется на окне настроек
+
+
+    # def export_csv(self):
+    #     """Экспорт данных в CSV‑файл."""
+    #     try:
+    #         # Останавливаем сканирование перед открытием диалогового окна
+    #         self.toggle_scanning()
+    #         # Создаём диалоговое окно экспорта
+    #         export_window = ExportDialog(self.master, self.tree)
+    #         # Устанавливаем модальный захват (блокирует взаимодействие с главным окном)
+    #         export_window.grab_set()
+    #         # Регистрируем обработчик закрытия окна для корректного освобождения захвата
+    #         export_window.protocol("WM_DELETE_WINDOW", lambda: self._on_export_dialog_close(export_window))
+            
+    #     except Exception as e:
+    #         # Логируем ошибку (если используется логирование)
+    #         print(f"Ошибка при открытии окна экспорта: {e}")
+    #         # Дополнительно можно показать сообщение пользователю
+    #         messagebox.showerror("Ошибка", "Не удалось открыть окно экспорта данных.")
+    #         # Если сканирование было остановлено, но окно не открылось — возобновляем
+    #         if self.scanning_paused:
+    #             self.toggle_scanning()
     def export_csv(self):
         """Экспорт данных в CSV-файл."""
-        self.toggle_scanning()  # Сначала останавливаем сканирование
-        # Затем открываем окно настроек
-        export_window = ExportDialog(self.master,self.tree)
-        export_window.grab_set()  # Фокусируется на окне настроек
+        try:
+            # Останавливаем сканирование перед началом экспорта
+            self.toggle_scanning()
+
+            # Прямо вызываем класс ExportDialog для начала экспорта
+            ExportDialog(self.master, self.tree)
+
+        except Exception as e:
+            # Логируем ошибку (если используется логирование)
+            print(f"Ошибка при открытии окна экспорта: {e}")
+            # Дополнительно можно показать сообщение пользователю
+            messagebox.showerror("Ошибка", "Не удалось открыть окно экспорта данных.")
+            # Если сканирование было остановлено, но окно не открылось — возобновляем
+            if self.scanning_paused:
+                self.toggle_scanning()
+
+    def _on_export_dialog_close(self, dialog_window):
+        """Обработчик закрытия окна экспорта."""
+        # Освобождаем модальный захват
+        dialog_window.grab_release()
+        
+        # Закрываем окно
+        dialog_window.destroy()
+        
+        # Дополнительно: можно обновить интерфейс или выполнить другие действия после закрытия
+
 
     def show_whitelist(self):
         """Отображает содержимое белого списка."""
@@ -350,7 +400,7 @@ class WifiMonitor(tk.Tk):
     def scan_selected_channels(self, channels, delay_time=0.25):
         if len(channels) == 1:
             # Единственный канал — фиксируем на нём
-            self.stop_scanning
+            self.stop_scanning()
             self.change_channel(channels[0])
             return
         
@@ -389,29 +439,15 @@ class WifiMonitor(tk.Tk):
         # Ждем завершения потока (если надо, можете добавить таймаут ожидания)
         if hasattr(self, 'scanner_thread'):
             self.scanner_thread.join(timeout=1.0)  # Дожидаемся завершения потока
-            del self.scanner_thread  # Освобождаем память
+            # del self.scanner_thread  # Освобождаем память
         
         # Остальная очистка данных...
-        config._last_seen.clear()
-        config._seen_count.clear()
-        self.tree.delete(*self.tree.get_children())
-        self.clear_text()
-        self.add_text("Процесс сканирования остановлен.")
+        # config._last_seen.clear()
+        # config._seen_count.clear()
+        # self.tree.delete(*self.tree.get_children())
+        # self.clear_text()
+        self.add_text("Процесс сканирования каналов остановлен.")
 
-    # def stop_scanning(self):
-    #     # Завершаем запущенный поток сканирования
-    #     if hasattr(self, 'scanner_thread') and self.scanner_thread.is_alive():
-    #         self.scanner_thread.cancel()  # Cancel the thread if it's a ThreadPoolExecutor task
-    #         del self.scanner_thread  # Удаляем ссылку на поток
-        
-    #     # Очищаем временной кэш и статы
-    #     config._last_seen.clear()
-    #     config._seen_count.clear()
-    #     self.tree.delete(*self.tree.get_children())  # Очищаем таблицу
-    #     self.clear_text()  # Очищаем текстовый журнал
-        
-    #     # Сообщаем о завершении процесса
-    #     self.add_text("Процесс сканирования остановлен.")
 
 if __name__ == "__main__":
     app = WifiMonitor()
