@@ -72,7 +72,10 @@ class WifiMonitor(tk.Tk):
         for col in ["#1", "#2", "#3", "#4", "#5"]:
             self._column_sort_state[col] = True  # По умолчанию сортировка прямого порядка
         # Флаг активности сканирования
-        self.scanning_active = False  
+        self.scanning_active = False
+        self.prev_channels = []
+        self.prev_delay_time =0
+
 
     # Централизация окна
     def center_window(self):
@@ -387,8 +390,11 @@ class WifiMonitor(tk.Tk):
 
     def show_channel_selector(self):
         dialog = ChannelSelectorDialog(self, config.interface, channels=getattr(self, 'prev_channels', None), delay_time=getattr(self, 'prev_delay_time', None))
+
         if dialog.result:
             selected_channels, delay_time = dialog.result
+            self.prev_channels = selected_channels
+            self.prev_delay_time = delay_time
             if selected_channels:
                 self.scan_selected_channels(selected_channels, delay_time)
             else:
