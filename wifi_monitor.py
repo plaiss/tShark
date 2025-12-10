@@ -364,26 +364,22 @@ class WifiMonitor(tk.Tk):
 
     
 
-    def change_channel(channel, password=config.password):
+    def change_channel(self, channel, password=config.password):
         # Формируем команду
+        # password='kali'
         command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
 
         # Выполнение команды с передачей пароля через stdin
         process = subprocess.run(command, input=f'{password}\n', encoding='utf-8', capture_output=True)
 
         if process.returncode != 0:
-            print(f"Ошибка: {process.stderr}")  # Выводим сообщение об ошибке
+            print(f"Ошибка111: {process.stderr}")  # Выводим сообщение об ошибке
         else:
             # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
             # Обновляем лейбл с номером канала
             updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
             self.title_label.config(text=updated_text)
 
-    def run_scanner():
-        while True:
-            for channel in channels:
-                change_channel(channel)
-                time.sleep(delay_time)
 
     
     def stop_scanning(self):
