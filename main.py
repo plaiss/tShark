@@ -22,9 +22,10 @@ import queue
 # Функция сброса буферов
 def flush_buffers(root):
     # Массовое обновление дерева
-    while root.tree_buffer:  # <- Используем атрибут класса
-        mac_n, mac_vendor, rssi, pretty_time, channel, mac_count = root.tree_buffer.popleft()
-        root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count)
+    while root.tree_buffer:
+        # Извлекаем ровно столько же значений, сколько помещено в буфер
+        mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = root.tree_buffer.popleft()
+        root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
 
     # Сообщения лога
     messages = []
@@ -80,6 +81,15 @@ def tshark_worker(root, cmd, ttl):
             mac_n = utils.normalize_mac(mac)
             if not mac_n:
                 continue
+                    
+            # Вычисляем размер полезных данных (исключая служебные фреймы)
+            useful_bytes = 0
+            if not subtype.startswith(("Beacon", "Probe Response", "Probe Request")):
+                useful_bytes = len(raw.encode('utf-8'))
+                
+            # Накапливаем полезный трафик для каждого MAC-адреса
+            global _traffic_by_mac
+            config._traffic_by_mac[mac_n] = config._traffic_by_mac.get(mac_n, 0) + useful_bytes
 
             # Проверка белого списка
             if config._whitelist:
@@ -102,7 +112,7 @@ def tshark_worker(root, cmd, ttl):
             mac_vendor = utils.lookup_vendor_db(mac_n, config.DB_PATH, False)
             
             # Складываем данные в буферы класса
-            root.tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count))
+            root.tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, config._traffic_by_mac.get(mac_n)))
             root.log_queue.put(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
 
             # Постоянная диагностика

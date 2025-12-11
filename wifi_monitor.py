@@ -115,8 +115,9 @@ class WifiMonitor(tk.Tk):
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Структура таблицы TreeView
-        # columns = ("#1", "#2", "#3", "#4", "#5")  # Добавили новый столбец №5 для номера канала
-        columns = ("#1", "#2", "#3", "#4", "#5", "#6")  # Добавляем новый столбец
+        # columns = ("#1", "#2", "#3", "#4", "#5", "#6")  # Добавляем новый столбец
+        # self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
+        columns = ("#1", "#2", "#3", "#4", "#5", "#6", "#7")  # Добавляем ещё один столбец
         self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
         
         # Названия столбцов
@@ -126,6 +127,7 @@ class WifiMonitor(tk.Tk):
         self.tree.heading('#4', text='Время', anchor='n', command=lambda: self.sort_column("#4"))
         self.tree.heading('#5', text='Канал', anchor='center', command=lambda: self.sort_column("#5"))  # Привязываем сортировку
         self.tree.heading('#6', text='Кол-во', anchor='center', command=lambda: self.sort_column("#6"))
+        self.tree.heading('#7', text='Полезные данные (байт)', anchor='center')  # Название нового столбца
         
         # Размеры столбцов
         self.tree.column('#1', width=150, minwidth=90, stretch=False)
@@ -134,6 +136,8 @@ class WifiMonitor(tk.Tk):
         self.tree.column('#4', width=150, minwidth=90, stretch=False, anchor='center')
         self.tree.column('#5', width=50, minwidth=10, stretch=False, anchor='center')
         self.tree.column('#6', width=60, minwidth=10, stretch=False, anchor='center')
+        self.tree.column('#7', width=100, minwidth=50, stretch=False, anchor='center')  # Ширина нового столбца
+        
         
         # Связываем событие двойного клика с обработчиком
         self.tree.bind("<Double-1>", self.on_device_double_click)
@@ -219,7 +223,7 @@ class WifiMonitor(tk.Tk):
     def clear_text(self):
         self.text_area.delete('1.0', tk.END)
 
-    def update_tree(self, mac_address, vendor, rssi, last_seen, channel_number, appearance_count):
+    def update_tree(self, mac_address, vendor, rssi, last_seen, channel_number, appearance_count, useful_bytes):
         with config._seen_lock:
             # Обновляем данные
             normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
@@ -230,7 +234,8 @@ class WifiMonitor(tk.Tk):
                 self.tree.set(item, '#3', rssi)
                 self.tree.set(item, '#4', last_seen)
                 self.tree.set(item, '#5', channel_number)
-                self.tree.set(item, '#6', appearance_count)  # Установим количество появлений
+                self.tree.set(item, '#6', appearance_count)
+                self.tree.set(item, '#7', useful_bytes)
             else:
                 # Иначе добавляем новую запись
                 self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen, channel_number, appearance_count))
