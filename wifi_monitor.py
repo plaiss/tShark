@@ -127,16 +127,16 @@ class WifiMonitor(tk.Tk):
         self.tree.heading('#4', text='Время', anchor='n', command=lambda: self.sort_column("#4"))
         self.tree.heading('#5', text='Канал', anchor='center', command=lambda: self.sort_column("#5"))  # Привязываем сортировку
         self.tree.heading('#6', text='Кол-во', anchor='center', command=lambda: self.sort_column("#6"))
-        self.tree.heading('#7', text='Полезные данные (байт)', anchor='center')  # Название нового столбца
+        self.tree.heading('#7', text='Траффик', anchor='center', command=lambda: self.sort_column("#7"))  # Название нового столбца
         
         # Размеры столбцов
         self.tree.column('#1', width=150, minwidth=90, stretch=False)
         self.tree.column('#2', width=150, minwidth=90, stretch=False, anchor='center')
         self.tree.column('#3', width=40, minwidth=10, stretch=False, anchor='center')
-        self.tree.column('#4', width=150, minwidth=90, stretch=False, anchor='center')
+        self.tree.column('#4', width=100, minwidth=90, stretch=False, anchor='center')
         self.tree.column('#5', width=50, minwidth=10, stretch=False, anchor='center')
         self.tree.column('#6', width=60, minwidth=10, stretch=False, anchor='center')
-        self.tree.column('#7', width=100, minwidth=50, stretch=False, anchor='center')  # Ширина нового столбца
+        self.tree.column('#7', width=80, minwidth=50, stretch=False, anchor='center')  # Ширина нового столбца
         
         
         # Связываем событие двойного клика с обработчиком
@@ -180,14 +180,16 @@ class WifiMonitor(tk.Tk):
 
         try:
             # Применяем сортировку
-            if column_id == '#3':  # Числовой столбец (RSSI)
+            if column_id == '#3':                                        # Числовой столбец (RSSI)
                 values.sort(key=lambda x: float(x[1]), reverse=new_order)
-            elif column_id == '#5':  # Столбец Канала тоже числовой
+            elif column_id == '#5':                                      # Столбец Канала
                 values.sort(key=lambda x: int(x[1]), reverse=new_order)
-            elif column_id == '#6':  # Столбец Количества
+            elif column_id == '#6':                                      # Столбец Количества
                 values.sort(key=lambda x: int(x[1]), reverse=new_order)  # Преобразование в целое число
-            elif column_id == '#1':
-                # Специальная логика для первого столбца
+            elif column_id == '#7':                                      # Столбец Траффик
+                values.sort(key=lambda x: int(x[1]), reverse=new_order) 
+            elif column_id == '#1':                                      # Специальная логика для первого столбца
+            
                 if self.reverse_check_var.get():
                     values.sort(key=lambda x: x[1][::-1], reverse=new_order)
                 else:
@@ -255,13 +257,13 @@ class WifiMonitor(tk.Tk):
             self.status_text.config(state=tk.DISABLED)
         else:
             new_props = {'relief': 'sunken', 'state': 'disabled'}
-            self.set_button_properties('turn ON monitor mode', new_props)
+            self.set_button_properties('Monitor mode', new_props)
 
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
         button_names_and_commands = {
             "Стоп": {"command": self.toggle_scanning},
-            "turn ON monitor mode": {"command": self.switch_to_monitor_mode},
+            "Monitor mode": {"command": self.switch_to_monitor_mode},
             "Очистить список": {"command": self.reset_data},
             "Экспорт в CSV": {"command": self.export_csv},
             "Открыть белый список": {"command": self.show_whitelist},
