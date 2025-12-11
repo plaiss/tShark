@@ -121,11 +121,11 @@ class WifiMonitor(tk.Tk):
         
         # Названия столбцов
         self.tree.heading('#1', text='MAC Address', anchor='center', command=lambda: self.sort_column("#1"))
-        self.tree.heading('#2', text='Производитель', anchor='center', command=lambda: self.sort_column("#2"))
+        self.tree.heading('#2', text='Вендор', anchor='center', command=lambda: self.sort_column("#2"))
         self.tree.heading('#3', text='RSSI', anchor='center', command=lambda: self.sort_column("#3"))
-        self.tree.heading('#4', text='Последнее обнаружение', anchor='n', command=lambda: self.sort_column("#4"))
+        self.tree.heading('#4', text='Время', anchor='n', command=lambda: self.sort_column("#4"))
         self.tree.heading('#5', text='Канал', anchor='center', command=lambda: self.sort_column("#5"))  # Привязываем сортировку
-        self.tree.heading('#6', text='Количество', anchor='center')
+        self.tree.heading('#6', text='Кол-во', anchor='center', command=lambda: self.sort_column("#6"))
         
         # Размеры столбцов
         self.tree.column('#1', width=150, minwidth=90, stretch=False)
@@ -180,6 +180,8 @@ class WifiMonitor(tk.Tk):
                 values.sort(key=lambda x: float(x[1]), reverse=new_order)
             elif column_id == '#5':  # Столбец Канала тоже числовой
                 values.sort(key=lambda x: int(x[1]), reverse=new_order)
+            elif column_id == '#6':  # Столбец Количества
+                values.sort(key=lambda x: int(x[1]), reverse=new_order)  # Преобразование в целое число
             elif column_id == '#1':
                 # Специальная логика для первого столбца
                 if self.reverse_check_var.get():
