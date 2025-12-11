@@ -218,19 +218,21 @@ class WifiMonitor(tk.Tk):
         self.text_area.delete('1.0', tk.END)
 
     def update_tree(self, mac_address, vendor, rssi, last_seen, channel_number, appearance_count):
-        normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
-        item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
-        if item:
-            # Если запись существует, обновляем её поля
-            self.tree.set(item, '#2', vendor)
-            self.tree.set(item, '#3', rssi)
-            self.tree.set(item, '#4', last_seen)
-            self.tree.set(item, '#5', channel_number)
-            self.tree.set(item, '#6', appearance_count)  # Установим количество появлений
-        else:
-            # Иначе добавляем новую запись
-            self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen, channel_number, appearance_count))
-        self.refresh_status()
+        with config._seen_lock:
+            # Обновляем данные
+            normalized_mac = ":".join([mac_address[i:i+2] for i in range(0, len(mac_address), 2)])
+            item = next((item for item in self.tree.get_children() if self.tree.item(item)['values'][0] == normalized_mac), None)
+            if item:
+                # Если запись существует, обновляем её поля
+                self.tree.set(item, '#2', vendor)
+                self.tree.set(item, '#3', rssi)
+                self.tree.set(item, '#4', last_seen)
+                self.tree.set(item, '#5', channel_number)
+                self.tree.set(item, '#6', appearance_count)  # Установим количество появлений
+            else:
+                # Иначе добавляем новую запись
+                self.tree.insert('', tk.END, values=(normalized_mac, vendor, rssi, last_seen, channel_number, appearance_count))
+            self.refresh_status()
 
     def refresh_status(self):
         total_devices = len(config._last_seen)
@@ -281,16 +283,26 @@ class WifiMonitor(tk.Tk):
         """
         if button_name in self.buttons:
             self.buttons[button_name].config(**properties)
-
     def toggle_scanning(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             _stop.set()  # Устанавливаем флаг остановки
-            self.tshark_thread = None  # Немедленно удаляем ссылку на поток
+            # Не удаляем ссылку на поток, а позволяем ему закончить естественно
+            # self.tshark_thread = None  # Эту строку нужно убрать
             self.set_button_properties('Стоп', {'text': 'Пуск'})  # Меняем текст на "Пуск"
         else:
             _stop.clear()  # Снимаем флаг остановки
             self.start_tshark()
             self.set_button_properties('Стоп', {'text': 'Стоп'})  # Меняем текст на "Стоп"
+
+    def clean_buffers(self, controlled=False):
+        if controlled:
+            # Управляемая чистка: удаляем только лишнюю информацию
+            # Например, удаляем только старое или дублированное
+            pass
+        else:
+            # Обычная чистка: удаляем всё
+            self.tree.delete(*self.tree.get_children())
+            self.clear_text()
 
     def start_tshark(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
@@ -301,12 +313,12 @@ class WifiMonitor(tk.Tk):
     def debug_status(self):
         thread_status = "Alive" if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive() else "Stopped"
         buffer_size = len(self.tree_buffer)  # Используем атрибут класса
-        print(f"Thread Status: {thread_status}, Buffer Size: {buffer_size}")
+        # print(f"Thread Status: {thread_status}, Buffer Size: {buffer_size}")
 
-    def clean_buffers(self):
-        # Чистим дерево и текстовую область
-        self.tree.delete(*self.tree.get_children())
-        self.clear_text()
+    # def clean_buffers(self):
+    #     # Чистим дерево и текстовую область
+    #     self.tree.delete(*self.tree.get_children())
+    #     self.clear_text()
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим."""
