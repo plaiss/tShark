@@ -179,17 +179,16 @@ class WifiMonitor(tk.Tk):
         values = [(item, self.tree.set(item, column_id)) for item in items]
 
         try:
-            # Применяем сортировку
-            if column_id == '#3':                                        # Числовой столбец (RSSI)
-                values.sort(key=lambda x: float(x[1]), reverse=new_order)
-            elif column_id == '#5':                                      # Столбец Канала
-                values.sort(key=lambda x: int(x[1]), reverse=new_order)
-            elif column_id == '#6':                                      # Столбец Количества
-                values.sort(key=lambda x: int(x[1]), reverse=new_order)  # Преобразование в целое число
-            elif column_id == '#7':                                      # Столбец Траффик
-                values.sort(key=lambda x: int(x[1]), reverse=new_order) 
-            elif column_id == '#1':                                      # Специальная логика для первого столбца
-            
+            # Применяем сортировку с защитой от пустых значений
+            if column_id == '#3':  # Числовой столбец (RSSI)
+                values.sort(key=lambda x: float(x[1]) if x[1].strip() else 0.0, reverse=new_order)
+            elif column_id == '#5':  # Столбец Канала
+                values.sort(key=lambda x: int(x[1]) if x[1].strip() else 0, reverse=new_order)
+            elif column_id == '#6':  # Столбец Количества
+                values.sort(key=lambda x: int(x[1]) if x[1].strip() else 0, reverse=new_order)
+            elif column_id == '#7':  # Столбец Траффик
+                values.sort(key=lambda x: int(x[1]) if x[1].strip() else 0, reverse=new_order)
+            elif column_id == '#1':  # Первый столбец (MAC-адрес)
                 if self.reverse_check_var.get():
                     values.sort(key=lambda x: x[1][::-1], reverse=new_order)
                 else:
@@ -197,6 +196,7 @@ class WifiMonitor(tk.Tk):
             else:
                 values.sort(key=lambda x: str.lower(x[1]), reverse=new_order)
         except ValueError:
+            # Если вдруг случится ошибка, попробуем общую сортировку по строке
             values.sort(key=lambda x: str.lower(x[1]), reverse=new_order)
 
         # Обновляем представление
