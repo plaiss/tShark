@@ -26,9 +26,42 @@ def normalize_mac_OUI(mac):
     s = re.sub(r'[^0-9A-Fa-f]', '', mac).upper()
     return s[:6] if len(s) >= 6 else None
 
-def normalize_mac(mac):
-    s = re.sub(r'[^0-9A-Fa-f]', '', mac).upper()
-    return s if len(s) >= 6 else None
+# def normalize_mac(mac):
+#     s = re.sub(r'[^0-9A-Fa-f]', '', mac).upper()
+#     return s if len(s) >= 6 else None
+import re
+
+import re
+
+import re
+
+def normalize_mac(mac_str):
+    """
+    Нормализует MAC‑адрес, извлекая его из строки (до первого разделителя).
+    - Извлекает подстроку до первого пробела, табуляции или иного разделителя.
+    - Удаляет все нешестнадцатеричные символы.
+    - Приводит к верхнему регистру.
+    - Проверяет длину (ровно 12 шестнадцатеричных цифр).
+    - Возвращает строку без разделителей или None, если MAC некорректен.
+    """
+    if not mac_str:
+        return None
+
+    # Извлекаем часть до первого пробела/табуляции/иного разделителя
+    mac_part = mac_str.strip().split()[0]  # Берём первое слово
+
+    # Удаляем всё, кроме 0–9, A–F, a–f
+    cleaned = re.sub(r'[^0-9A-Fa-f]', '', mac_part).upper()
+
+    # Строгая проверка: ровно 12 шестнадцатеричных символов
+    if len(cleaned) != 12:
+        return None
+
+    return cleaned  # Например, "420A387AD951"
+
+
+
+
 
 def lookup_vendor_db(mac, db_path=config.DB_PATH, return_full=True):
     oui = normalize_mac_OUI(mac)
@@ -102,7 +135,8 @@ def parse_time_epoch(text):
         t = float(text)
         sec = int(t)
         ms = int((t - sec) * 1000)
-        return f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))}.{ms:03d}"
+        # return f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))}.{ms:03d}"
+        return f"{time.strftime('%H:%M:%S', time.localtime(t))}.{ms:03d}"
     except Exception:
         return text
 

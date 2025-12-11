@@ -12,10 +12,42 @@ from config import _stop
 import config
 from wifi_monitor import WifiMonitor  # Импортируем класс из отдельного файла
 
+from collections import deque
+import queue
 
+# Глобальные переменные для управления буферами
+tree_buffer = deque(maxlen=1000)
+log_queue = queue.Queue()
+
+# Функция сброса буферов
+def flush_buffers(root):
+    # Массовое обновление дерева
+    while tree_buffer:
+        mac_n, mac_vendor, rssi, pretty_time, channel, mac_count = tree_buffer.popleft()
+        root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count)
+
+    # Сообщения лога
+    messages = []
+    while not log_queue.empty():
+        messages.append(log_queue.get())
+    if messages:
+        root.add_text("\n".join(messages))
+
+# Планирование периодической очистки буферов
+def schedule_flush(root):
+    root.after(1000, lambda: flush_buffers(root))  # Повторять каждые 1 сек
+    root.after(1000, lambda: schedule_flush(root))  # Самозапланироваться через 1 сек
+
+# Основной рабочий поток tshark
 def tshark_worker(root, cmd, ttl):
     try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
     except Exception as e:
         root.add_text(f"Ошибка при старте tshark: {e}")
         config._stop.set()
@@ -35,47 +67,42 @@ def tshark_worker(root, cmd, ttl):
             if not raw:
                 continue
             parts = raw.split("\t")
-            if len(parts) < 5:  # Теперь ожидаем минимум пять частей (добавлен канал)
+            if len(parts) < 5:
                 continue
+            
             raw_time = parts[0]
             mac = parts[1] if len(parts) > 1 else ""
             rssi = parts[2] if len(parts) > 2 else ""
-            channel = parts[3] if len(parts) > 3 else ""  # Новая переменная для канала
+            channel = parts[3] if len(parts) > 3 else ""
             subtype = parts[4] if len(parts) > 4 else ""
 
             mac_n = utils.normalize_mac(mac)
             if not mac_n:
                 continue
 
+            # Проверка белого списка
             if config._whitelist:
                 allowed = mac_n not in config._whitelist
             else:
                 allowed = True
 
+            if not allowed:
+                continue  # Пропускаем пакет, если он запрещён
+
             now = time.time()
             with config._seen_lock:
-                last = config._last_seen.get(mac_n)
-                if last is not None:
-                    if ttl is None:
-                        continue
-                    if now - last <= ttl:
-                        continue
-                config._last_seen[mac_n] = now
+                # Повышаем счетчик независимо от времени TTL
                 config._seen_count[mac_n] = config._seen_count.get(mac_n, 0) + 1
+                mac_count = config._seen_count[mac_n]
+                # Обновляем время последнего обнаружения
+                config._last_seen[mac_n] = now
 
             pretty_time = utils.parse_time_epoch(raw_time)
-            mac = utils.lookup_vendor_db(mac)
-            mac_width=40
-            if len(mac) <= mac_width:
-                dop = mac_width - len(mac)
-                mac = mac + ' ' * dop
-            else:
-                mac = mac[:mac_width]
-
-            # Передаем номер канала вместе с остальными значениями
-            #------------lookup_vendor_db вызывается дважды!!!!!!!!!!!!!!!!!
-            root.update_tree(mac_n, utils.lookup_vendor_db(mac_n, config.DB_PATH, False), rssi, pretty_time, channel)
-            root.add_text(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
+            mac_vendor = utils.lookup_vendor_db(mac_n, config.DB_PATH, False)
+            
+            # Складываем данные в буферы
+            tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count))
+            log_queue.put(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
     finally:
         try:
             proc.terminate()
@@ -85,7 +112,6 @@ def tshark_worker(root, cmd, ttl):
             proc.wait(timeout=1)
         except Exception:
             pass
-
 
 def main():
     global WHITELIST_PATH, SEEN_TTL_SECONDS
@@ -101,6 +127,9 @@ def main():
         signal.signal(signal.SIGHUP, utils.handle_sighup)
     except Exception:
         pass
+
+    # Начинаем регулярное опустошение буферов
+    schedule_flush(root)
 
     if SEEN_TTL_SECONDS is not None:
         t = threading.Thread(target=utils.seen_cleaner, args=(SEEN_TTL_SECONDS,), daemon=True)
