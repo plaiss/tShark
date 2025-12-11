@@ -16,20 +16,20 @@ from collections import deque
 import queue
 
 # Глобальные переменные для управления буферами
-tree_buffer = deque(maxlen=1000)
-log_queue = queue.Queue()
+# tree_buffer = deque(maxlen=1000)
+# log_queue = queue.Queue()
 
 # Функция сброса буферов
 def flush_buffers(root):
     # Массовое обновление дерева
-    while tree_buffer:
-        mac_n, mac_vendor, rssi, pretty_time, channel, mac_count = tree_buffer.popleft()
+    while root.tree_buffer:  # <- Используем атрибут класса
+        mac_n, mac_vendor, rssi, pretty_time, channel, mac_count = root.tree_buffer.popleft()
         root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count)
 
     # Сообщения лога
     messages = []
-    while not log_queue.empty():
-        messages.append(log_queue.get())
+    while not root.log_queue.empty():  # Аналогично для log_queue
+        messages.append(root.log_queue.get())
     if messages:
         root.add_text("\n".join(messages))
 
@@ -39,6 +39,7 @@ def schedule_flush(root):
     root.after(1000, lambda: schedule_flush(root))  # Самозапланироваться через 1 сек
 
 def tshark_worker(root, cmd, ttl):
+    # Внутри функции используй root.tree_buffer и root.log_queue
     try:
         proc = subprocess.Popen(
             cmd,
@@ -99,9 +100,9 @@ def tshark_worker(root, cmd, ttl):
             pretty_time = utils.parse_time_epoch(raw_time)
             mac_vendor = utils.lookup_vendor_db(mac_n, config.DB_PATH, False)
             
-            # Складываем данные в буферы
-            tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count))
-            log_queue.put(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
+            # Складываем данные в буферы класса
+            root.tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count))
+            root.log_queue.put(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
 
             # Постоянная диагностика
             root.debug_status()
@@ -142,7 +143,8 @@ def main():
 
     if utils.get_wlan_mode(config.interface) == 'Monitor':
         # Запускаем поток и передаем ссылку на него в класс App
-        tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD, SEEN_TTL_SECONDS), daemon=True)
+        # tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD, SEEN_TTL_SECONDS), daemon=True)
+        tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
         tshark_thread.start()
         root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
 

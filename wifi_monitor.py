@@ -2,10 +2,13 @@ import subprocess
 import threading
 import time
 import tkinter as tk
+
 from tkinter import ttk, scrolledtext
 from tkinter import messagebox
 from tkinter.messagebox import showinfo
 from tkinter import simpledialog
+from collections import deque
+import queue
 from config import _stop
 import config
 import utils
@@ -75,6 +78,9 @@ class WifiMonitor(tk.Tk):
         self.scanning_active = False
         self.prev_channels = []
         self.prev_delay_time =0
+                # Перемещаем сюда объявление буфера
+        self.tree_buffer = deque(maxlen=1000)
+        self.log_queue = queue.Queue()
 
 
     # Централизация окна
@@ -89,7 +95,7 @@ class WifiMonitor(tk.Tk):
 
     # Автообновление индикатора состояния потока
     def update_indicator(self):
-        if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
+        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             self.indicator.config(background="red", text='running')
             new_props = {'relief': 'sunken'}
             self.set_button_properties('Стоп', new_props)
@@ -150,14 +156,11 @@ class WifiMonitor(tk.Tk):
         self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, font=("TkDefaultFont", 10))  # Высота в одну строку
         self.status_text.pack(side=tk.BOTTOM, fill=tk.X)
 
-    # Обработчик двойного клика мыши по устройству
     def on_device_double_click(self, event):
         selected_item = self.tree.focus()
-        if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
-            # Остановка сканирования
+        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             _stop.set()  # Устанавливаем флаг остановки
-            self.tshark_thread.join()  # Ждём завершения потока
-            del self.tshark_thread  # Удаляем ссылку на поток
+            self.tshark_thread = None  # Немедленно удаляем ссылку на поток
         data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
         if data:
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
@@ -279,31 +282,25 @@ class WifiMonitor(tk.Tk):
         if button_name in self.buttons:
             self.buttons[button_name].config(**properties)
 
-    # Функционал для каждой кнопки
     def toggle_scanning(self):
-        """Начало/остановка сканирования."""
-        if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
-            # Остановка сканирования
+        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             _stop.set()  # Устанавливаем флаг остановки
-            self.tshark_thread.join()  # Ждём завершения потока
-            del self.tshark_thread  # Удаляем ссылку на поток
+            self.tshark_thread = None  # Немедленно удаляем ссылку на поток
             self.set_button_properties('Стоп', {'text': 'Пуск'})  # Меняем текст на "Пуск"
         else:
-            # Начало сканирования
             _stop.clear()  # Снимаем флаг остановки
             self.start_tshark()
             self.set_button_properties('Стоп', {'text': 'Стоп'})  # Меняем текст на "Стоп"
 
     def start_tshark(self):
-        """Запуск потока сканирования."""
-        if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
+        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             return  # Если поток уже запущен, ничего не делаем
         self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
         self.tshark_thread.start()
    
     def debug_status(self):
         thread_status = "Alive" if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive() else "Stopped"
-        buffer_size = len(tree_buffer)
+        buffer_size = len(self.tree_buffer)  # Используем атрибут класса
         print(f"Thread Status: {thread_status}, Buffer Size: {buffer_size}")
 
     def clean_buffers(self):
