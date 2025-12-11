@@ -296,13 +296,12 @@ class WifiMonitor(tk.Tk):
 
     def clean_buffers(self, controlled=False):
         if controlled:
-            # Управляемая чистка: удаляем только лишнюю информацию
-            # Например, удаляем только старое или дублированное
+            # Здесь можно добавить управляемую очистку (если нужно)
             pass
         else:
-            # Обычная чистка: удаляем всё
-            self.tree.delete(*self.tree.get_children())
-            self.clear_text()
+            # Оставляем только очистку лога
+            self.clear_text()  # Очищаем текстовую область
+
 
     def start_tshark(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
@@ -315,10 +314,6 @@ class WifiMonitor(tk.Tk):
         buffer_size = len(self.tree_buffer)  # Используем атрибут класса
         # print(f"Thread Status: {thread_status}, Buffer Size: {buffer_size}")
 
-    # def clean_buffers(self):
-    #     # Чистим дерево и текстовую область
-    #     self.tree.delete(*self.tree.get_children())
-    #     self.clear_text()
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим."""
@@ -438,12 +433,7 @@ class WifiMonitor(tk.Tk):
         if hasattr(self, 'scanner_thread'):
             self.scanner_thread.join(timeout=1.0)  # Дожидаемся завершения потока
             # del self.scanner_thread  # Освобождаем память
-        
-        # Остальная очистка данных...
-        # config._last_seen.clear()
-        # config._seen_count.clear()
-        # self.tree.delete(*self.tree.get_children())
-        # self.clear_text()
+
         self.add_text("Процесс сканирования каналов остановлен.")
 
 
