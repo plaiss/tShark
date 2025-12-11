@@ -296,8 +296,20 @@ class WifiMonitor(tk.Tk):
 
     def start_tshark(self):
         """Запуск потока сканирования."""
+        if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive():
+            return  # Если поток уже запущен, ничего не делаем
         self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
         self.tshark_thread.start()
+   
+    def debug_status(self):
+        thread_status = "Alive" if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive() else "Stopped"
+        buffer_size = len(tree_buffer)
+        print(f"Thread Status: {thread_status}, Buffer Size: {buffer_size}")
+
+    def clean_buffers(self):
+        # Чистим дерево и текстовую область
+        self.tree.delete(*self.tree.get_children())
+        self.clear_text()
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим."""

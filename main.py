@@ -38,7 +38,6 @@ def schedule_flush(root):
     root.after(1000, lambda: flush_buffers(root))  # Повторять каждые 1 сек
     root.after(1000, lambda: schedule_flush(root))  # Самозапланироваться через 1 сек
 
-# Основной рабочий поток tshark
 def tshark_worker(root, cmd, ttl):
     try:
         proc = subprocess.Popen(
@@ -103,6 +102,10 @@ def tshark_worker(root, cmd, ttl):
             # Складываем данные в буферы
             tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count))
             log_queue.put(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
+
+            # Постоянная диагностика
+            root.debug_status()
+
     finally:
         try:
             proc.terminate()
@@ -112,6 +115,8 @@ def tshark_worker(root, cmd, ttl):
             proc.wait(timeout=1)
         except Exception:
             pass
+        # Завершаем очистку буферов
+        root.clean_buffers()
 
 def main():
     global WHITELIST_PATH, SEEN_TTL_SECONDS
