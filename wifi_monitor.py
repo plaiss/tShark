@@ -189,22 +189,22 @@ class WifiMonitor(tk.Tk):
             print("он был запущен, можно перезапускать заново")
 
     def sort_column(self, column_id):
-        print(f"[SORT] Начало сортировки для столбца {column_id}")
+        # print(f"[SORT] Начало сортировки для столбца {column_id}")
         
         # Сохраняем состояние
         current_order = self._column_sort_state.get(column_id, True)
         new_order = not current_order
         self._column_sort_state[column_id] = new_order
-        print(f"[SORT] Порядок: {current_order} → {new_order}")
+        # print(f"[SORT] Порядок: {current_order} → {new_order}")
         
         # Получаем данные
         items = list(self.tree.get_children())
         if not items:
-            print("[SORT] Нет элементов для сортировки")
+            # print("[SORT] Нет элементов для сортировки")
             return
             
         values = [(item, self.tree.set(item, column_id)) for item in items]
-        print(f"[SORT] Исходные данные: {values}")
+        # print(f"[SORT] Исходные данные: {values}")
         
         try:
             if column_id == '#3':  # RSSI (float)
@@ -226,10 +226,10 @@ class WifiMonitor(tk.Tk):
                 key_func = lambda x: str.lower(str(x[1]) if x[1] is not None else '')
 
             values.sort(key=key_func, reverse=new_order)
-            print(f"[SORT] Отсортированные данные: {values}")
+            # print(f"[SORT] Отсортированные данные: {values}")
 
         except (ValueError, AttributeError, TypeError) as e:
-            print(f"[SORT] Ошибка сортировки: {e}")
+            # print(f"[SORT] Ошибка сортировки: {e}")
             values.sort(
                 key=lambda x: str.lower(str(x[1]) if x[1] is not None else ''),
                 reverse=new_order
@@ -245,9 +245,9 @@ class WifiMonitor(tk.Tk):
         if column_id == '#1':
             alignment = 'e' if self.reverse_check_var.get() else 'w'
             self.tree.column('#1', anchor=alignment)
-            print(f"[SORT] Выравнивание: {alignment}")
+            # print(f"[SORT] Выравнивание: {alignment}")
         
-        print("[SORT] Сортировка завершена")
+        # print("[SORT] Сортировка завершена")
 
 
 

@@ -164,7 +164,7 @@ class SecondWindow(tk.Toplevel):
         """Завершаем поток сбора данных."""
         self.thread_running = False
         if self.proc.poll() is None:
-            print(f"[DEBUG] Процесс поиска {self.mac_address} завершен")
+            # print(f"[DEBUG] Процесс поиска {self.mac_address} завершен")
             self.proc.kill()
             self.proc.wait()
 
