@@ -40,7 +40,7 @@ def extract_rssi(data):
 
 # Класс окна детальной информации
 class SecondWindow(tk.Toplevel):
-    def __init__(self, parent, mac_address=None, manufacturer=None):
+    def __init__(self, parent, mac_address=None, manufacturer=None, channel=None):
         super().__init__(parent)
         self.parent = parent
         self.title("Подробности устройства")
@@ -52,6 +52,9 @@ class SecondWindow(tk.Toplevel):
         # Получаем информацию о Wi-Fi-канале
         wifi_info = os.popen(f"iw dev wlan1 info").read()
         channel_num, frequency = utils.parse_wifi_info(wifi_info)
+        if channel_num != channel_num:
+            
+            print('Текущий канал не равен заказанному!!!!!')
 
         # Команда для tshark
         TSHARK_CMD1 = [
@@ -64,17 +67,17 @@ class SecondWindow(tk.Toplevel):
             "-l"  # Буферизация
         ]
         # Команда для tshark
-        TSHARK_CMD2 = [
-            "tshark", "-i", "wlan1",
-            "-s", "0",
-            "-T", "fields",
-            "-e", "wlan.ta",  # RA (приёмник)
-            "-e", "wlan.ta.oui_resolved",  # производитель
-            "-e", "wlan_radio.channel",  # канал
-            "-e", "wlan_radio.signal_dbm",  # RSSI
-            "-f", f'\"ether src {self.mac_address}\"',
-            "-l"  # Буферизация
-        ]
+        # TSHARK_CMD2 = [
+        #     "tshark", "-i", "wlan1",
+        #     "-s", "0",
+        #     "-T", "fields",
+        #     "-e", "wlan.ta",  # RA (приёмник)
+        #     "-e", "wlan.ta.oui_resolved",  # производитель
+        #     "-e", "wlan_radio.channel",  # канал
+        #     "-e", "wlan_radio.signal_dbm",  # RSSI
+        #     "-f", f'\"ether src {self.mac_address}\"',
+        #     "-l"  # Буферизация
+        # ]
         #tshark -i wlan1 -s 0 -T fields -e frame.number -e wlan_radio.channel -e wlan_radio.signal_dbm -f "ether src 36:6F:D8:75:91:57" -l
 
 
@@ -94,7 +97,8 @@ class SecondWindow(tk.Toplevel):
         self.frame_number_label.pack()
 
         # Лейбл для отображения канала и частоты
-        self.channel_label = tk.Label(self, text=f"Channel: {channel_num}, Frequency: {frequency}", font=("Arial", 12))
+        self.channel_label = tk.Label(self, text=f"Channel: {channel}, Frequency: {frequency}", font=("Arial", 12))
+        # self.channel_label = tk.Label(self, text=f"Channel: {channel_num}, Frequency: {frequency}", font=("Arial", 12))
         self.channel_label.pack()
 
         # Другие метки
@@ -147,7 +151,7 @@ class SecondWindow(tk.Toplevel):
         # Стартуем мониторинг
         self.thread_running = True
         self.paused = False
-        print(f"[DEBUG] Запуск tshark командой: {' '.join(TSHARK_CMD1)}")
+        # print(f"[DEBUG] Запуск TSHARK_CMD1 командой: {' '.join(TSHARK_CMD1)}")
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.data_update_thread = threading.Thread(target=self.update_data_from_stream)
         self.data_update_thread.daemon = True
@@ -160,7 +164,7 @@ class SecondWindow(tk.Toplevel):
         """Завершаем поток сбора данных."""
         self.thread_running = False
         if self.proc.poll() is None:
-            print("[DEBUG] Завершил процесс tshark.")
+            print(f"[DEBUG] Процесс поиска {self.mac_address} завершен")
             self.proc.kill()
             self.proc.wait()
 

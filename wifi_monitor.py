@@ -162,12 +162,31 @@ class WifiMonitor(tk.Tk):
 
     def on_device_double_click(self, event):
         selected_item = self.tree.focus()
-        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
-            _stop.set()  # Устанавливаем флаг остановки
-            self.tshark_thread = None  # Немедленно удаляем ссылку на поток
         data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
         if data:
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
+
+    # Открывает второе окно с информацией о устройстве
+    def open_second_window(self, *, data=None):
+        scanner_was_running = False
+        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+            _stop.set()  # Устанавливаем флаг остановки
+            self.tshark_thread = None  # Немедленно удаляем ссылку на поток
+        
+        if hasattr(self, 'scanner_thread'):
+            scanner_was_running = True
+
+        selected_item = self.tree.focus()
+        data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
+        mac_address = data[0]  # Первая колонка — MAC-адрес
+        manufacturer = data[1]  # Вторая колонка — Производитель
+        channel = data[4]
+
+        self.stop_scanning()
+        self.change_channel(channel)
+        SecondWindow(self, mac_address, manufacturer, channel)
+        if scanner_was_running == True:
+            print("он был запущен, можно перезапускать заново")
 
     def sort_column(self, column_id):
         print(f"[SORT] Начало сортировки для столбца {column_id}")
@@ -220,7 +239,7 @@ class WifiMonitor(tk.Tk):
         # Обновляем дерево
         for idx, (item, _) in enumerate(values):
             self.tree.move(item, '', idx)
-            print(f"[SORT] Перемещено: {item} → {idx}")
+            # print(f"[SORT] Перемещено: {item} → {idx}")
         
         # Корректируем выравнивание для MAC-адреса
         if column_id == '#1':
@@ -231,13 +250,7 @@ class WifiMonitor(tk.Tk):
         print("[SORT] Сортировка завершена")
 
 
-    # Открывает второе окно с информацией о устройстве
-    def open_second_window(self, *, data=None):
-        selected_item = self.tree.focus()
-        data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
-        mac_address = data[0]  # Первая колонка — MAC-адрес
-        manufacturer = data[1]  # Вторая колонка — Производитель
-        SecondWindow(self, mac_address, manufacturer)
+
 
     # Добавляет текст в журнал
     def add_text(self, text):
@@ -289,7 +302,7 @@ class WifiMonitor(tk.Tk):
             "Monitor mode": {"command": self.switch_to_monitor_mode},
             "Очистить список": {"command": self.reset_data},
             "Экспорт в CSV": {"command": self.export_csv},
-            "Открыть белый список": {"command": self.show_whitelist},
+            "Белый список": {"command": self.show_whitelist},
             "Выбор каналов": {"command": self.show_channel_selector},  # Новая кнопка
             "Настройки": {"command": self.show_settings}
         }

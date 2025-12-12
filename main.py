@@ -42,7 +42,6 @@ def schedule_flush(root):
 def tshark_worker(root, cmd, ttl):
     # Внутри функции используй root.tree_buffer и root.log_queue
     try:
-        print("Flow started.")  # Печать старта потока
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -119,7 +118,6 @@ def tshark_worker(root, cmd, ttl):
             root.debug_status()
 
     finally:
-        print("Flow finished.")  # Печать завершения потока
         # Здесь можно дополнительно очистить данные
         root.clean_buffers(controlled=True)  # Применяем контролируемую очистку
         try:
@@ -127,7 +125,7 @@ def tshark_worker(root, cmd, ttl):
         except Exception:
             pass
         try:
-            proc.wait(timeout=1)
+            proc.wait(timeout=10) # одна секунда достаточна /!!!!!!!!!!!!!!!!!!!!!
         except Exception:
             pass
         # Завершаем очистку буферов
