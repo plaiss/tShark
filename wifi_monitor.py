@@ -170,43 +170,66 @@ class WifiMonitor(tk.Tk):
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
 
     def sort_column(self, column_id):
-        # Сохраняем текущее состояние сортировки для столбца
+        print(f"[SORT] Начало сортировки для столбца {column_id}")
+        
+        # Сохраняем состояние
         current_order = self._column_sort_state.get(column_id, True)
-        new_order = not current_order  # Новый порядок сортировки
-        self._column_sort_state[column_id] = new_order  # Запоминаем новый порядок
-
+        new_order = not current_order
+        self._column_sort_state[column_id] = new_order
+        print(f"[SORT] Порядок: {current_order} → {new_order}")
+        
+        # Получаем данные
         items = list(self.tree.get_children())
+        if not items:
+            print("[SORT] Нет элементов для сортировки")
+            return
+            
         values = [(item, self.tree.set(item, column_id)) for item in items]
-
+        print(f"[SORT] Исходные данные: {values}")
+        
         try:
-            # Применяем сортировку с защитой от пустых значений
-            if column_id == '#3':  # Числовой столбец (RSSI)
-                values.sort(key=lambda x: float(x[1]) if x[1].strip() else 0.0, reverse=new_order)
-            elif column_id == '#5':  # Столбец Канала
-                values.sort(key=lambda x: int(x[1]) if x[1].strip() else 0, reverse=new_order)
-            elif column_id == '#6':  # Столбец Количества
-                values.sort(key=lambda x: int(x[1]) if x[1].strip() else 0, reverse=new_order)
-            elif column_id == '#7':  # Столбец Траффик
-                values.sort(key=lambda x: int(x[1]) if x[1].strip() else 0, reverse=new_order)
-            elif column_id == '#1':  # Первый столбец (MAC-адрес)
+            if column_id == '#3':  # RSSI (float)
+                key_func = lambda x: (
+                    float(str(x[1]).strip()) if str(x[1]).strip()
+                    else float('-inf')
+                )
+            elif column_id in ('#5', '#6', '#7'):  # Целочисленные столбцы
+                key_func = lambda x: (
+                    int(str(x[1]).strip()) if str(x[1]).strip().isdigit()
+                    else 0
+                )
+            elif column_id == '#1':  # MAC-адрес
                 if self.reverse_check_var.get():
-                    values.sort(key=lambda x: x[1][::-1], reverse=new_order)
+                    key_func = lambda x: x[1][::-1]
                 else:
-                    values.sort(key=lambda x: x[1], reverse=new_order)
-            else:
-                values.sort(key=lambda x: str.lower(x[1]), reverse=new_order)
-        except ValueError:
-            # Если вдруг случится ошибка, попробуем общую сортировку по строке
-            values.sort(key=lambda x: str.lower(x[1]), reverse=new_order)
+                    key_func = lambda x: x[1]
+            else:  # Остальные столбцы (строки)
+                key_func = lambda x: str.lower(str(x[1]) if x[1] is not None else '')
 
-        # Обновляем представление
+            values.sort(key=key_func, reverse=new_order)
+            print(f"[SORT] Отсортированные данные: {values}")
+
+        except (ValueError, AttributeError, TypeError) as e:
+            print(f"[SORT] Ошибка сортировки: {e}")
+            values.sort(
+                key=lambda x: str.lower(str(x[1]) if x[1] is not None else ''),
+                reverse=new_order
+            )
+
+        
+        # Обновляем дерево
         for idx, (item, _) in enumerate(values):
             self.tree.move(item, '', idx)
-
-        # Меняем выравнивание для первого столбца отдельно
+            print(f"[SORT] Перемещено: {item} → {idx}")
+        
+        # Корректируем выравнивание для MAC-адреса
         if column_id == '#1':
             alignment = 'e' if self.reverse_check_var.get() else 'w'
             self.tree.column('#1', anchor=alignment)
+            print(f"[SORT] Выравнивание: {alignment}")
+        
+        print("[SORT] Сортировка завершена")
+
 
     # Открывает второе окно с информацией о устройстве
     def open_second_window(self, *, data=None):

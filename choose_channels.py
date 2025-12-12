@@ -13,7 +13,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         self.parent = parent
         self.interface = interface
         self.channels = channels or []          # Переданные каналы
-        self.delay_time = delay_time or 1       # Переданное время задержки
+        self.delay_time = delay_time #or 1       # Переданное время задержки
         self.selected_channels = []            # Массив выбранных каналов
         super().__init__(parent, "Выбор каналов")
 
