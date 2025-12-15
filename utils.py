@@ -15,25 +15,17 @@ import main
 
 def handle_sighup(signum, frame):
     # Перезагрузка whitelist при получении сигнала SIGHUP
-    global WHITELIST_PATH
-    if WHITELIST_PATH:
+    # global WHITELIST_PATH
+    if config.WHITELIST_PATH:
         with config._whitelist_lock:
             config._whitelist.clear()
-            config._whitelist.update(load_whitelist(WHITELIST_PATH))
+            config._whitelist.update(load_whitelist(config.WHITELIST_PATH))
         print("Whitelist reloaded", file=sys.stderr)
 
 def normalize_mac_OUI(mac):
     s = re.sub(r'[^0-9A-Fa-f]', '', mac).upper()
     return s[:6] if len(s) >= 6 else None
 
-# def normalize_mac(mac):
-#     s = re.sub(r'[^0-9A-Fa-f]', '', mac).upper()
-#     return s if len(s) >= 6 else None
-import re
-
-import re
-
-import re
 
 def normalize_mac(mac_str):
     """
