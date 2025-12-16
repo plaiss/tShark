@@ -77,10 +77,15 @@ class WifiMonitor(tk.Tk):
         # Новый индикатор для состояния сканирования каналов
         self.channel_indicator = tk.Label(self, text="", background="grey", width=7, height=1)
         self.channel_indicator.pack(side='left')
-        self.update_indicator()
+        
         # Добавляем связывание события Button-1 (щелчок левой кнопкой мыши)
         self.channel_indicator.bind('<Button-1>', self.on_channel_indicator_click)
+
+        # Новый индикатор для отображения текущего канала
+        self.channel_label = tk.Label(self, text="Channel:", background="lightblue", width=10, height=1)
+        self.channel_label.pack(side='left')
         
+        self.update_indicator()
         # Словарь состояний сортировки для каждого столбца
         self._column_sort_state = {}
         for col in ["#1", "#2", "#3", "#4", "#5", "#6", "#7"]:
@@ -175,9 +180,16 @@ class WifiMonitor(tk.Tk):
         if getattr(self, 'scanning_active', False):
             self.channel_indicator.config(background="green", text='scanning')
         else:
-            self.channel_indicator.config(background="#ccc", text='idle')
+            self.channel_indicator.config(background="#ccc", text='no scan')
 
         self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
+
+    def update_channel_indicator(self):
+        # Получаем текущий канал
+        current_channel = utils.get_current_channel()
+        self.channel_label.config(text=f"Ch:{current_channel}", background="lightblue")
+        # Повторяем проверку каждые 2 секунды
+        # self.after(2000, self.update_channel_indicator)
 
     def on_device_double_click(self, event):
         selected_item = self.tree.focus()
@@ -515,8 +527,9 @@ class WifiMonitor(tk.Tk):
         else:
             # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
             # Обновляем лейбл с номером канала
-            updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
-            self.title_label.config(text=updated_text)
+            # updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
+            # self.title_label.config(text=updated_text)
+            self.update_channel_indicator()
 
     def stop_scanning(self):
         # Отключаем флаг активности сканирования
@@ -534,6 +547,7 @@ class WifiMonitor(tk.Tk):
         else:
             # Например, начать сканирование или выбрать каналы вручную
             self.show_channel_selector()
+            
     def on_running_indicator_click(self, event):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             # Текущий поток активен, остановка мониторинга
