@@ -71,11 +71,15 @@ class WifiMonitor(tk.Tk):
         # Индикатор состояния потока
         self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
         self.indicator.pack(side='left')
+        # Присваиваем обработчик события для индикатора RUNNING
+        self.indicator.bind('<Button-1>', self.on_running_indicator_click)
         
         # Новый индикатор для состояния сканирования каналов
         self.channel_indicator = tk.Label(self, text="", background="grey", width=7, height=1)
         self.channel_indicator.pack(side='left')
         self.update_indicator()
+        # Добавляем связывание события Button-1 (щелчок левой кнопкой мыши)
+        self.channel_indicator.bind('<Button-1>', self.on_channel_indicator_click)
         
         # Словарь состояний сортировки для каждого столбца
         self._column_sort_state = {}
@@ -523,6 +527,26 @@ class WifiMonitor(tk.Tk):
             # del self.scanner_thread  # Освобождаем память
 
         self.add_text("Процесс сканирования каналов остановлен.")
+    
+    def on_channel_indicator_click(self, event):
+        if self.scanning_active:
+            self.stop_scanning()
+        else:
+            # Например, начать сканирование или выбрать каналы вручную
+            self.show_channel_selector()
+    def on_running_indicator_click(self, event):
+        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+            # Текущий поток активен, остановка мониторинга
+            _stop.set()  # Установим флаг остановки
+            self.tshark_thread = None  # Удалим ссылку на поток
+            new_props = {'relief': 'raised'}  # Вернем виджет в исходное состояние
+            self.set_button_properties('Стоп', new_props)
+        else:
+            # Поток не активен, запускаем мониторинг
+            _stop.clear()  # Снимем флаг остановки
+            self.start_tshark()
+            new_props = {'relief': 'sunken'}  # Сделаем кнопку утопленной
+            self.set_button_properties('Стоп', new_props)
 
 
 if __name__ == "__main__":
