@@ -71,6 +71,10 @@ class WifiMonitor(tk.Tk):
         # Индикатор состояния потока
         self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
         self.indicator.pack(side='left')
+        
+        # Новый индикатор для состояния сканирования каналов
+        self.channel_indicator = tk.Label(self, text="", background="grey", width=7, height=1)
+        self.channel_indicator.pack(side='left')
         self.update_indicator()
         
         # Словарь состояний сортировки для каждого столбца
@@ -162,6 +166,13 @@ class WifiMonitor(tk.Tk):
             self.indicator.config(background="#ccc", text='stopped')
             new_props = {'relief': 'raised'}
             self.set_button_properties('Стоп', new_props)
+        
+        # Проверка статуса сканирования каналов
+        if getattr(self, 'scanning_active', False):
+            self.channel_indicator.config(background="green", text='scanning')
+        else:
+            self.channel_indicator.config(background="#ccc", text='idle')
+
         self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
 
     def on_device_double_click(self, event):
