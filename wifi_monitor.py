@@ -86,6 +86,8 @@ class WifiMonitor(tk.Tk):
         self.channel_label.pack(side='left')
         
         self.update_indicator()
+        self.update_channel_indicator()
+
         # Словарь состояний сортировки для каждого столбца
         self._column_sort_state = {}
         for col in ["#1", "#2", "#3", "#4", "#5", "#6", "#7"]:
@@ -112,7 +114,7 @@ class WifiMonitor(tk.Tk):
 
     def tree_view(self, frame):
         # Заголовок дерева
-        self.title_label = tk.Label(frame, text=f"Обнаруженные уникальные MAC-адреса (Канал: {utils.get_current_channel()})", font=("TkDefaultFont", 10))  # Здесь делаем title_label атрибутом класса
+        self.title_label = tk.Label(frame, text=f"Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10))  # Здесь делаем title_label атрибутом класса
         self.title_label.pack(side=tk.TOP, anchor="w", pady=5)
         
         # Прокрутка вертикальная для дерева
@@ -157,7 +159,7 @@ class WifiMonitor(tk.Tk):
 
     def log_view(self, frame):
         # Текстовая область для журналов и сообщений
-        self.text_area = scrolledtext.ScrolledText(frame, wrap=tk.NONE, height=6)  # Ограничиваем высоту в 6 строк
+        self.text_area = scrolledtext.ScrolledText(frame, wrap=tk.NONE, height=5)  # Ограничиваем высоту в 5 строк
         self.text_area.pack(fill='both', expand=True)  # Растягиваем по ширине и занимаем весь контейнер
 
     # Полоса статуса
@@ -178,7 +180,7 @@ class WifiMonitor(tk.Tk):
         
         # Проверка статуса сканирования каналов
         if getattr(self, 'scanning_active', False):
-            self.channel_indicator.config(background="green", text='scanning')
+            self.channel_indicator.config(background="yellow", text='scanning')
         else:
             self.channel_indicator.config(background="#ccc", text='no scan')
 
@@ -412,19 +414,17 @@ class WifiMonitor(tk.Tk):
         """Экспорт данных в CSV-файл."""
         try:
             # Останавливаем сканирование перед началом экспорта
-            self.toggle_scanning()
+            # self.toggle_scanning()
 
             # Прямо вызываем класс ExportDialog для начала экспорта
             ExportDialog(self.master, self.tree)
 
         except Exception as e:
-            # Логируем ошибку (если используется логирование)
             print(f"Ошибка при открытии окна экспорта: {e}")
-            # Дополнительно можно показать сообщение пользователю
             messagebox.showerror("Ошибка", "Не удалось открыть окно экспорта данных.")
             # Если сканирование было остановлено, но окно не открылось — возобновляем
-            if self.scanning_paused:
-                self.toggle_scanning()
+            # if self.scanning_paused:
+            #     self.toggle_scanning()
 
     def _on_export_dialog_close(self, dialog_window):
         """Обработчик закрытия окна экспорта."""
