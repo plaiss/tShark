@@ -70,12 +70,12 @@ class WifiMonitor(tk.Tk):
         
         # Индикатор состояния потока
         self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
-        self.indicator.pack()
+        self.indicator.pack(side='left')
         self.update_indicator()
         
         # Словарь состояний сортировки для каждого столбца
         self._column_sort_state = {}
-        for col in ["#1", "#2", "#3", "#4", "#5"]:
+        for col in ["#1", "#2", "#3", "#4", "#5", "#6", "#7"]:
             self._column_sort_state[col] = True  # По умолчанию сортировка прямого порядка
         # Флаг активности сканирования
         self.scanning_active = False
@@ -84,7 +84,6 @@ class WifiMonitor(tk.Tk):
                 # Перемещаем сюда объявление буфера
         self.tree_buffer = deque(maxlen=1000)
         self.log_queue = queue.Queue()
-
 
     # Централизация окна
     def center_window(self):
@@ -96,17 +95,7 @@ class WifiMonitor(tk.Tk):
         y = (screen_height - window_height) // 2
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
-    # Автообновление индикатора состояния потока
-    def update_indicator(self):
-        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
-            self.indicator.config(background="red", text='running')
-            new_props = {'relief': 'sunken'}
-            self.set_button_properties('Стоп', new_props)
-        else:
-            self.indicator.config(background="#ccc", text='stopped')
-            new_props = {'relief': 'raised'}
-            self.set_button_properties('Стоп', new_props)
-        self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
+
 
     def tree_view(self, frame):
         # Заголовок дерева
@@ -156,12 +145,24 @@ class WifiMonitor(tk.Tk):
     def log_view(self, frame):
         # Текстовая область для журналов и сообщений
         self.text_area = scrolledtext.ScrolledText(frame, wrap=tk.NONE, height=6)  # Ограничиваем высоту в 6 строк
-        self.text_area.pack(fill=tk.BOTH, expand=True)  # Растягиваем по ширине и занимаем весь контейнер
+        self.text_area.pack(fill='both', expand=True)  # Растягиваем по ширине и занимаем весь контейнер
 
     # Полоса статуса
     def status_bar(self):
-        self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, font=("TkDefaultFont", 10))  # Высота в одну строку
-        self.status_text.pack(side=tk.BOTTOM, fill=tk.X)
+        self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, width=37, font=("TkDefaultFont", 10))  # Высота в одну строку
+        self.status_text.pack(side=tk.LEFT, anchor='w')
+        # Автообновление индикатора состояния потока
+        
+    def update_indicator(self):
+        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+            self.indicator.config(background="red", text='running')
+            new_props = {'relief': 'sunken'}
+            self.set_button_properties('Стоп', new_props)
+        else:
+            self.indicator.config(background="#ccc", text='stopped')
+            new_props = {'relief': 'raised'}
+            self.set_button_properties('Стоп', new_props)
+        self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
 
     def on_device_double_click(self, event):
         selected_item = self.tree.focus()
