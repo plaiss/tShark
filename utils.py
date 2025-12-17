@@ -11,7 +11,7 @@ import getpass
 from tkinter import messagebox
 
 import config
-import main
+# import main
 
 def handle_sighup(signum, frame):
     # Перезагрузка whitelist при получении сигнала SIGHUP

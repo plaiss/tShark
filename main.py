@@ -13,6 +13,7 @@ from wifi_monitor import WifiMonitor  # Импортируем класс из �
 from collections import deque
 import queue
 import logging
+from packet_processor import tshark_worker
 
 # Настройка логирования
 logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s:%(levelname)s:%(message)s')
@@ -23,6 +24,7 @@ log_queue = queue.Queue()
 
 # Функция сброса буферов
 def flush_buffers(root):
+    logging.info("flush_buffers: tree_buffer size=%d, log_queue size=%d", len(tree_buffer), log_queue.qsize())
     # Массовое обновление дерева
     while tree_buffer:
         mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = tree_buffer.popleft()
@@ -32,6 +34,7 @@ def flush_buffers(root):
     messages = []
     while not log_queue.empty():
         messages.append(log_queue.get())
+    logging.info("flush_buffers: выведено %d сообщений", len(messages))
     if messages:
         root.add_text("\n".join(messages))
 
@@ -40,89 +43,6 @@ def schedule_flush(root):
     root.after(1000, lambda: flush_buffers(root))  # Повторять каждые 1000 мс
     root.after(1000, lambda: schedule_flush(root))  # Самозапланироваться через 1 сек
 
-def tshark_worker(root, cmd, ttl):
-    try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
-    except Exception as e:
-        root.add_text(f"Ошибка при старте tshark: {e}")
-        config._stop.set()
-        return
-
-    def stderr_reader():
-        for line in proc.stderr:
-            root.add_text(f"{line.rstrip()}")
-
-    threading.Thread(target=stderr_reader, daemon=True).start()
-
-    try:
-        for raw in proc.stdout:
-            if config._stop.is_set():
-                break
-            raw = raw.rstrip("\n")
-            if not raw:
-                continue
-            parts = raw.split("\t")
-            if len(parts) < 5:
-                continue
-            
-            raw_time = parts[0]
-            mac = parts[1] if len(parts) > 1 else ""
-            rssi = parts[2] if len(parts) > 2 else ""
-            channel = parts[3] if len(parts) > 3 else ""
-            subtype = parts[4] if len(parts) > 4 else ""
-
-            mac_n = utils.normalize_mac(mac)
-            if not mac_n:
-                continue
-            
-            # Вычисляем размер полезных данных (исключая служебные фреймы)
-            useful_bytes = 0
-            if not subtype.startswith(("Beacon", "Probe Response", "Probe Request")):
-                useful_bytes = len(raw.encode('utf-8'))
-            
-            # Накапливаем полезный трафик для каждого MAC-адреса
-            config._traffic_by_mac[mac_n] = config._traffic_by_mac.get(mac_n, 0) + useful_bytes
-
-            # Проверка белого списка
-            if config._whitelist:
-                allowed = mac_n not in config._whitelist
-            else:
-                allowed = True
-
-            if not allowed:
-                continue  # Пропускаем пакет, если он запрещён
-
-            now = time.time()
-            with config._seen_lock:
-                # Повышаем счётчик независимо от времени TTL
-                config._seen_count[mac_n] = config._seen_count.get(mac_n, 0) + 1
-                mac_count = config._seen_count[mac_n]
-                # Обновляем время последнего обнаружения
-                config._last_seen[mac_n] = now
-
-            pretty_time = utils.parse_time_epoch(raw_time)
-            mac_vendor = utils.lookup_vendor_db(mac_n, config.DB_PATH, False)
-            
-            # Складываем данные в буферы класса
-            tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, config._traffic_by_mac.get(mac_n)))
-            log_queue.put(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
-
-            # Постоянная диагностика
-            root.debug_status()
-
-    finally:
-        # Здесь можно дополнительно очистить данные
-        root.clean_buffers(controlled=True)  # Применяем контролируемую очистку
-        try:
-            proc.terminate()
-        except Exception:
-            pass
-        try:
-            proc.wait(timeout=10)  # Одна секунда достаточна
-        except Exception:
-            pass
-        # Завершаем очистку буферов
-        root.clean_buffers()
 
 def main():
     global WHITELIST_PATH, SEEN_TTL_SECONDS

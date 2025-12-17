@@ -15,6 +15,7 @@ from second_window import SecondWindow  # Импортируем класс из
 from settings_window import SettingsWindow
 from export_dialog import ExportDialog
 from choose_channels import ChannelSelectorDialog  # Новое окно выбора каналов
+from packet_processor import tshark_worker
 
 class WifiMonitor(tk.Tk):
     def __init__(self):
@@ -371,7 +372,7 @@ class WifiMonitor(tk.Tk):
     def start_tshark(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             return  # Если поток уже запущен, ничего не делаем
-        self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
+        self.tshark_thread = threading.Thread(target=tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
         self.tshark_thread.start()
    
     def debug_status(self):
