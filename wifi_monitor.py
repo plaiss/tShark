@@ -2,10 +2,6 @@ import subprocess
 import threading
 import time
 import tkinter as tk
-
-import os
-import signal
-
 from tkinter import ttk, scrolledtext
 from tkinter import messagebox
 from tkinter.messagebox import showinfo
@@ -15,7 +11,6 @@ import queue
 from config import _stop
 import config
 import utils
-import main
 from second_window import SecondWindow  # Импортируем класс из отдельного файла
 from settings_window import SettingsWindow
 from export_dialog import ExportDialog
@@ -96,7 +91,7 @@ class WifiMonitor(tk.Tk):
         self.scanning_active = False
         self.prev_channels = []
         self.prev_delay_time =0
-                # Перемещаем сюда объявление буфера
+        # Перемещаем сюда объявление буфера
         self.tree_buffer = deque(maxlen=1000)
         self.log_queue = queue.Queue()
 
@@ -110,8 +105,6 @@ class WifiMonitor(tk.Tk):
         y = (screen_height - window_height) // 2
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
-
-
     def tree_view(self, frame):
         # Заголовок дерева
         self.title_label = tk.Label(frame, text=f"Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10))  # Здесь делаем title_label атрибутом класса
@@ -122,8 +115,6 @@ class WifiMonitor(tk.Tk):
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
         
         # Структура таблицы TreeView
-        # columns = ("#1", "#2", "#3", "#4", "#5", "#6")  # Добавляем новый столбец
-        # self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
         columns = ("#1", "#2", "#3", "#4", "#5", "#6", "#7")  # Добавляем ещё один столбец
         self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
         
@@ -282,9 +273,6 @@ class WifiMonitor(tk.Tk):
         
         # print("[SORT] Сортировка завершена")
 
-
-
-
     # Добавляет текст в журнал
     def add_text(self, text):
         self.text_area.insert(tk.END, text + "\n")
@@ -380,7 +368,6 @@ class WifiMonitor(tk.Tk):
             # Оставляем только очистку лога
             self.clear_text()  # Очищаем текстовую область
 
-
     def start_tshark(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             return  # Если поток уже запущен, ничего не делаем
@@ -391,7 +378,6 @@ class WifiMonitor(tk.Tk):
         thread_status = "Alive" if hasattr(self, 'tshark_thread') and self.tshark_thread.is_alive() else "Stopped"
         buffer_size = len(self.tree_buffer)  # Используем атрибут класса
         # print(f"Thread Status: {thread_status}, Buffer Size: {buffer_size}")
-
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим."""
@@ -467,7 +453,6 @@ class WifiMonitor(tk.Tk):
         except OSError as err:
             messagebox.showerror("Ошибка", f"Невозможно открыть терминал: {err}")
             return
-
 
     def show_details(self):
         """Покажет дополнительную информацию о выделенном устройстве."""
@@ -551,7 +536,7 @@ class WifiMonitor(tk.Tk):
     def on_running_indicator_click(self, event):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             # Текущий поток активен, остановка мониторинга
-            _stop.set()  # Установим флаг остановки
+            _stop.set()  # Устанавливаем флаг остановки
             self.tshark_thread = None  # Удалим ссылку на поток
             new_props = {'relief': 'raised'}  # Вернем виджет в исходное состояние
             self.set_button_properties('Стоп', new_props)
@@ -562,6 +547,26 @@ class WifiMonitor(tk.Tk):
             new_props = {'relief': 'sunken'}  # Сделаем кнопку утопленной
             self.set_button_properties('Стоп', new_props)
 
+    def flush_buffers(self):
+        # Массовый вывод данных из буфера в таблицу
+        tree_data = []
+        while self.tree_buffer:
+            mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = self.tree_buffer.popleft()
+            tree_data.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes))
+        
+        # Сразу обновляем таблицу
+        self.update_tree(tree_data)
+
+        # Сообщения лога
+        messages = []
+        while not self.log_queue.empty():
+            messages.append(self.log_queue.get())
+        if messages:
+            self.add_text("\n".join(messages))
+
+    def schedule_flush(self):
+        self.after(1000, lambda: self.flush_buffers())  # Каждую секунду
+        self.after(1000, lambda: self.schedule_flush())  # Рекурсивное планирование
 
 if __name__ == "__main__":
     app = WifiMonitor()
