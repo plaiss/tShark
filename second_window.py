@@ -13,109 +13,82 @@ import utils
 # Максимальная длина графика
 MAX_POINTS_ON_GRAPH = 100
 
-# Парсер информации о Wi-Fi
-# def parse_wifi_info(output):
-#     pattern = r'channel\s*(\d+)\s*([^)]+)'
-#     # pattern = r'channel\s*(\d+)\s*$([^)]+)$'
-#     match = re.search(pattern, output)
-#     if match:
-#         channel_num = match.group(1)
-#         frequency = match.group(2)[1:]
-#         return channel_num, frequency
-#     return None, None
-
-# Генерирует потоки данных из tshark
+# Генерация потока данных из tshark
 def get_data_stream(proc):
     for line in iter(proc.stdout.readline, b''):
         output = line.decode().strip()
         if output:
             yield output
 
-# Функция извлечения RSSI
+# Извлечение уровня сигнала (RSSI)
 def extract_rssi(data):
     parts = data.strip().split("\t")
     if len(parts) >= 2:
-        return parts[1]  # Второе поле — сигнал (RSSI)
+        return parts[1]  # Второе поле — уровень сигнала (RSSI)
     return "-"
 
-# Класс окна детальной информации
+# Основной класс окна с деталями устройства
 class SecondWindow(tk.Toplevel):
     def __init__(self, parent, mac_address=None, manufacturer=None, channel=None):
         super().__init__(parent)
         self.parent = parent
         self.title("Подробности устройства")
         self.geometry("640x480")
-
-        # MAC-адрес устройства
+        
+        # Адрес устройства
         self.mac_address = mac_address or "5E:CE:BA:35:67:AD"
 
-        # Получаем информацию о Wi-Fi-канале
+        # Информация о канале Wi-Fi
         wifi_info = os.popen(f"iw dev wlan1 info").read()
         channel_num, frequency = utils.parse_wifi_info(wifi_info)
         if channel_num != channel_num:
-            
-            print('Текущий канал не равен заказанному!!!!!')
+            print('Текущий канал не соответствует указанному!')
 
-        # Команда для tshark
+        # Основная команда для отслеживания сигнала (RSSI)
         TSHARK_CMD1 = [
             "tshark", "-i", "wlan1",
             "-s", "0",
             "-T", "fields",
             "-e", "frame.number",  # Номер кадра
-            "-e", "wlan_radio.signal_dbm",  # RSSI
+            "-e", "wlan_radio.signal_dbm",  # Уровень сигнала (RSSI)
             "-Y", f"wlan.ta=={self.mac_address}",
             "-l"  # Буферизация
         ]
-        # Команда для tshark
-        # TSHARK_CMD2 = [
-        #     "tshark", "-i", "wlan1",
-        #     "-s", "0",
-        #     "-T", "fields",
-        #     "-e", "wlan.ta",  # RA (приёмник)
-        #     "-e", "wlan.ta.oui_resolved",  # производитель
-        #     "-e", "wlan_radio.channel",  # канал
-        #     "-e", "wlan_radio.signal_dbm",  # RSSI
-        #     "-f", f'\"ether src {self.mac_address}\"',
-        #     "-l"  # Буферизация
-        # ]
-        #tshark -i wlan1 -s 0 -T fields -e frame.number -e wlan_radio.channel -e wlan_radio.signal_dbm -f "ether src 36:6F:D8:75:91:57" -l
 
+        # Быстрая проверка типа устройства (AP или STA)
+        self.CHECK_TYPE_CMD = [
+            "tshark", "-i", "wlan1",
+            "-s", "0",
+            "-T", "fields",
+            "-e", "wlan.fc.type_subtype",  # Поле типа фрейма
+            "-Y", f"wlan.addr=={self.mac_address}",
+            "-c", "100",  # Число пакетов для анализа
+            "-l"  # Буферизация
+        ]
 
-        # Переменная состояния для хранения производителя
-        # self.updated_manufacturer = False
+        # Скользящая средняя (EMA)
+        self.ema_value = None  # Начальное значение скользящей средней
 
+        # Пользовательские лейблы
+        self.frame_number_label = tk.Label(self, text="Номер кадра: N/A", font=("Arial", 12))
+        self.frame_number_label.pack()
 
-        # Последняя успешная временная отметка
-        self.last_valid_time = None
-
-        # Лейбл для отображения времени задержки
         self.delay_label = tk.Label(self, text="Последнее обновление: N/A", font=("Arial", 12))
         self.delay_label.pack()
 
-        # Лейбл для отображения номера кадра
-        self.frame_number_label = tk.Label(self, text="Frame Number: N/A", font=("Arial", 12))
-        self.frame_number_label.pack()
-
-        # Лейбл для отображения канала и частоты
-        self.channel_label = tk.Label(self, text=f"Channel: {channel}, Frequency: {frequency}", font=("Arial", 12))
-        # self.channel_label = tk.Label(self, text=f"Channel: {channel_num}, Frequency: {frequency}", font=("Arial", 12))
+        self.channel_label = tk.Label(self, text=f"Канал: {channel}, Частота: {frequency}", font=("Arial", 12))
         self.channel_label.pack()
 
-        # Другие метки
         self.mac_label = tk.Label(self, text=f"MAC: {self.mac_address}", font=("Arial", 12))
-        self.manufacturer_label = tk.Label(self, text=f"Manufacturer: {manufacturer}", font=("Arial", 12))
-        self.rssi_label = tk.Label(self, text="RSSI: N/A", font=("Arial", 12))
-
-        # Упаковка остальных меток
         self.mac_label.pack()
+
+        self.manufacturer_label = tk.Label(self, text=f"Производитель: {manufacturer}", font=("Arial", 12))
         self.manufacturer_label.pack()
+
+        self.rssi_label = tk.Label(self, text="RSSI: N/A", font=("Arial", 12))
         self.rssi_label.pack()
 
-        # Кнопка паузы / старта
-        self.pause_start_button = tk.Button(self, text="Пауза", command=self.toggle_pause)
-        self.pause_start_button.pack()
-
-        # Холст для графика
+        # Создание графики для отображения уровней сигнала
         fig = plt.Figure(figsize=(6, 4))
         self.ax = fig.add_subplot(111)
         self.ax.grid(True)
@@ -124,71 +97,78 @@ class SecondWindow(tk.Toplevel):
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.pack()
 
+        # Масштабирование сетки графика
+        yticks = list(range(-100, -20, 10))
+        self.ax.set_yticks(yticks)
+        self.ax.set_ylim(-100, -20)
+
         # Данные для графика
-        self.rssi_values = []
-        self.timestamps = []
+        self.rssi_values = []  # Список для хранения значений RSSI
+        self.timestamps = []  # Временные метки
 
-        # Параметры фильтра
-        self.alpha = 0.2
-        self.use_filter_var = tk.BooleanVar(value=True)
+        # Управление параметрами фильтрации
+        self.alpha = 0.2  # Коэффициент сглаживания
+        self.use_filter_var = tk.BooleanVar(value=True)  # Использование сглаживания
 
-        # Элементы управления фильтром
-        self.alpha_slider = tk.Scale(
-            self, from_=0.01, to=1.0, resolution=0.01, orient=tk.HORIZONTAL,
-            label="Коэффициент сглаживания:", length=200
-        )
-        self.alpha_slider.set(self.alpha)
-        self.alpha_slider.pack()
-        self.alpha_slider.bind("<ButtonRelease-1>", lambda e: self.update_alpha())
+        # Кнопка паузы
+        self.pause_start_button = tk.Button(self, text="Пауза", command=self.toggle_pause)
+        self.pause_start_button.pack()
 
-        # Фильтр вкл./выкл.
-        self.filter_toggle = tk.Checkbutton(
-            self, text="Скользящее среднее включено", variable=self.use_filter_var,
-            command=lambda: self.toggle_filter()
-        )
-        self.filter_toggle.pack()
-
-        # Стартуем мониторинг
+        # Старт мониторинга
         self.thread_running = True
         self.paused = False
-        # print(f"[DEBUG] Запуск TSHARK_CMD1 командой: {' '.join(TSHARK_CMD1)}")
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.data_update_thread = threading.Thread(target=self.update_data_from_stream)
         self.data_update_thread.daemon = True
         self.data_update_thread.start()
 
-        # Начальная точка скользящей средней
-        self.ema_value = None
+        # Определение типа устройства
+        self.check_device_type()
+
+    def check_device_type(self):
+        """Определение типа устройства (AP или STA)."""
+        proc = subprocess.Popen(self.CHECK_TYPE_CMD, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        frames = []
+        for line in get_data_stream(proc):
+            frame_type = line.split()[0]
+            frames.append(frame_type)
+
+        # Подсчёт фреймов разных типов
+        beacon_count = sum(1 for ft in frames if ft.startswith("0x08"))
+        probe_req_count = sum(1 for ft in frames if ft.startswith("0x04"))
+
+        if beacon_count > 0:
+            device_type = "Access Point (AP)"
+        elif probe_req_count > 0:
+            device_type = "Station (STA)"
+        else:
+            device_type = "Unknown"
+
+        # Отображение типа устройства
+        type_label = tk.Label(self, text=f"Тип устройства: {device_type}", font=("Arial", 12))
+        type_label.pack()
+
+        # Завершение процесса
+        proc.wait()
 
     def stop_updating(self):
-        """Завершаем поток сбора данных."""
+        """Остановка сбора данных."""
         self.thread_running = False
         if self.proc.poll() is None:
-            # print(f"[DEBUG] Процесс поиска {self.mac_address} завершен")
             self.proc.kill()
             self.proc.wait()
 
     def toggle_pause(self):
-        """Переключение режима пауза/продолжить."""
+        """Переключение режима паузы."""
         self.paused = not self.paused
         if self.paused:
             self.pause_start_button.config(text="Старт")
         else:
             self.pause_start_button.config(text="Пауза")
 
-    def update_alpha(self):
-        """Обновляет коэффициент сглаживания."""
-        self.alpha = self.alpha_slider.get()
-        print(f"Новый коэффициент сглаживания: {self.alpha}")
-
-    def toggle_filter(self):
-        """Включает/отключает фильтр."""
-        filter_state = "включено" if self.use_filter_var.get() else "отключено"
-        print(f"Состояние фильтра: {filter_state}")
-
     def update_data_from_stream(self):
-        """Обновляет данные из потока tshark."""
-        decimation_counter = 0  # Контроллер децимации
+        """Обработка данных из потока tshark."""
+        decimation_counter = 0  # Счётчик пропускаемых пакетов
 
         generator = get_data_stream(self.proc)
         while self.thread_running:
@@ -196,61 +176,61 @@ class SecondWindow(tk.Toplevel):
                 time.sleep(1)
                 continue
 
-            # Получаем новую порцию данных
+            # Получение очередного пакета
             response = next(generator, '')
             if not response:
                 continue
 
-            # Проводим децимацию данных
+            # Выборка каждого второго пакета
             decimation_counter += 1
-            if decimation_counter % 2 != 0:  # Оставляем только каждый пятый пакет
+            if decimation_counter % 2 != 0:
                 continue
 
-            # Парсим строку
+            # Разбиение полученной строки
             parts = response.strip().split("\t")
             if len(parts) != 2:
                 print(f"[DEBUG] Недостаточно полей в выводе: {response}")
                 continue
 
             frame_number = parts[0]  # Номер кадра
-            rssi_value = parts[1].strip()  # RSSI
+            rssi_value = parts[1].strip()  # Уровень сигнала (RSSI)
 
             # Преобразование значения RSSI
             try:
                 current_rssi = float(rssi_value)
 
-                # Проверка корректности данных
+                # Проверка диапазона значений RSSI
                 if current_rssi < -20 and current_rssi >= -100:
                     # Обновляем интерфейс
-                    self.frame_number_label["text"] = f"Frame Number: {frame_number}"  # Обновляем номер кадра
+                    self.frame_number_label["text"] = f"Номер кадра: {frame_number}"
 
-                    # Сохраняем текущую временную отметку
+                    # Обновляем последнюю временную отметку
                     now = time.time()
                     self.last_valid_time = now
 
-                    # Никакой надписи не ставим, пока идут корректные данные
+                    # Удаляем надпись о задержке
                     self.delay_label["text"] = ""
 
-                    # Продолжаем стандартную обработку данных
+                    # Вычисляем скользящую среднюю (EMA)
                     if self.use_filter_var.get():
                         if self.ema_value is None:
                             self.ema_value = current_rssi
                         else:
                             self.ema_value = self.alpha * current_rssi + (1 - self.alpha) * self.ema_value
 
-                        # Показываем сглаженное значение
+                        # Используется сглаженное значение
                         self.rssi_label["text"] = f"RSSI: {self.ema_value:.2f} dBm"
                         self.rssi_values.append(self.ema_value)
                     else:
-                        # Показываем необработанное значение
+                        # Без сглаживания используем исходное значение
                         self.rssi_label["text"] = f"RSSI: {current_rssi:.2f} dBm"
                         self.rssi_values.append(current_rssi)
 
-                    # Время временной отметки
+                    # Временная метка текущего момента
                     timestamp = time.time()
                     self.timestamps.append(timestamp)
 
-                    # Ограничиваем количество точек на графике
+                    # Ограничиваем длину графика
                     if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
                         self.rssi_values.pop(0)
                         self.timestamps.pop(0)
@@ -258,37 +238,32 @@ class SecondWindow(tk.Toplevel):
                     # Обновляем график
                     self.plot_graph()
                 else:
-                    # Если пришли некорректные данные, начинаем отсчет времени задержки
+                    # Неправильные данные вызывают задержку
                     if self.last_valid_time is not None:
                         delay_seconds = int(time.time() - self.last_valid_time)
-                        self.delay_label["text"] = f"Последнее обновление: {delay_seconds} секунд назад"
+                        self.delay_label["text"] = f"Последнее обновление: {delay_seconds} сек."
             except ValueError:
-                print(f"[DEBUG] Пропущено некорректное значение RSSI: '{rssi_value}'")
+                print(f"[DEBUG] Некорректное значение RSSI: '{rssi_value}'")
                 continue
 
     def plot_graph(self):
-        if hasattr(self, 'canvas'):
-            """
-            Отображает график значений RSSI.
-            """
-            self.ax.clear()  # Очищаем график перед новым построением
+        """Отрисовка графика значений RSSI."""
+        self.ax.clear()  # Очистка графика
+        self.ax.grid(True)
+        self.ax.set_ylabel('RSSI (dBm)')
+        self.ax.plot(self.timestamps, self.rssi_values, color='blue')
 
-            # Установим точно диапазон оси Y
-            yticks = list(range(-100, -20, 10))  # Каждое деление составляет 10 дБм
-            self.ax.set_yticks(yticks)
-            self.ax.set_ylim(-100, -20)  # Зафиксировали диапазон от -100 до -20 дБм
+        # Настройки оси Y
+        yticks = list(range(-100, -20, 10))
+        self.ax.set_yticks(yticks)
+        self.ax.set_ylim(-100, -20)
 
-            # Включаем сетку
-            self.ax.yaxis.grid(True, which='both')
-
-            # Постройте график
-            self.ax.plot(self.timestamps, self.rssi_values, color='blue')
-            self.ax.set_ylabel('RSSI (dBm)')
-            self.ax.xaxis.set_visible(False)  # Скрываем ось X
-            self.canvas.draw_idle()  # Обновляем график
+        # Осью X управляет библиотека, мы её скрываем
+        self.ax.xaxis.set_visible(False)
+        self.canvas.draw_idle()  # Обновляем график
 
     def destroy(self):
-        """Завершает работу программы."""
+        """Завершение работы программы."""
         self.stop_updating()
         self.data_update_thread.join()
         time.sleep(0.5)
@@ -297,9 +272,9 @@ class SecondWindow(tk.Toplevel):
         if __name__ == "__main__":
             root.destroy()
 
-# Тестовый запуск окна
+# Запуск тестового окна
 if __name__ == "__main__":
     root = tk.Tk()
     app = SecondWindow(root)
-    root.withdraw()  # Скрываем основное окно
+    root.withdraw()  # Скрываем главное окно
     app.mainloop()
