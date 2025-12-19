@@ -290,9 +290,7 @@ class WifiMonitor(tk.Tk):
         self.text_area.insert(tk.END, text + "\n")
         self.text_area.yview_moveto(1.0)
 
-    # Очищает текстовую область
-    def clear_text(self):
-        self.text_area.delete('1.0', tk.END)
+
 
     def update_tree(self, mac_address, vendor, rssi, last_seen, channel_number, appearance_count, useful_bytes):
         with config._seen_lock:
@@ -378,7 +376,14 @@ class WifiMonitor(tk.Tk):
             pass
         else:
             # Оставляем только очистку лога
-            self.clear_text()  # Очищаем текстовую область
+              print ('здесь могла бы быть ваша реклама')
+              pass
+            # self.clear_text()  # Очищаем текстовую область
+        
+    # Очищает текстовую область
+    def clear_text(self):
+        self.text_area.delete('1.0', tk.END)
+      
 
 
     def start_tshark(self):

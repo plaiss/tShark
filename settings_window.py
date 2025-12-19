@@ -9,7 +9,6 @@ import oui_to_sqlite
 # Глобальная переменная с состоянием интерфейса
 interface = "wlan1"  # Текущий интерфейс (можете заменить на свою глобальную переменную)
 
-
 # Класс окна настроек
 class SettingsWindow(tk.Toplevel):
     def __init__(self, parent):
@@ -51,6 +50,17 @@ class SettingsWindow(tk.Toplevel):
         dropdown.config(width=30)
         dropdown.pack(pady=20)
         
+        # Кнопка обновления БД OUI
+        update_oui_button = tk.Button(
+            self,
+            text="Обновить БД OUI",
+            command=self.update_oui_db,
+            bg="#4CAF50",  # Зелёный фон для акцента
+            fg="white",
+            font=("Arial", 10, "bold")
+        )
+        update_oui_button.pack(pady=15)
+        
         # Кнопки ОК и Cancel
         button_frame = tk.Frame(self)
         button_frame.pack(pady=20)
@@ -60,6 +70,16 @@ class SettingsWindow(tk.Toplevel):
         
         button_ok.pack(side="left", padx=10)
         button_cancel.pack(side="right", padx=10)
+    
+    def update_oui_db(self):
+        """Обработчик кнопки «Обновить БД OUI»"""
+        try:
+            oui_to_sqlite.build_db()
+            messagebox.showinfo("Успех", "База данных OUI успешно обновлена!")
+        except Exception as e:
+            error_msg = f"Ошибка при обновлении БД OUI:\n{str(e)}"
+            messagebox.showerror("Ошибка", error_msg)
+            print(f"Exception in update_oui_db: {e}")
     
     def apply_settings(self):
         """Применяет выбранный интерфейс"""
