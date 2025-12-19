@@ -4,6 +4,7 @@ import os
 import re
 import utils
 import config
+import oui_to_sqlite
 
 # Глобальная переменная с состоянием интерфейса
 interface = "wlan1"  # Текущий интерфейс (можете заменить на свою глобальную переменную)
