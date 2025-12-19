@@ -1,5 +1,5 @@
 # app.py
-from ui import MainWindow
+from old.ui import MainWindow
 from settings_window import SettingsWindow
 from export_dialog import ExportDialog
 

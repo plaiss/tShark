@@ -334,7 +334,7 @@ class WifiMonitor(tk.Tk):
             "Стоп": {"command": self.toggle_scanning},
             "Monitor mode": {"command": self.switch_to_monitor_mode},
             "Очистить список": {"command": self.reset_data},
-            "Экспорт в CSV": {"command": self.export_csv},
+            "Экспорт в TXT": {"command": self.export_csv},
             "Белый список": {"command": self.show_whitelist},
             "Выбор каналов": {"command": self.show_channel_selector},  # Новая кнопка
             "Настройки": {"command": self.show_settings}
