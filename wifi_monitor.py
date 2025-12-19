@@ -509,6 +509,8 @@ class WifiMonitor(tk.Tk):
         def run_scanner():
             while self.scanning_active:
                 for channel in channels:
+                    if self.scanning_active == False:
+                        break
                     self.change_channel(channel)
                     time.sleep(delay_time)
 
