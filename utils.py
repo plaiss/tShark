@@ -288,7 +288,7 @@ def enable_monitor_mode(interface, password):
             print(f"Ошибка выполнения команды: {cmd}. Сообщение: {e.stderr}")
             return False
 
-    print(f'Интерфейс {interface} успешно переведен в режим монитора.')
+    # print(f'Интерфейс {interface} успешно переведен в режим монитора.')
     # main.tshark_thread.restart()
     return True
 

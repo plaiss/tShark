@@ -87,6 +87,7 @@ class WifiMonitor(tk.Tk):
         
         self.update_indicator()
         self.update_channel_indicator()
+        self.refresh_status()
 
         # Словарь состояний сортировки для каждого столбца
         self._column_sort_state = {}
@@ -171,11 +172,11 @@ class WifiMonitor(tk.Tk):
     def update_indicator(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             self.indicator.config(background="red", text='running')
-            new_props = {'relief': 'sunken'}
+            new_props = {'relief': 'sunken', 'text': 'Стоп'}
             self.set_button_properties('Стоп', new_props)
         else:
             self.indicator.config(background="#ccc", text='stopped')
-            new_props = {'relief': 'raised'}
+            new_props = {'relief': 'raised', 'text': 'Пуск'}
             self.set_button_properties('Стоп', new_props)
         
         # Проверка статуса сканирования каналов
@@ -189,6 +190,8 @@ class WifiMonitor(tk.Tk):
     def update_channel_indicator(self):
         # Получаем текущий канал
         current_channel = utils.get_current_channel()
+        if not current_channel:
+            current_channel = 1 # Заглушка, если не Monitor mode
         self.channel_label.config(text=f"Ch:{current_channel}", background="lightblue")
         # Повторяем проверку каждые 2 секунды
         # self.after(2000, self.update_channel_indicator)
@@ -287,8 +290,9 @@ class WifiMonitor(tk.Tk):
 
     # Добавляет текст в журнал
     def add_text(self, text):
-        self.text_area.insert(tk.END, text + "\n")
-        self.text_area.yview_moveto(1.0)
+        # self.text_area.insert(tk.END, text + "\n")
+        self.text_area.insert(tk.END, text)
+        self.text_area.yview_moveto(1.0) #прокручивает вертикальный скролл виджета до самого низа (1.0 = 100% позиции по вертикали)
 
 
 
@@ -321,10 +325,17 @@ class WifiMonitor(tk.Tk):
         if config.mode != 'Monitor':  # Выделяем красный цветом текущий режим
             self.status_text.tag_add("red", '1.6', '1.20')
             self.status_text.tag_config("red", foreground="red")
+            self.add_text('Инерфейс не переведён в режим Monitor, нажмите кнопку Monitor mode\n')
             self.status_text.config(state=tk.DISABLED)
         else:
+            self.status_text.tag_add("red", '1.6', '1.20')
+            self.status_text.tag_config("red", foreground="red")
+            self.status_text.config(state=tk.DISABLED)
+            
             new_props = {'relief': 'sunken', 'state': 'disabled'}
             self.set_button_properties('Monitor mode', new_props)
+        # Повторяем проверку каждые 2 секунды
+        self.after(2000, self.refresh_status)
 
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
@@ -404,6 +415,7 @@ class WifiMonitor(tk.Tk):
         if password is not None and len(password.strip()) > 0:
             success = utils.enable_monitor_mode(config.interface, password)
             if success:
+                self.add_text(f'Интерфейс {config.interface} успешно переведен в режим монитора.\n')
                 self.refresh_status()
         else:
             print("Операция отменена.")
