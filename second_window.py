@@ -1,4 +1,3 @@
-import select
 import tkinter as tk
 from tkinter import ttk
 import matplotlib.pyplot as plt
@@ -9,6 +8,7 @@ import config
 import os
 import re
 import utils
+import select
 
 # Максимальная длина графика
 MAX_POINTS_ON_GRAPH = 100
@@ -44,10 +44,12 @@ class SecondWindow(tk.Toplevel):
             self.mac_address = mac_address
 
         # Получаем информацию о канале Wi-Fi
-        wifi_info = os.popen(f"iw dev wlan1 info").read()
-        channel_num, frequency = utils.parse_wifi_info(wifi_info)
-        if channel_num != channel:
-            print('Текущий канал не совпадает с переданным!')
+        # wifi_info = os.popen(f"iw dev wlan1 info").read()
+        # current_channel_num, frequency = utils.parse_wifi_info(wifi_info)
+        # if current_channel_num != channel:
+        #     print('Текущий канал не совпадает с переданным!')
+
+        current_channel_num, frequency = utils.get_current_channel()
 
         # Основная команда для мониторинга сигнала (RSSI)
         TSHARK_CMD1 = [
@@ -73,10 +75,10 @@ class SecondWindow(tk.Toplevel):
 
         # Основной grid
         self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=3)
-        self.grid_columnconfigure(1, weight=5)
+        self.grid_columnconfigure(0, weight=2)  # Левый блок (таблица + управление)
+        self.grid_columnconfigure(1, weight=5)  # Правый блок (график)
 
-        # Левый контейнер (таблица)
+        # Левый контейнер (таблица + управление)
         left_frame = tk.Frame(self, padx=5, pady=5)
         left_frame.grid(row=0, column=0, sticky="nsew")
 
@@ -85,7 +87,7 @@ class SecondWindow(tk.Toplevel):
         for col, header in enumerate(headers):
             hdr = tk.Label(
                 left_frame, text=header, relief=tk.RAISED,
-                padx=8, pady=4, font=("Arial", 10, "bold"),
+                padx=8, pady=4, font=("Arial", 11, "bold"),
                 bg="#f0f0f0"
             )
             hdr.grid(row=0, column=col, sticky="ew")
@@ -95,10 +97,9 @@ class SecondWindow(tk.Toplevel):
             ("Адрес устройства", self.mac_address),
             ("Производитель", manufacturer or "N/A"),
             ("Тип устройства", ""),
-            ("Канал", str(channel) if channel else "N/A"),
-            ("Частота", f"{frequency} МГц" if frequency else "N/A"),
-            ("Последний кадр", "N/A"),
-            ("Задержка", "N/A"),
+            ("Канал", str(channel) if current_channel_num else "N/A"),
+            ("Частота", f"{frequency}" if frequency else "N/A"),
+            ("Текущий кадр", "N/A"),
             ("RSSI", "N/A")
         ]
 
@@ -108,35 +109,66 @@ class SecondWindow(tk.Toplevel):
             # Название строки
             key_label = tk.Label(
                 left_frame, text=key, anchor="w",
-                font=("Arial", 9), padx=5
+                font=("Arial", 10), padx=5
             )
             key_label.grid(row=idx+1, column=0, sticky="w", pady=2)
 
             # Значение
             value_label = tk.Label(
                 left_frame, text=value, anchor="w",
-                font=("Arial", 9), padx=5
+                font=("Arial", 10), padx=5
             )
             value_label.grid(row=idx+1, column=1, sticky="w", pady=2)
             
             self.labels[key] = value_label
 
-        # Правый контейнер (график + управление)
+        # Панель управления (под таблицей)
+        control_frame = tk.Frame(left_frame, pady=10)
+        control_frame.grid(row=len(rows)+1, column=0, columnspan=2, sticky="ew")
+        control_frame.columnconfigure(1, weight=2)
+
+        # Кнопка паузы
+        self.pause_start_button = tk.Button(
+            control_frame, text="Пауза", command=self.toggle_pause,
+            font=("Arial", 10), width=10
+        )
+        self.pause_start_button.grid(row=0, column=0, padx=3, pady=5)
+
+        # Параметры сглаживания
+        self.alpha = 0.2
+        self.use_filter_var = tk.BooleanVar(value=True)
+
+        # Регулятор сглаживания
+        self.alpha_slider = tk.Scale(
+            control_frame, from_=0.01, to=1.0, resolution=0.01,
+            orient=tk.HORIZONTAL, label="Сглаживание:", length=150,
+            font=("Arial", 9)
+        )
+        self.alpha_slider.set(self.alpha)
+        self.alpha_slider.grid(row=0, column=1, sticky="ew", padx=3, pady=5)
+        self.alpha_slider.bind("<ButtonRelease-1>", self.update_alpha)
+
+        # Флажок сглаживания
+        self.filter_toggle = tk.Checkbutton(
+            control_frame, text="Вкл.", variable=self.use_filter_var,
+            command=self.toggle_filter, font=("Arial", 10)
+        )
+        self.filter_toggle.grid(row=0, column=2, padx=3, pady=5)
+
+        # Правый контейнер (график)
         right_frame = tk.Frame(self, padx=5, pady=5)
         right_frame.grid(row=0, column=1, sticky="nsew")
-
-        right_frame.grid_rowconfigure(0, weight=7)
-        right_frame.grid_rowconfigure(1, weight=3)
+        right_frame.grid_rowconfigure(0, weight=1)  # График занимает всю высоту
         right_frame.grid_columnconfigure(0, weight=1)
 
         # График RSSI
-        fig = plt.Figure(figsize=(5, 3), dpi=100)
+        fig = plt.Figure(figsize=(5, 4), dpi=100)
         self.ax = fig.add_subplot(111)
         self.ax.grid(True, linestyle='--', alpha=0.7)
-        self.ax.set_ylabel('RSSI (dBm)', fontsize=9)
+        self.ax.set_ylabel('RSSI (dBm)', fontsize=10)
         self.canvas = FigureCanvasTkAgg(fig, master=right_frame)
         self.canvas_widget = self.canvas.get_tk_widget()
-        self.canvas_widget.grid(row=0, column=0, sticky="nsew", pady=(0, 5))
+        self.canvas_widget.grid(row=0, column=0, sticky="nsew")
 
         # Настройка графика
         yticks = list(range(-100, -20, 10))
@@ -148,39 +180,7 @@ class SecondWindow(tk.Toplevel):
         self.rssi_values = []
         self.timestamps = []
 
-        # Параметры сглаживания
-        self.alpha = 0.2
-        self.use_filter_var = tk.BooleanVar(value=True)
 
-        # Панель управления
-        control_frame = tk.Frame(right_frame)
-        control_frame.grid(row=1, column=0, sticky="ew")
-        control_frame.columnconfigure(1, weight=2)
-
-        # Кнопка паузы
-        self.pause_start_button = tk.Button(
-            control_frame, text="Пауза", command=self.toggle_pause,
-            font=("Arial", 9), width=10
-        )
-        self.pause_start_button.grid(row=0, column=0, padx=3, pady=8)
-
-        # Регулятор сглаживания
-        self.alpha_slider = tk.Scale(
-            control_frame, from_=0.01, to=1.0, resolution=0.01,
-            orient=tk.HORIZONTAL, label="Сглаживание:", length=150,
-            font=("Arial", 8)
-        )
-        self.alpha_slider.set(self.alpha)
-        self.alpha_slider.grid(row=0, column=1, sticky="ew", padx=3, pady=8)
-        self.alpha_slider.bind("<ButtonRelease-1>", self.update_alpha)
-
-
-        # Флажок сглаживания
-        self.filter_toggle = tk.Checkbutton(
-            control_frame, text="Вкл.", variable=self.use_filter_var,
-            command=self.toggle_filter, font=("Arial", 9)
-        )
-        self.filter_toggle.grid(row=0, column=2, padx=3, pady=8)
 
 
         # Запуск мониторинга
@@ -199,9 +199,8 @@ class SecondWindow(tk.Toplevel):
             if frame_type:
                 frames.append(frame_type)
 
-        beacon_count = sum(1 for ft in frames if ft == "0x08")
-        probe_req_count = sum(1 for ft in frames if ft == "0x04")
-
+        beacon_count = sum(1 for ft in frames if ft == "0x0008")
+        probe_req_count = sum(1 for ft in frames if ft == "0x0004")
 
         if beacon_count > 0:
             self.device_type = "Access Point (AP)"
@@ -209,7 +208,6 @@ class SecondWindow(tk.Toplevel):
             self.device_type = "Station (STA)"
         else:
             self.device_type = "Unknown"
-
 
         self.labels["Тип устройства"]["text"] = self.device_type
         proc.wait()
@@ -239,7 +237,7 @@ class SecondWindow(tk.Toplevel):
             return
 
         try:
-            # Проверяем наличие данных
+            # Проверяем наличие данных (неблокирующий вызов)
             if select.select([self.proc.stdout], [], [], 0.1)[0]:
                 line = self.proc.stdout.readline()
                 if line:
@@ -253,9 +251,7 @@ class SecondWindow(tk.Toplevel):
         except Exception as e:
             print(f"[ERROR] {e}")
 
-
         self.after(100, self._read_next_line)
-
 
     def _process_response(self, response):
         """Обрабатываем одну строку данных."""
@@ -282,7 +278,7 @@ class SecondWindow(tk.Toplevel):
                     display_rssi = current_rssi
 
                 # Обновляем виджеты
-                self.labels["Последний кадр"]["text"] = frame_number
+                self.labels["Текущий кадр"]["text"] = frame_number
                 self.labels["RSSI"]["text"] = f"{display_rssi:.2f} dBm"
                 self.rssi_values.append(display_rssi)
                 self.timestamps.append(time.time())
@@ -293,11 +289,7 @@ class SecondWindow(tk.Toplevel):
                     self.rssi_values.pop(0)
                     self.timestamps.pop(0)
 
-
                 self.plot_graph()
-            else:
-                delay_seconds = int(time.time() - self.last_valid_time)
-                self.labels["Задержка"]["text"] = f"{delay_seconds} сек."
         except ValueError:
             pass  # Пропускаем некорректные значения RSSI
 
@@ -309,7 +301,7 @@ class SecondWindow(tk.Toplevel):
 
         self.ax.clear()
         self.ax.grid(True, linestyle='--', alpha=0.7)
-        self.ax.set_ylabel('RSSI (dBm)', fontsize=9)
+        self.ax.set_ylabel('RSSI (dBm)', fontsize=10)
         self.ax.plot(self.timestamps, self.rssi_values, color='blue', linewidth=1)
 
 
@@ -325,7 +317,6 @@ class SecondWindow(tk.Toplevel):
     def update_alpha(self, event=None):
         """Обновление коэффициента сглаживания."""
         self.alpha = self.alpha_slider.get()
-
 
     def toggle_filter(self):
         """Включение/выключение сглаживания."""

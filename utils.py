@@ -308,7 +308,7 @@ def get_current_channel():
         try:
             wifi_info = os.popen(f"iw dev {config.interface} info").read()
             channel_num, frequency = parse_wifi_info(wifi_info)
-            return channel_num
+            return channel_num, frequency
         except Exception as e:
             error_message = f"Error retrieving Wi-Fi information: {e}"
             print(error_message)

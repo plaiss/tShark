@@ -189,7 +189,7 @@ class WifiMonitor(tk.Tk):
 
     def update_channel_indicator(self):
         # Получаем текущий канал
-        current_channel = utils.get_current_channel()
+        current_channel, frequency = utils.get_current_channel()
         if not current_channel:
             current_channel = 1 # Заглушка, если не Monitor mode
         self.channel_label.config(text=f"Ch:{current_channel}", background="lightblue")
