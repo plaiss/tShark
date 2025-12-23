@@ -323,19 +323,16 @@ class WifiMonitor(tk.Tk):
         self.status_text.replace(1.0, tk.END, status_message)
 
         if config.mode != 'Monitor':  # Выделяем красный цветом текущий режим
-            self.status_text.tag_add("red", '1.6', '1.20')
-            self.status_text.tag_config("red", foreground="red")
+            self.status_text.tag_add("highlight", '1.6', '1.20')
+            self.status_text.tag_config("highlight", foreground="red")
             self.add_text('Инерфейс не переведён в режим Monitor, нажмите кнопку Monitor mode\n')
-            self.status_text.config(state=tk.DISABLED)
+            # self.status_text.config(state=tk.DISABLED)
         else:
-            self.status_text.tag_add("red", '1.6', '1.20')
-            self.status_text.tag_config("red", foreground="red")
-            self.status_text.config(state=tk.DISABLED)
-            
+            # self.status_text.tag_remove("highlight", "1.0", tk.END)  # удалить тег со всего текста
             new_props = {'relief': 'sunken', 'state': 'disabled'}
             self.set_button_properties('Monitor mode', new_props)
         # Повторяем проверку каждые 2 секунды
-        self.after(2000, self.refresh_status)
+        self.after(10000, self.refresh_status)
 
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
@@ -558,7 +555,7 @@ class WifiMonitor(tk.Tk):
             self.scanner_thread.join(timeout=1.0)  # Дожидаемся завершения потока
             # del self.scanner_thread  # Освобождаем память
 
-        self.add_text("Процесс сканирования каналов остановлен.")
+        self.add_text("Процесс сканирования каналов остановлен." + "\n")
     
     def on_channel_indicator_click(self, event):
         if self.scanning_active:

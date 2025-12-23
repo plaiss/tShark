@@ -50,7 +50,7 @@ def tshark_worker(root, cmd, ttl):
             bufsize=1
         )
     except Exception as e:
-        root.add_text(f"Ошибка при старте tshark: {e}")
+        root.add_text(f"Ошибка при старте tshark: {e}" + "\n")
         config._stop.set()
         return
 
