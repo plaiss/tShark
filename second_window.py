@@ -1,3 +1,4 @@
+import select
 import tkinter as tk
 from tkinter import ttk
 import matplotlib.pyplot as plt
@@ -19,13 +20,6 @@ def get_data_stream(proc):
         if output:
             yield output
 
-# # Извлечение уровня сигнала (RSSI)
-# def extract_rssi(data):
-#     parts = data.strip().split("\t")
-#     if len(parts) >= 2:
-#         return parts[1]  # Уровень сигнала (RSSI)
-#     return "-"
-
 # Окно с деталями устройства
 class SecondWindow(tk.Toplevel):
     def __init__(self, parent, mac_address=None, manufacturer=None, channel=None):
@@ -38,11 +32,16 @@ class SecondWindow(tk.Toplevel):
         self.maxsize(800, 480)
         self.minsize(800, 480)
 
-        # ИНИЦИАЛИЗИРУЕМ paused ЗДЕСЬ!
-        self.paused = False  # <-- ДОБАВИТЬ ЭТУ СТРОКУ
-        
-        # MAC-адрес устройства
-        self.mac_address = mac_address or "2C:57:41:83:32:01"
+        self.paused = False
+        self.ema_value = None
+        self.device_type = ""
+        self.last_valid_time = time.time()
+
+        # Валидация MAC-адреса
+        if not mac_address or not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", mac_address):
+            self.mac_address = "2C:57:41:83:32:01"
+        else:
+            self.mac_address = mac_address
 
         # Получаем информацию о канале Wi-Fi
         wifi_info = os.popen(f"iw dev wlan1 info").read()
@@ -55,10 +54,10 @@ class SecondWindow(tk.Toplevel):
             "tshark", "-i", "wlan1",
             "-s", "0",
             "-T", "fields",
-            "-e", "frame.number",  # Номер кадра
-            "-e", "wlan_radio.signal_dbm",  # RSSI
+            "-e", "frame.number",
+            "-e", "wlan_radio.signal_dbm",
             "-Y", f"wlan.ta=={self.mac_address}",
-            "-l"  # Буферизация
+            "-l"
         ]
 
         # Команда для определения типа устройства (AP или STA)
@@ -66,91 +65,86 @@ class SecondWindow(tk.Toplevel):
             "tshark", "-i", "wlan1",
             "-s", "0",
             "-T", "fields",
-            "-e", "wlan.fc.type_subtype",  # Поле типа фрейма
+            "-e", "wlan.fc.type_subtype",
             "-Y", f"wlan.addr=={self.mac_address}",
-            "-c", "100",  # Число пакетов для анализа
-            "-l"  # Буферизация
+            "-c", "100",
+            "-l"
         ]
-        # print(self.CHECK_TYPE_CMD)
-        # Атрибуты
-        self.ema_value = None  # Экспоненциальная средняя
-        self.device_type = ""  # Тип устройства (будет установлен позже)
-        self.last_valid_time = time.time()
 
-        # Основной grid для окна
+        # Основной grid
         self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=3)  # Левый фрейм (75%)
-        self.grid_columnconfigure(1, weight=5)  # Правый фрейм (125%)
+        self.grid_columnconfigure(0, weight=3)
+        self.grid_columnconfigure(1, weight=5)
 
-        # Левый контейнер с таблицей
-        left_frame = tk.Frame(self)
-        left_frame.grid(row=0, column=0, sticky="nsew", padx=3, pady=3)
-        left_frame.grid_rowconfigure(1, weight=1)
-        left_frame.grid_columnconfigure(1, weight=1)
+        # Левый контейнер (таблица)
+        left_frame = tk.Frame(self, padx=5, pady=5)
+        left_frame.grid(row=0, column=0, sticky="nsew")
 
         # Шапка таблицы
         headers = ["Характеристика", "Значение"]
         for col, header in enumerate(headers):
-            hdr = tk.Label(left_frame, text=header, relief=tk.RAISED, padx=5, pady=3, font=("Arial", 10, "bold"))
+            hdr = tk.Label(
+                left_frame, text=header, relief=tk.RAISED,
+                padx=8, pady=4, font=("Arial", 10, "bold"),
+                bg="#f0f0f0"
+            )
             hdr.grid(row=0, column=col, sticky="ew")
 
-        # Тело таблицы
+        # Тело таблицы (компактное)
         rows = [
-            ("Адрес устройства", mac_address),
-            ("Производитель", manufacturer),
-            ("Тип устройства", ""),  # Будет установлено позже
-            ("Канал", channel),
-            ("Частота", frequency),
-            ("Последний кадр", "N/A"),  # Номер кадра
-            ("Задержка", "N/A"),      # Задержка
-            ("RSSI", "N/A")          # Добавляем строку для RSSI
+            ("Адрес устройства", self.mac_address),
+            ("Производитель", manufacturer or "N/A"),
+            ("Тип устройства", ""),
+            ("Канал", str(channel) if channel else "N/A"),
+            ("Частота", f"{frequency} МГц" if frequency else "N/A"),
+            ("Последний кадр", "N/A"),
+            ("Задержка", "N/A"),
+            ("RSSI", "N/A")
         ]
 
-        for idx, (key, _) in enumerate(rows):
+        self.labels = {}  # Храним ссылки на лейблы значений
+
+        for idx, (key, value) in enumerate(rows):
             # Название строки
-            key_label = tk.Label(left_frame, text=key, anchor="w", font=("Arial", 10))
-            key_label.grid(row=idx + 1, column=0, sticky="w", padx=1, pady=1)
+            key_label = tk.Label(
+                left_frame, text=key, anchor="w",
+                font=("Arial", 9), padx=5
+            )
+            key_label.grid(row=idx+1, column=0, sticky="w", pady=2)
 
-            # Создаём лейбл для отображения значения
-            value_label = tk.Label(left_frame, text="", anchor="w", font=("Arial", 10))
-            value_label.grid(row=idx + 1, column=1, sticky="ew", padx=1, pady=1)
-
-
-            # Назначаем лейбл нужной характеристике
-            if key == "Тип устройства":
-                self.type_device_label = value_label
-            elif key == "Последний кадр":
-                self.frame_number_label = value_label
-            elif key == "Задержка":
-                self.delay_label = value_label
-            elif key == "RSSI":
-                self.rssi_label = value_label
-            else:
-                setattr(self, f"{key.lower().replace(' ', '_')}_label", value_label)
+            # Значение
+            value_label = tk.Label(
+                left_frame, text=value, anchor="w",
+                font=("Arial", 9), padx=5
+            )
+            value_label.grid(row=idx+1, column=1, sticky="w", pady=2)
+            
+            self.labels[key] = value_label
 
         # Правый контейнер (график + управление)
-        right_frame = tk.Frame(self)
-        right_frame.grid(row=0, column=1, sticky="nsew", padx=3, pady=3)
-        right_frame.grid_rowconfigure(0, weight=7)  # График — 70% высоты
-        right_frame.grid_rowconfigure(1, weight=3)  # Панель — 30% высоты
+        right_frame = tk.Frame(self, padx=5, pady=5)
+        right_frame.grid(row=0, column=1, sticky="nsew")
+
+        right_frame.grid_rowconfigure(0, weight=7)
+        right_frame.grid_rowconfigure(1, weight=3)
         right_frame.grid_columnconfigure(0, weight=1)
 
         # График RSSI
-        fig = plt.Figure(figsize=(5, 3))
+        fig = plt.Figure(figsize=(5, 3), dpi=100)
         self.ax = fig.add_subplot(111)
-        self.ax.grid(True)
+        self.ax.grid(True, linestyle='--', alpha=0.7)
         self.ax.set_ylabel('RSSI (dBm)', fontsize=9)
         self.canvas = FigureCanvasTkAgg(fig, master=right_frame)
         self.canvas_widget = self.canvas.get_tk_widget()
-        self.canvas_widget.grid(row=0, column=0, sticky="nsew", padx=1, pady=1)
+        self.canvas_widget.grid(row=0, column=0, sticky="nsew", pady=(0, 5))
 
-        # Настройка сетки графика
+        # Настройка графика
         yticks = list(range(-100, -20, 10))
         self.ax.set_yticks(yticks)
         self.ax.set_ylim(-100, -20)
         self.ax.xaxis.set_visible(False)
+        self.ax.margins(x=0.02)
 
-        # Данные для графика
         self.rssi_values = []
         self.timestamps = []
 
@@ -160,32 +154,36 @@ class SecondWindow(tk.Toplevel):
 
         # Панель управления
         control_frame = tk.Frame(right_frame)
-        control_frame.grid(row=1, column=0, sticky="ew", padx=1, pady=1)
-        control_frame.grid_columnconfigure(1, weight=2)  # Слайдер занимает больше места
+        control_frame.grid(row=1, column=0, sticky="ew")
+        control_frame.columnconfigure(1, weight=2)
 
         # Кнопка паузы
         self.pause_start_button = tk.Button(
-            control_frame, text="Пауза", command=self.toggle_pause, font=("Arial", 9)
+            control_frame, text="Пауза", command=self.toggle_pause,
+            font=("Arial", 9), width=10
         )
-        self.pause_start_button.grid(row=0, column=0, padx=3, pady=3)
+        self.pause_start_button.grid(row=0, column=0, padx=3, pady=8)
 
         # Регулятор сглаживания
-        alpha_slider = tk.Scale(
-            control_frame, from_=0.01, to=1.0, resolution=0.01, orient=tk.HORIZONTAL,
-            label="Сглаживание:", length=150, font=("Arial", 8))
-        alpha_slider.set(self.alpha)
-        alpha_slider.grid(row=0, column=1, sticky="ew", padx=3, pady=3)
-        alpha_slider.bind("<ButtonRelease-1>", lambda e: self.update_alpha())
-        
+        self.alpha_slider = tk.Scale(
+            control_frame, from_=0.01, to=1.0, resolution=0.01,
+            orient=tk.HORIZONTAL, label="Сглаживание:", length=150,
+            font=("Arial", 8)
+        )
+        self.alpha_slider.set(self.alpha)
+        self.alpha_slider.grid(row=0, column=1, sticky="ew", padx=3, pady=8)
+        self.alpha_slider.bind("<ButtonRelease-1>", self.update_alpha)
+
 
         # Флажок сглаживания
         self.filter_toggle = tk.Checkbutton(
             control_frame, text="Вкл.", variable=self.use_filter_var,
             command=self.toggle_filter, font=("Arial", 9)
         )
-        self.filter_toggle.grid(row=0, column=2, padx=3, pady=3)
+        self.filter_toggle.grid(row=0, column=2, padx=3, pady=8)
 
-        # Запуск мониторинга через .after() вместо потока
+
+        # Запуск мониторинга
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.start_monitoring()
 
@@ -197,12 +195,13 @@ class SecondWindow(tk.Toplevel):
         proc = subprocess.Popen(self.CHECK_TYPE_CMD, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         frames = []
         for line in get_data_stream(proc):
-            frame_type = line.split()[0]
-            frames.append(frame_type)
+            frame_type = line.strip()
+            if frame_type:
+                frames.append(frame_type)
 
-        # Подсчёт фреймов
-        beacon_count = sum(1 for ft in frames if ft.startswith("0x0008"))  # Beacon-фреймы (AP)
-        probe_req_count = sum(1 for ft in frames if ft.startswith("0x0004"))  # Probe Request (STA)
+        beacon_count = sum(1 for ft in frames if ft == "0x08")
+        probe_req_count = sum(1 for ft in frames if ft == "0x04")
+
 
         if beacon_count > 0:
             self.device_type = "Access Point (AP)"
@@ -211,15 +210,13 @@ class SecondWindow(tk.Toplevel):
         else:
             self.device_type = "Unknown"
 
-        # Обновляем лейбл типа устройства
-        self.type_device_label['text'] = self.device_type
 
-        # Завершаем процесс
+        self.labels["Тип устройства"]["text"] = self.device_type
         proc.wait()
 
     def stop_updating(self):
         """Остановить мониторинг."""
-        if self.proc.poll() is None:
+        if self.proc and self.proc.poll() is None:
             self.proc.kill()
             self.proc.wait()
 
@@ -238,105 +235,111 @@ class SecondWindow(tk.Toplevel):
     def _read_next_line(self):
         """Читаем одну строку и планируем следующий вызов."""
         if self.paused:
-            self.after(1000, self._read_next_line)  # Проверяем раз в секунду
+            self.after(1000, self._read_next_line)
             return
 
         try:
-            # Читаем одну строку (не блокируем)
-            line = self.proc.stdout.readline()
-            if line:
-                response = line.decode().strip()
-                if response:
-                    self._process_response(response)
+            # Проверяем наличие данных
+            if select.select([self.proc.stdout], [], [], 0.1)[0]:
+                line = self.proc.stdout.readline()
+                if line:
+                    response = line.decode().strip()
+                    if response:
+                        self._process_response(response)
             else:
-                # Конец потока
+                # Нет данных — ждём 100 мс
                 self.after(100, self._read_next_line)
                 return
         except Exception as e:
             print(f"[ERROR] {e}")
 
-        # Планируем следующий вызов через 100 мс
+
         self.after(100, self._read_next_line)
+
 
     def _process_response(self, response):
         """Обрабатываем одну строку данных."""
         parts = response.strip().split("\t")
         if len(parts) != 2:
-            print(f"[DEBUG] Недостаточно полей: {response}")
-            return
+            return  # Пропускаем некорректные строки
 
-        frame_number = parts[0]
-        rssi_value = parts[1].strip()
+        frame_number, rssi_value = parts
 
         try:
             current_rssi = float(rssi_value)
             if -100 <= current_rssi <= -20:
                 self.last_valid_time = time.time()
-                self.delay_label["text"] = ""
-
 
                 # Сглаживание
                 if self.use_filter_var.get():
                     if self.ema_value is None:
                         self.ema_value = current_rssi
                     else:
-                        self.ema_value = self.alpha * current_rssi + (1 - self.alpha) * self.ema_value
+                        self.ema_value = (self.alpha * current_rssi +
+                                         (1 - self.alpha) * self.ema_value)
                     display_rssi = self.ema_value
                 else:
                     display_rssi = current_rssi
 
-                # Обновляем виджеты (в основном потоке!)
-                self.frame_number_label["text"] = frame_number
-                self.rssi_label["text"] = f"{display_rssi:.2f} dBm"
+                # Обновляем виджеты
+                self.labels["Последний кадр"]["text"] = frame_number
+                self.labels["RSSI"]["text"] = f"{display_rssi:.2f} dBm"
                 self.rssi_values.append(display_rssi)
                 self.timestamps.append(time.time())
 
 
-                # Ограничиваем длину
+                # Ограничиваем длину буфера
                 if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
                     self.rssi_values.pop(0)
                     self.timestamps.pop(0)
 
+
                 self.plot_graph()
             else:
                 delay_seconds = int(time.time() - self.last_valid_time)
-                self.delay_label["text"] = f"{delay_seconds} сек."
+                self.labels["Задержка"]["text"] = f"{delay_seconds} сек."
         except ValueError:
-            print(f"[DEBUG] Некорректное значение RSSI: '{rssi_value}'")
+            pass  # Пропускаем некорректные значения RSSI
+
 
     def plot_graph(self):
-        """График RSSI."""
+        """Обновляем график RSSI."""
         if len(self.timestamps) < 2 or len(self.rssi_values) < 2:
-            return  # Не рисуем, если мало точек
+            return
 
         self.ax.clear()
-        self.ax.grid(True)
+        self.ax.grid(True, linestyle='--', alpha=0.7)
         self.ax.set_ylabel('RSSI (dBm)', fontsize=9)
-        self.ax.plot(self.timestamps, self.rssi_values, color='blue')
+        self.ax.plot(self.timestamps, self.rssi_values, color='blue', linewidth=1)
 
-        # Настройка сетки
+
+        # Настройка осей
         yticks = list(range(-100, -20, 10))
         self.ax.set_yticks(yticks)
         self.ax.set_ylim(-100, -20)
-
-
-        # Скрываем ось X
         self.ax.xaxis.set_visible(False)
+        self.ax.margins(x=0.02)
+
         self.canvas.draw_idle()
 
-    def update_alpha(self):
+    def update_alpha(self, event=None):
         """Обновление коэффициента сглаживания."""
-        widget = self.winfo_children()[0].winfo_children()[1]  # Находим слайдер
-        if isinstance(widget, tk.Scale):
-            self.alpha = widget.get()
+        self.alpha = self.alpha_slider.get()
+
 
     def toggle_filter(self):
         """Включение/выключение сглаживания."""
-        pass  # Логика уже реализована через self.use_filter_var
+        pass  # Логика уже в _process_response
 
     def destroy(self):
         """Завершение программы."""
         self.stop_updating()
+        time.sleep(0.5)
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
+            time.sleep(0.3)
+            if self.proc.poll() is None:
+                self.proc.kill()
         plt.close('all')
         super().destroy()
         if __name__ == "__main__":
