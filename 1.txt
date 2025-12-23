@@ -1,20 +1,15 @@
-C2:38:12:7B:D5:D1 locally administered
+2C:57:41:83:32:01 Cisco Systems, Inc
+2C:57:41:83:32:02 Cisco Systems, Inc
 2C:57:41:83:32:03 Cisco Systems, Inc
 2C:57:41:83:32:04 Cisco Systems, Inc
-2C:57:41:83:32:02 Cisco Systems, Inc
-2C:57:41:83:32:01 Cisco Systems, Inc
 2C:57:41:83:32:05 Cisco Systems, Inc
-60:CE:86:53:C6:96 Sercomm Corporation.
-5E:4F:3D:4C:3E:00 locally administered
+C2:38:12:7B:D5:D1 locally administered
+EE:7F:06:52:81:6E locally administered
+16:6D:9B:A7:B2:0B locally administered
+A2:8A:EE:1D:88:C4 locally administered
 58:2D:34:00:5E:A2 Qingping Electronics (Suzhou) Co., Ltd
-28:E3:47:FE:34:44 Liteon Technology Corporation
-3E:09:7D:0A:A5:3F locally administered
-CA:A8:06:F3:E4:31 locally administered
-F2:0D:4B:74:2E:DD locally administered
-3E:87:D8:50:B9:41 locally administered
-68:34:21:A3:7E:1A Intel Corporate
-A2:4D:C2:BD:4C:6F locally administered
-26:6F:B9:DD:A2:99 locally administered
-A6:8C:A9:B4:6B:2F locally administered
-DE:58:29:46:BB:AC locally administered
-16:C4:C1:F5:E0:7C locally administered
+6E:AA:AE:C0:EA:25 locally administered
+8C:17:59:7F:49:00 Intel Corporate
+60:CE:86:53:C6:96 Sercomm Corporation.
+6E:2F:C7:D2:AB:4A locally administered
+CE:38:73:95:29:FE locally administered
