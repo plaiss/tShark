@@ -1,7 +1,7 @@
 import time
 import signal
 import subprocess
-
+import logging 
 import threading
 import tkinter as tk
 from tkinter import ttk, scrolledtext
@@ -14,19 +14,55 @@ from wifi_monitor import WifiMonitor  # Импортируем класс из �
 
 from collections import deque
 import queue
+import cProfile
+
+def profile_function(func):
+    def wrapper(*args, **kwargs):
+        profiler = cProfile.Profile()
+        profiler.enable()
+        result = func(*args, **kwargs)
+        profiler.disable()
+        profiler.print_stats(sort='cumtime')
+        return result
+    return wrapper
+
+# Настройка базовых настроек логгирования
+LOG_FORMAT = '%(asctime)s [%(levelname)-8s]: %(message)s (%(filename)s:%(lineno)d)'
+DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+
+# Настройка корневого логгера
+logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FORMAT, level=logging.INFO)
+logger = logging.getLogger(__name__)
+# Расширение логгеров до файлового ротирующего хранилища
+import logging.handlers
+
+file_handler = logging.handlers.RotatingFileHandler(
+    filename='app.log',  # Основной файл логов
+    maxBytes=10 * 1024 * 1024,  # Лимит размера файла (~10 MB)
+    backupCount=5,               # Количество резервных копий старых файлов
+    encoding='utf-8'
+)
+
+formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
 
 # Глобальные переменные для управления буферами
 # tree_buffer = deque(maxlen=1000)
 # log_queue = queue.Queue()
 
 # Функция сброса буферов
+@profile_function
 def flush_buffers(root):
+    logger.info("Flushing buffers...")
     # Массовое обновление дерева
     while root.tree_buffer:
         # Извлекаем ровно столько же значений, сколько помещено в буфер
         mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = root.tree_buffer.popleft()
         root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
 
+    logger.info("Buffers flushed successfully.")
     # Сообщения лога
     messages = []
     while not root.log_queue.empty():  # Аналогично для log_queue
@@ -41,6 +77,7 @@ def schedule_flush(root):
 
 def tshark_worker(root, cmd, ttl):
     # Внутри функции используй root.tree_buffer и root.log_queue
+    logger.info("Starting TShark worker.")  # Зарегистрировали старт
     try:
         proc = subprocess.Popen(
             cmd,
@@ -49,8 +86,10 @@ def tshark_worker(root, cmd, ttl):
             text=True,
             bufsize=1
         )
+        logger.info("TShark process started successfully.")
     except Exception as e:
         root.add_text(f"Ошибка при старте tshark: {e}" + "\n")
+        logger.error(f"Failed to start TShark: {e}")
         config._stop.set()
         return
 

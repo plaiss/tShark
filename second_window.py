@@ -10,6 +10,9 @@ import re
 import utils
 import select
 
+frameBeacon = '0x0008'
+
+
 # Максимальная длина графика
 MAX_POINTS_ON_GRAPH = 100
 
@@ -97,6 +100,7 @@ class SecondWindow(tk.Toplevel):
             ("Адрес устройства", self.mac_address),
             ("Производитель", manufacturer or "N/A"),
             ("Тип устройства", ""),
+            ("SSID", "N/A"),          # ← Новая строка
             ("Канал", str(channel) if current_channel_num else "N/A"),
             ("Частота", f"{frequency}" if frequency else "N/A"),
             ("Текущий кадр", "N/A"),
@@ -189,29 +193,72 @@ class SecondWindow(tk.Toplevel):
 
         # Определение типа устройства
         self.check_device_type()
+    
 
     def check_device_type(self):
-        """Определение типа устройства (AP или STA)."""
-        proc = subprocess.Popen(self.CHECK_TYPE_CMD, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        frames = []
-        for line in get_data_stream(proc):
-            frame_type = line.strip()
-            if frame_type:
+        """
+        Определение типа устройства (AP или STA) и SSID с обработкой различных форматов SSID.
+        """
+        beacon_cmd = [
+            "tshark", "-i", "wlan1",
+            "-T", "fields",
+            "-e", "wlan.fc.type_subtype",
+            "-e", "wlan.ssid",
+            "-Y", f"wlan.addr=={self.mac_address}",
+            "-c", "100"
+        ]
+        
+        try:
+            result = subprocess.run(beacon_cmd, capture_output=True, text=True, timeout=5)
+            
+            lines = result.stdout.strip().splitlines()
+            frames = []
+            ssids = set()
+            
+            for line in lines:
+                parts = line.split("\t")
+                
+                frame_type = parts[0].strip() if len(parts) > 0 else ""
+                raw_ssid = parts[1].strip() if len(parts) > 1 else ""
+                
                 frames.append(frame_type)
-
-        beacon_count = sum(1 for ft in frames if ft == "0x0008")
-        probe_req_count = sum(1 for ft in frames if ft == "0x0004")
-
-        if beacon_count > 0:
-            self.device_type = "Access Point (AP)"
-        elif probe_req_count > 0:
-            self.device_type = "Station (STA)"
-        else:
-            self.device_type = "Unknown"
-
-        self.labels["Тип устройства"]["text"] = self.device_type
-        proc.wait()
-
+                
+                if frame_type == "0x0008" and raw_ssid and raw_ssid != "(missing)" and raw_ssid != "":
+                    decoded_ssid = None
+                    
+                    if re.fullmatch(r'[0-9a-fA-F]+', raw_ssid):
+                        try:
+                            decoded_bytes = bytes.fromhex(raw_ssid)
+                            decoded_ssid = decoded_bytes.decode('utf-8', errors='replace')
+                        except (ValueError, UnicodeDecodeError) as e:
+                            logging.warning(f"Ошибка декодирования hex SSID '{raw_ssid}': {e}")
+                            decoded_ssid = None
+                    else:
+                        decoded_ssid = raw_ssid
+                    
+                    if decoded_ssid:
+                        cleaned_ssid = ''.join(ch for ch in decoded_ssid if ord(ch) >= 32 and ord(ch) <= 126)
+                        if cleaned_ssid:
+                            ssids.add(cleaned_ssid)
+                            
+            beacon_count = sum(1 for ft in frames if ft == "0x0008")
+            probe_req_count = sum(1 for ft in frames if ft == "0x04")
+            
+            if beacon_count > 0:
+                self.device_type = "Access Point (AP)"
+                self.ssid = next(iter(ssids)) if ssids else "N/A"
+            elif probe_req_count > 0:
+                self.device_type = "Station (STA)"
+                self.ssid = "N/A"
+            else:
+                self.device_type = "Unknown"
+                self.ssid = "N/A"
+        
+        except subprocess.TimeoutExpired:
+            logging.warning("tshark превысил таймаут (5 сек)")
+        except Exception as e:
+            logging.error(f"Произошла ошибка при обработке данных: {e}")
+            
     def stop_updating(self):
         """Остановить мониторинг."""
         if self.proc and self.proc.poll() is None:

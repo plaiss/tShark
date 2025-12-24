@@ -16,15 +16,21 @@ from config import _stop
 import config
 import utils
 import main
+import logging
 from second_window import SecondWindow  # Импортируем класс из отдельного файла
 from settings_window import SettingsWindow
 from export_dialog import ExportDialog
 from choose_channels import ChannelSelectorDialog  # Новое окно выбора каналов
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class WifiMonitor(tk.Tk):
     def __init__(self):
         super().__init__()
-        
+    
+        # self.logger = logging.getLogger(__name__)
         # Настройка главного окна приложения
         self.title("WiFi Monitor")
         self.minsize(width=800, height=480)
@@ -171,6 +177,7 @@ class WifiMonitor(tk.Tk):
         
     def update_indicator(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+            logger.info("TShark thread is alive.DEF update_indicator")
             self.indicator.config(background="red", text='running')
             new_props = {'relief': 'sunken', 'text': 'Стоп'}
             self.set_button_properties('Стоп', new_props)
@@ -566,6 +573,7 @@ class WifiMonitor(tk.Tk):
             
     def on_running_indicator_click(self, event):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+            logger.info("TShark thread is alive.")
             # Текущий поток активен, остановка мониторинга
             _stop.set()  # Установим флаг остановки
             self.tshark_thread = None  # Удалим ссылку на поток
