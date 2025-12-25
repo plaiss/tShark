@@ -103,7 +103,7 @@ class WifiMonitor(tk.Tk):
         self.scanning_active = False
         self.prev_channels = []
         self.prev_delay_time =0
-                # Перемещаем сюда объявление буфера
+        # Перемещаем сюда объявление буфера
         self.tree_buffer = deque(maxlen=1000)
         self.log_queue = queue.Queue()
 

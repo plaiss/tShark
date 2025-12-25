@@ -17,7 +17,8 @@ import queue
 import cProfile
 import io
 from pstats import Stats
-
+# Расширение логгеров до файлового ротирующего хранилища
+import logging.handlers
 
 #Глобальные переменные для управления буферами
 tree_buffer = deque(maxlen=1000)
@@ -68,8 +69,7 @@ DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Расширение логгеров до файлового ротирующего хранилища
-import logging.handlers
+
 
 file_handler = logging.handlers.RotatingFileHandler(
     filename='app.log',  # Основной файл логов
@@ -87,25 +87,23 @@ logger.addHandler(file_handler)
 # Функция сброса буферов
 @profile_function
 def flush_buffers(root):
-    logger.info("Flushing buffers...")
-    # Массовое обновление дерева
-    while root.tree_buffer:
-        # Извлекаем ровно столько же значений, сколько помещено в буфер
-        mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = root.tree_buffer.popleft()
-        root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
+        logger.info("Flushing buffers...")
+        # Массовое обновление дерева
+        while root.tree_buffer:
+            # Извлекаем ровно столько же значений, сколько помещено в буфер
+            mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = root.tree_buffer.popleft()
+            root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
 
-    logger.info("Buffers flushed successfully.")
-    # Сообщения лога
-    messages = []
-    while not root.log_queue.empty():  # Аналогично для log_queue
-        messages.append(root.log_queue.get())
-    if messages:
-        root.add_text("\n".join(messages))
+        logger.info("Buffers flushed successfully.")
+        # Сообщения лога
+        messages = []
+        while not root.log_queue.empty():  # Аналогично для log_queue
+            messages.append(root.log_queue.get())
+        if messages:
+            root.add_text("\n".join(messages))
+        # Плановое повторение (самозапланирование через 1 секунду)
+        root.after(1000, lambda: flush_buffers(root))  # Повторять каждые 1 сек
 
-# Планирование периодической очистки буферов
-def schedule_flush(root):
-    root.after(1000, lambda: flush_buffers(root))  # Повторять каждые 1 сек
-    root.after(1000, lambda: schedule_flush(root))  # Самозапланироваться через 1 сек
 
 def tshark_worker(root, cmd, ttl):
     # Внутри функции используй root.tree_buffer и root.log_queue
@@ -217,8 +215,6 @@ def main():
     except Exception:
         pass
 
-    # Начинаем регулярное опустошение буферов
-    schedule_flush(root)
 
     if SEEN_TTL_SECONDS is not None:
         t = threading.Thread(target=utils.seen_cleaner, args=(SEEN_TTL_SECONDS,), daemon=True)
@@ -231,7 +227,10 @@ def main():
         tshark_thread.start()
         root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
 
+    root.after(1000, lambda: flush_buffers(root))
     root.mainloop()
+    
 
 if __name__ == "__main__":
+        # Запускаем регулярное обновление буферов
     main()
