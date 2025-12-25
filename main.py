@@ -15,6 +15,8 @@ from wifi_monitor import WifiMonitor  # Импортируем класс из �
 from collections import deque
 import queue
 import cProfile
+import io
+from pstats import Stats
 
 # Профилирующий декоратор
 def profile_function(func):
@@ -23,7 +25,17 @@ def profile_function(func):
         profiler.enable()
         result = func(*args, **kwargs)
         profiler.disable()
-        profiler.print_stats(sort='cumtime')
+
+        # Захватываем вывод профилировки в поток
+        sio = io.StringIO()
+        stats = Stats(profiler, stream=sio)
+        stats.sort_stats('cumtime').print_stats()
+        output = sio.getvalue()
+        sio.close()
+
+        # Выводим результаты в лог-файл
+        logger.info(output)
+
         return result
     return wrapper
 
