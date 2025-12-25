@@ -18,6 +18,27 @@ import cProfile
 import io
 from pstats import Stats
 
+
+#Глобальные переменные для управления буферами
+tree_buffer = deque(maxlen=1000)
+log_queue = queue.Queue()
+
+# Словарь для кеширования результатов
+vendor_cache = {}
+
+def cached_lookup_vendor_db(mac, db_path, verbose=False):
+    # Проверяем, есть ли мак-адрес в кэше
+    if mac in vendor_cache:
+        return vendor_cache[mac]
+
+    # Если нет, ищем в базе данных
+    vendor = utils.lookup_vendor_db(mac, db_path, verbose)
+
+    # Сохраняем результат в кэш
+    vendor_cache[mac] = vendor
+
+    return vendor
+
 # Профилирующий декоратор
 def profile_function(func):
     def wrapper(*args, **kwargs):
@@ -61,9 +82,7 @@ formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-# Глобальные переменные для управления буферами
-# tree_buffer = deque(maxlen=1000)
-# log_queue = queue.Queue()
+
 
 # Функция сброса буферов
 @profile_function
@@ -160,7 +179,7 @@ def tshark_worker(root, cmd, ttl):
                 config._last_seen[mac_n] = now
 
             pretty_time = utils.parse_time_epoch(raw_time)
-            mac_vendor = utils.lookup_vendor_db(mac_n, config.DB_PATH, False)
+            mac_vendor = cached_lookup_vendor_db(mac_n, config.DB_PATH, False)
             
             # Складываем данные в буферы класса
             root.tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, config._traffic_by_mac.get(mac_n)))

@@ -42,7 +42,7 @@ class SettingsWindow(tk.Toplevel):
             messagebox.showerror("Wi-Fi Info Error", error_message)
         
         # Список доступных интерфейсов (пример)
-        available_interfaces = ["eth0", "wlan0", "wlan1"]
+        available_interfaces = ["eth0", "wlan0", "wlan1"] # нужно будет заменить на IWLIST
         self.var_interface = tk.StringVar(value=interface)
         
         # Выпадающий список для выбора интерфейса

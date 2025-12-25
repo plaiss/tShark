@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import simpledialog, messagebox, Frame, Label, Checkbutton, Button, OptionMenu, StringVar, BooleanVar
-# from config import interface
 import utils
 
 class ChannelSelectorDialog(simpledialog.Dialog):
@@ -132,5 +131,4 @@ if __name__ == "__main__":
     previous_channels = [1, 6, 10, 36]  # Например, были выбраны каналы 1, 6 и 11
     previous_delay = 0.5             # Предыдущая задержка была 0.5 секунды
     app = ChannelSelectorDialog(root, "wlan1", channels=previous_channels, delay_time=previous_delay)
-    # app = ChannelSelectorDialog(root, "wlan1")
     root.mainloop()

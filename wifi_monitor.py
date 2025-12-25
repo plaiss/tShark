@@ -490,14 +490,6 @@ class WifiMonitor(tk.Tk):
             return
 
 
-    def show_details(self):
-        """Покажет дополнительную информацию о выделенном устройстве."""
-        selected_item = self.tree.focus()
-        data = self.tree.item(selected_item)["values"]
-        if data:
-            details = f"MAC: {data[0]} | Производитель: {utils.lookup_vendor_db(data[0], config.DB_PATH, False)}\nКол-во сигналов: {data[1]}\nПоследний раз обнаружен: {data[2]}"
-            messagebox.showinfo("Детали устройства", details)
-
     def show_settings(self):
         #    """Открывает окно настроек и останавливает процесс сканирования перед открытием"""
         self.toggle_scanning()  # Сначала останавливаем сканирование

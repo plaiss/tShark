@@ -45,18 +45,11 @@ class SecondWindow(tk.Toplevel):
             self.mac_address = "2C:57:41:83:32:01"
         else:
             self.mac_address = mac_address
-
-        # Получаем информацию о канале Wi-Fi
-        # wifi_info = os.popen(f"iw dev wlan1 info").read()
-        # current_channel_num, frequency = utils.parse_wifi_info(wifi_info)
-        # if current_channel_num != channel:
-        #     print('Текущий канал не совпадает с переданным!')
-
         current_channel_num, frequency = utils.get_current_channel()
 
         # Основная команда для мониторинга сигнала (RSSI)
         TSHARK_CMD1 = [
-            "tshark", "-i", "wlan1",
+            "tshark", "-i", config.interface,
             "-s", "0",
             "-T", "fields",
             "-e", "frame.number",
@@ -67,7 +60,7 @@ class SecondWindow(tk.Toplevel):
 
         # Команда для определения типа устройства (AP или STA)
         self.CHECK_TYPE_CMD = [
-            "tshark", "-i", "wlan1",
+            "tshark", "-i", config.interface,
             "-s", "0",
             "-T", "fields",
             "-e", "wlan.fc.type_subtype",
@@ -200,7 +193,7 @@ class SecondWindow(tk.Toplevel):
         Определение типа устройства (AP или STA) и SSID с обработкой различных форматов SSID.
         """
         beacon_cmd = [
-            "tshark", "-i", "wlan1",
+            "tshark", "-i", config.interface,
             "-T", "fields",
             "-e", "wlan.fc.type_subtype",
             "-e", "wlan.ssid",
@@ -209,7 +202,7 @@ class SecondWindow(tk.Toplevel):
         ]
         
         try:
-            result = subprocess.run(beacon_cmd, capture_output=True, text=True, timeout=5)
+            result = subprocess.run(beacon_cmd, capture_output=True, text=True, timeout=10)
             
             lines = result.stdout.strip().splitlines()
             frames = []
