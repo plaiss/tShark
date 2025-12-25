@@ -16,6 +16,7 @@ from collections import deque
 import queue
 import cProfile
 
+# Профилирующий декоратор
 def profile_function(func):
     def wrapper(*args, **kwargs):
         profiler = cProfile.Profile()
@@ -33,6 +34,7 @@ DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 # Настройка корневого логгера
 logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 # Расширение логгеров до файлового ротирующего хранилища
 import logging.handlers
 
@@ -46,7 +48,6 @@ file_handler = logging.handlers.RotatingFileHandler(
 formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
-
 
 # Глобальные переменные для управления буферами
 # tree_buffer = deque(maxlen=1000)
