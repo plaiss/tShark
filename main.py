@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
-tree_buffer = deque(maxlen=1000)
+# tree_buffer = deque(maxlen=1000)
 log_queue = queue.Queue()
 
 # Класс для ограничения размера кэша с использованием LRU-стратегии
@@ -123,8 +123,8 @@ def profile_function(func):
 def flush_buffers(root):
         logger.info("Flushing buffers...")
         # Массовое обновление дерева
+        # print(f'tree_buffer= {len(root.tree_buffer))
         while root.tree_buffer:
-            # print(len(root.tree))
             # Извлекаем ровно столько же значений, сколько помещено в буфер
             mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = root.tree_buffer.popleft()
             root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
@@ -133,6 +133,7 @@ def flush_buffers(root):
         # Сообщения лога
         messages = []
         while not root.log_queue.empty():  # Аналогично для log_queue
+            # print(f'log_queue= {root.log_queue.qsize()}')
             messages.append(root.log_queue.get())
         if messages:
             root.add_text("\n".join(messages))
@@ -238,8 +239,8 @@ def tshark_worker(root, cmd, ttl):
 
 def main():
     global WHITELIST_PATH, SEEN_TTL_SECONDS
-    root = WifiMonitor()
     WHITELIST_PATH = config.WHITELIST_PATH
+    root = WifiMonitor()
     SEEN_TTL_SECONDS = config.SEEN_TTL_SECONDS
     if WHITELIST_PATH:
         with config._whitelist_lock:

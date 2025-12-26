@@ -241,9 +241,13 @@ def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
         parts.append(f"(type={type_} subtype={subtype})")
 
     if show_bits:
-        parts.append(f"[ToDS={to_ds} FromDS={from_ds} Protected={protected} Order={order}]")
+        pass
+        # parts.append(f"[ToDS={to_ds} FromDS={from_ds} Protected={protected} Order={order}]")
 
-    return " ".join(parts)
+    # print (len(" ".join(parts)))
+    result = " ".join(parts)
+    result = f"{result:<40}"
+    return result
 
 def get_wlan_mode(interface='wlan0'):
     try:
