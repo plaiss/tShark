@@ -12,7 +12,7 @@ from config import _stop
 import config
 from wifi_monitor import WifiMonitor  # Импортируем класс из отдельного файла
 
-from collections import deque
+from collections import deque, OrderedDict
 import queue
 import cProfile
 import io
@@ -24,19 +24,53 @@ import logging.handlers
 tree_buffer = deque(maxlen=1000)
 log_queue = queue.Queue()
 
-# Словарь для кеширования результатов
-vendor_cache = {}
+# Класс для ограничения размера кэша с использованием LRU-стратегии
+class LimitedSizeCache(OrderedDict):
+    def __init__(self, max_size=1000):
+        """
+        Конструктор принимает максимальный размер кэша.
+        :param max_size: Максимальное количество элементов в кэше.
+        """
+        super().__init__()
+        self.max_size = max_size
+
+    def add(self, key, value):
+        """
+        Добавляет элемент в кэш.
+        Если достигается предел размера, удаляется старый элемент.
+        """
+        # Добавляем элемент в начало очереди
+        self[key] = value
+        # Если превысили размеры, удаляем последний элемент
+        if len(self) > self.max_size:
+            self.popitem(last=False)
+
+    def get(self, key):
+        """
+        Возвращает значение по ключу и передвигает элемент в начало.
+        Если ключа нет, возвращает None.
+        """
+        if key in self:
+            # Получаем элемент и перемещаем его в начало (так как он стал недавно используемым)
+            value = self.pop(key)
+            self[key] = value
+            return value
+        else:
+            return None
+
+# Новый словарь для кеша, с ограниченной вместимостью
+vendor_cache = LimitedSizeCache(max_size=1000)
 
 def cached_lookup_vendor_db(mac, db_path, verbose=False):
     # Проверяем, есть ли мак-адрес в кэше
     if mac in vendor_cache:
-        return vendor_cache[mac]
+        return vendor_cache.get(mac)
 
     # Если нет, ищем в базе данных
     vendor = utils.lookup_vendor_db(mac, db_path, verbose)
 
     # Сохраняем результат в кэш
-    vendor_cache[mac] = vendor
+    vendor_cache.add(mac, vendor)
 
     return vendor
 
@@ -51,7 +85,7 @@ def profile_function(func):
         # Захватываем вывод профилировки в поток
         sio = io.StringIO()
         stats = Stats(profiler, stream=sio)
-        stats.sort_stats('cumtime').print_stats()
+        # stats.sort_stats('cumtime').print_stats()
         output = sio.getvalue()
         sio.close()
 
@@ -66,7 +100,8 @@ LOG_FORMAT = '%(asctime)s [%(levelname)-8s]: %(message)s (%(filename)s:%(lineno)
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 # Настройка корневого логгера
-logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FORMAT, level=logging.INFO)
+# logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FORMAT, level=logging.INFO)
+logging.basicConfig(level=logging.INFO, handlers=[file_handler])
 logger = logging.getLogger(__name__)
 
 
@@ -90,6 +125,7 @@ def flush_buffers(root):
         logger.info("Flushing buffers...")
         # Массовое обновление дерева
         while root.tree_buffer:
+            # print(len(root.tree))
             # Извлекаем ровно столько же значений, сколько помещено в буфер
             mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = root.tree_buffer.popleft()
             root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
