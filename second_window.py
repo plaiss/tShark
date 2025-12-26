@@ -12,7 +12,6 @@ import select
 
 frameBeacon = '0x0008'
 
-
 # Максимальная длина графика
 MAX_POINTS_ON_GRAPH = 100
 
@@ -39,6 +38,8 @@ class SecondWindow(tk.Toplevel):
         self.ema_value = None
         self.device_type = ""
         self.last_valid_time = time.time()
+        
+
 
         # Валидация MAC-адреса
         if not mac_address or not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", mac_address):
@@ -46,7 +47,10 @@ class SecondWindow(tk.Toplevel):
         else:
             self.mac_address = mac_address
         current_channel_num, frequency = utils.get_current_channel()
-
+        
+        # Определение типа устройства
+        self.check_device_type()
+        
         # Основная команда для мониторинга сигнала (RSSI)
         TSHARK_CMD1 = [
             "tshark", "-i", config.interface,
@@ -58,16 +62,16 @@ class SecondWindow(tk.Toplevel):
             "-l"
         ]
 
-        # Команда для определения типа устройства (AP или STA)
-        self.CHECK_TYPE_CMD = [
-            "tshark", "-i", config.interface,
-            "-s", "0",
-            "-T", "fields",
-            "-e", "wlan.fc.type_subtype",
-            "-Y", f"wlan.addr=={self.mac_address}",
-            "-c", "100",
-            "-l"
-        ]
+        # # Команда для определения типа устройства (AP или STA)
+        # self.CHECK_TYPE_CMD = [
+        #     "tshark", "-i", config.interface,
+        #     "-s", "0",
+        #     "-T", "fields",
+        #     "-e", "wlan.fc.type_subtype",
+        #     "-Y", f"wlan.addr=={self.mac_address}",
+        #     "-c", "100",
+        #     "-l"
+        # ]
 
         # Основной grid
         self.grid_rowconfigure(0, weight=1)
@@ -90,34 +94,44 @@ class SecondWindow(tk.Toplevel):
 
         # Тело таблицы (компактное)
         rows = [
-            ("Адрес устройства", self.mac_address),
+            ("Адрес устройства", ""),  # Теперь пустое значение, потому что заменим на Text
             ("Производитель", manufacturer or "N/A"),
-            ("Тип устройства", ""),
-            ("SSID", "N/A"),          # ← Новая строка
+            ("Тип устройства", self.device_type),
+            ("SSID", self.ssid),          
             ("Канал", str(channel) if current_channel_num else "N/A"),
             ("Частота", f"{frequency}" if frequency else "N/A"),
             ("Текущий кадр", "N/A"),
             ("RSSI", "N/A")
         ]
 
-        self.labels = {}  # Храним ссылки на лейблы значений
+        self.labels = {}
 
-        for idx, (key, value) in enumerate(rows):
+        # Специально обрабатываем первую ячейку с MAC адресом
+        row_idx = 0
+        for idx, (key, _) in enumerate(rows):
             # Название строки
             key_label = tk.Label(
-                left_frame, text=key, anchor="w",
+                left_frame, text=key, anchor="w", width=10,
                 font=("Arial", 10), padx=5
             )
-            key_label.grid(row=idx+1, column=0, sticky="w", pady=2)
+            key_label.grid(row=row_idx+1, column=0, sticky="w", pady=2)
 
-            # Значение
-            value_label = tk.Label(
-                left_frame, text=value, anchor="w",
-                font=("Arial", 10), padx=5
-            )
-            value_label.grid(row=idx+1, column=1, sticky="w", pady=2)
+            # Если первая строка - используем виджет Text
+            if idx == 0:
+                value_widget = tk.Text(left_frame, height=1, state="normal", font=("Arial", 10), borderwidth=0, highlightthickness=0)
+                value_widget.insert("1.0", self.mac_address)
+                value_widget.config(state="disabled")
+                value_widget.grid(row=row_idx+1, column=1, sticky="w", pady=2)
+            else:
+                # Остальные строки остаются обычными лейблами
+                value_label = tk.Label(
+                    left_frame, text=_ or "", anchor="w",
+                    font=("Arial", 10), padx=5
+                )
+                value_label.grid(row=row_idx+1, column=1, sticky="w", pady=2)
             
-            self.labels[key] = value_label
+            self.labels[key] = value_widget if idx == 0 else value_label
+            row_idx += 1
 
         # Панель управления (под таблицей)
         control_frame = tk.Frame(left_frame, pady=10)
@@ -177,16 +191,11 @@ class SecondWindow(tk.Toplevel):
         self.rssi_values = []
         self.timestamps = []
 
-
-
-
         # Запуск мониторинга
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.start_monitoring()
 
-        # Определение типа устройства
-        self.check_device_type()
-    
+
 
     def check_device_type(self):
         """
@@ -235,7 +244,7 @@ class SecondWindow(tk.Toplevel):
                             ssids.add(cleaned_ssid)
                             
             beacon_count = sum(1 for ft in frames if ft == "0x0008")
-            probe_req_count = sum(1 for ft in frames if ft == "0x04")
+            probe_req_count = sum(1 for ft in frames if ft == "0x0004")
             
             if beacon_count > 0:
                 self.device_type = "Access Point (AP)"
