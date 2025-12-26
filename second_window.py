@@ -118,10 +118,14 @@ class SecondWindow(tk.Toplevel):
 
             # Если первая строка - используем виджет Text
             if idx == 0:
-                value_widget = tk.Text(left_frame, height=1, state="normal", font=("Arial", 10), borderwidth=0, highlightthickness=0)
+                value_widget = tk.Text(left_frame, height=1, width=18, state="normal", font=("Arial", 10), borderwidth=0, highlightthickness=0, background="#EFEFEF")
                 value_widget.insert("1.0", self.mac_address)
+                value_widget.tag_add("centered", "1.0", "end")
+                value_widget.tag_configure("centered", justify="center")
                 value_widget.config(state="disabled")
                 value_widget.grid(row=row_idx+1, column=1, sticky="w", pady=2)
+                # Контекстное меню для копирования
+                self.create_context_menu(value_widget)
             else:
                 # Остальные строки остаются обычными лейблами
                 value_label = tk.Label(
@@ -195,7 +199,17 @@ class SecondWindow(tk.Toplevel):
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.start_monitoring()
 
+    def create_context_menu(self, widget):
+        # Создание контекстного меню
+        menu = tk.Menu(widget, tearoff=False)
+        menu.add_command(label="Копировать", command=lambda: self.copy_mac_address(widget))
+        widget.bind("<Button-3>", lambda event: menu.post(event.x_root, event.y_root))
 
+    def copy_mac_address(self, widget):
+        # Копирует выбранный текст в буфер обмена
+        selection = widget.selection_get()
+        self.clipboard_clear()
+        self.clipboard_append(selection)
 
     def check_device_type(self):
         """
