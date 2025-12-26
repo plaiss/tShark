@@ -339,7 +339,7 @@ class WifiMonitor(tk.Tk):
             new_props = {'relief': 'sunken', 'state': 'disabled'}
             self.set_button_properties('Monitor mode', new_props)
         # Повторяем проверку каждые 2 секунды
-        self.after(10000, self.refresh_status)
+        # self.after(10000, self.refresh_status)
 
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды

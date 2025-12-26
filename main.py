@@ -11,16 +11,27 @@ import utils
 from config import _stop
 import config
 from wifi_monitor import WifiMonitor  # Импортируем класс из отдельного файла
-
 from collections import deque, OrderedDict
 import queue
 import cProfile
 import io
 from pstats import Stats
-# Расширение логгеров до файлового ротирующего хранилища
 import logging.handlers
 
-#Глобальные переменные для управления буферами
+
+LOG_FORMAT = '%(asctime)s [%(levelname)-8s]: %(message)s (%(filename)s:%(lineno)d)'
+DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+file_handler = logging.handlers.RotatingFileHandler(
+    filename='app.log',  # Основной файл логов
+    maxBytes=10 * 1024 * 1024,  # Лимит размера файла (~10 MB)
+    backupCount=5,               # Количество резервных копий старых файлов
+    encoding='utf-8'
+)
+logging.basicConfig(level=logging.INFO, handlers=[file_handler])
+logger = logging.getLogger(__name__)
+formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 tree_buffer = deque(maxlen=1000)
 log_queue = queue.Queue()
 
@@ -57,22 +68,41 @@ class LimitedSizeCache(OrderedDict):
             return value
         else:
             return None
+vendor_cache = LimitedSizeCache(max_size=1000) # Новый словарь для кеша, с ограниченной вместимостью
 
-# Новый словарь для кеша, с ограниченной вместимостью
-vendor_cache = LimitedSizeCache(max_size=1000)
 
 def cached_lookup_vendor_db(mac, db_path, verbose=False):
     # Проверяем, есть ли мак-адрес в кэше
     if mac in vendor_cache:
         return vendor_cache.get(mac)
-
     # Если нет, ищем в базе данных
     vendor = utils.lookup_vendor_db(mac, db_path, verbose)
-
     # Сохраняем результат в кэш
     vendor_cache.add(mac, vendor)
-
     return vendor
+
+# Профилирующий декоратор
+# def profile_function(func):
+#     def wrapper(*args, **kwargs):
+#         profiler = cProfile.Profile()
+#         profiler.enable()
+#         result = func(*args, **kwargs)
+#         profiler.disable()
+
+#         # Захватываем вывод профилировки в поток
+#         sio = io.StringIO()
+#         stats = Stats(profiler, stream=sio)
+#         # stats.sort_stats('cumtime').print_stats()
+#         output = sio.getvalue()
+#         sio.close()
+
+#         # Выводим результаты в лог-файл
+#         logger.info(output)
+
+#         return result
+#     return wrapper
+
+
 
 # Профилирующий декоратор
 def profile_function(func):
@@ -82,44 +112,13 @@ def profile_function(func):
         result = func(*args, **kwargs)
         profiler.disable()
 
-        # Захватываем вывод профилировки в поток
-        sio = io.StringIO()
-        stats = Stats(profiler, stream=sio)
-        # stats.sort_stats('cumtime').print_stats()
-        output = sio.getvalue()
-        sio.close()
-
-        # Выводим результаты в лог-файл
-        logger.info(output)
+        # Сохраняем профилирование в бинарном формате
+        profiler.dump_stats('profile.bin')
 
         return result
     return wrapper
 
-# Настройка базовых настроек логгирования
-LOG_FORMAT = '%(asctime)s [%(levelname)-8s]: %(message)s (%(filename)s:%(lineno)d)'
-DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
-# Настройка корневого логгера
-# logging.basicConfig(format=LOG_FORMAT, datefmt=DATE_FORMAT, level=logging.INFO)
-logging.basicConfig(level=logging.INFO, handlers=[file_handler])
-logger = logging.getLogger(__name__)
-
-
-
-file_handler = logging.handlers.RotatingFileHandler(
-    filename='app.log',  # Основной файл логов
-    maxBytes=10 * 1024 * 1024,  # Лимит размера файла (~10 MB)
-    backupCount=5,               # Количество резервных копий старых файлов
-    encoding='utf-8'
-)
-
-formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-
-
-
-# Функция сброса буферов
 @profile_function
 def flush_buffers(root):
         logger.info("Flushing buffers...")
@@ -236,6 +235,7 @@ def tshark_worker(root, cmd, ttl):
         # Завершаем очистку буферов
         root.clean_buffers()
 
+
 def main():
     global WHITELIST_PATH, SEEN_TTL_SECONDS
     root = WifiMonitor()
@@ -268,5 +268,4 @@ def main():
     
 
 if __name__ == "__main__":
-        # Запускаем регулярное обновление буферов
     main()
