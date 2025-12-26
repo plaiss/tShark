@@ -297,8 +297,8 @@ class WifiMonitor(tk.Tk):
 
     # Добавляет текст в журнал
     def add_text(self, text):
-        self.text_area.insert(tk.END, text + "\n")
-        # self.text_area.insert(tk.END, text)
+        # self.text_area.insert(tk.END, text + "\n")
+        self.text_area.insert(tk.END, text)
         self.text_area.yview_moveto(1.0) #прокручивает вертикальный скролл виджета до самого низа (1.0 = 100% позиции по вертикали)
 
 
@@ -374,6 +374,8 @@ class WifiMonitor(tk.Tk):
         """
         if button_name in self.buttons:
             self.buttons[button_name].config(**properties)
+
+            
     def toggle_scanning(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             _stop.set()  # Устанавливаем флаг остановки

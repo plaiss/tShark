@@ -33,7 +33,7 @@ formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 # tree_buffer = deque(maxlen=1000)
-log_queue = queue.Queue()
+# log_queue = queue.Queue()
 
 # Класс для ограничения размера кэша с использованием LRU-стратегии
 class LimitedSizeCache(OrderedDict):
@@ -161,7 +161,7 @@ def tshark_worker(root, cmd, ttl):
 
     def stderr_reader():
         for line in proc.stderr:
-            root.add_text(f"{line.rstrip()}")
+            root.add_text(f"\n{line.rstrip()}\n")
 
     threading.Thread(target=stderr_reader, daemon=True).start()
 
