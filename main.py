@@ -32,8 +32,6 @@ logger = logging.getLogger(__name__)
 formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
-# tree_buffer = deque(maxlen=1000)
-# log_queue = queue.Queue()
 
 # Класс для ограничения размера кэша с использованием LRU-стратегии
 class LimitedSizeCache(OrderedDict):
@@ -97,32 +95,9 @@ def profile_function(func):
     return wrapper
 
 
-# @profile_function
-
-
-# def flush_buffers(root):
-#         logger.info("Flushing buffers...")
-#         # Массовое обновление дерева
-#         # print(f'tree_buffer= {len(root.tree_buffer))
-#         while root.tree_buffer:
-#             # Извлекаем ровно столько же значений, сколько помещено в буфер
-#             mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = root.tree_buffer.popleft()
-#             root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
-
-#         logger.info("Buffers flushed successfully.")
-#         # Сообщения лога
-#         messages = []
-#         while not root.log_queue.empty():  # Аналогично для log_queue
-#             # print(f'log_queue= {root.log_queue.qsize()}')
-#             messages.append(root.log_queue.get())
-#         if messages:
-#             root.add_text("\n".join(messages))
-#         # Плановое повторение (самозапланирование через 1 секунду)
-#         root.after(1000, lambda: flush_buffers(root))  # Повторять каждые 1 сек
-
 
 def tshark_worker(root, cmd, ttl):
-    # Внутри функции используй root.tree_buffer и root.log_queue
+
     logger.info("Starting TShark worker.")  # Зарегистрировали старт
     try:
         proc = subprocess.Popen(
@@ -199,8 +174,6 @@ def tshark_worker(root, cmd, ttl):
             root.tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, config._traffic_by_mac.get(mac_n)))
             root.log_queue.put(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
 
-            # Постоянная диагностика
-            root.debug_status()
 
     finally:
         # Здесь можно дополнительно очистить данные
