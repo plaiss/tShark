@@ -528,7 +528,7 @@ class WifiMonitor(tk.Tk):
 
     def show_settings(self):
         #    """Открывает окно настроек и останавливает процесс сканирования перед открытием"""
-        self.toggle_scanning()  # Сначала останавливаем сканирование
+        # self.toggle_scanning()  # Сначала останавливаем сканирование
     
         # Затем открываем окно настроек
         settings_window = SettingsWindow(self.master)
@@ -581,7 +581,7 @@ class WifiMonitor(tk.Tk):
             logger.info(f"Ошибка: {process.stderr}")
         else:
             # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
-            logger.info("Успешно сменил канал на {channel} для интерфейса {config.interface}.")
+            logger.info(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
             # Обновляем лейбл с номером канала
             # updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
             # self.title_label.config(text=updated_text)
