@@ -81,28 +81,6 @@ def cached_lookup_vendor_db(mac, db_path, verbose=False):
     vendor_cache.add(mac, vendor)
     return vendor
 
-# Профилирующий декоратор
-# def profile_function(func):
-#     def wrapper(*args, **kwargs):
-#         profiler = cProfile.Profile()
-#         profiler.enable()
-#         result = func(*args, **kwargs)
-#         profiler.disable()
-
-#         # Захватываем вывод профилировки в поток
-#         sio = io.StringIO()
-#         stats = Stats(profiler, stream=sio)
-#         # stats.sort_stats('cumtime').print_stats()
-#         output = sio.getvalue()
-#         sio.close()
-
-#         # Выводим результаты в лог-файл
-#         logger.info(output)
-
-#         return result
-#     return wrapper
-
-
 
 # Профилирующий декоратор
 def profile_function(func):
@@ -119,26 +97,28 @@ def profile_function(func):
     return wrapper
 
 
-@profile_function
-def flush_buffers(root):
-        logger.info("Flushing buffers...")
-        # Массовое обновление дерева
-        # print(f'tree_buffer= {len(root.tree_buffer))
-        while root.tree_buffer:
-            # Извлекаем ровно столько же значений, сколько помещено в буфер
-            mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = root.tree_buffer.popleft()
-            root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
+# @profile_function
 
-        logger.info("Buffers flushed successfully.")
-        # Сообщения лога
-        messages = []
-        while not root.log_queue.empty():  # Аналогично для log_queue
-            # print(f'log_queue= {root.log_queue.qsize()}')
-            messages.append(root.log_queue.get())
-        if messages:
-            root.add_text("\n".join(messages))
-        # Плановое повторение (самозапланирование через 1 секунду)
-        root.after(1000, lambda: flush_buffers(root))  # Повторять каждые 1 сек
+
+# def flush_buffers(root):
+#         logger.info("Flushing buffers...")
+#         # Массовое обновление дерева
+#         # print(f'tree_buffer= {len(root.tree_buffer))
+#         while root.tree_buffer:
+#             # Извлекаем ровно столько же значений, сколько помещено в буфер
+#             mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = root.tree_buffer.popleft()
+#             root.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
+
+#         logger.info("Buffers flushed successfully.")
+#         # Сообщения лога
+#         messages = []
+#         while not root.log_queue.empty():  # Аналогично для log_queue
+#             # print(f'log_queue= {root.log_queue.qsize()}')
+#             messages.append(root.log_queue.get())
+#         if messages:
+#             root.add_text("\n".join(messages))
+#         # Плановое повторение (самозапланирование через 1 секунду)
+#         root.after(1000, lambda: flush_buffers(root))  # Повторять каждые 1 сек
 
 
 def tshark_worker(root, cmd, ttl):
@@ -264,7 +244,7 @@ def main():
         tshark_thread.start()
         root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
 
-    root.after(1000, lambda: flush_buffers(root))
+    # root.after(5000, lambda: flush_buffers(root))
     root.mainloop()
     
 

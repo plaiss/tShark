@@ -2,7 +2,6 @@ import subprocess
 import threading
 import time
 import tkinter as tk
-
 import os
 import signal
 
@@ -107,7 +106,42 @@ class WifiMonitor(tk.Tk):
         self.tree_buffer = deque(maxlen=1000)
         self.log_queue = queue.Queue()
 
-    # Централизация окна
+        self.flush_lock = threading.Lock()
+        self.flush_buffers()
+
+    def flush_buffers(self):
+        # Получаем блокировку (если уже занята — ждём)
+        with self.flush_lock:
+            logger.info("Flushing buffers...")
+            
+            # Массовое обновление дерева
+            while self.tree_buffer:
+                mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = self.tree_buffer.popleft()
+                self.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
+
+            logger.info("Buffers flushed successfully.")
+            
+            # Обработка логов
+            messages = []
+            while not self.log_queue.empty():
+                messages.append(self.log_queue.get())
+            if messages:
+
+
+                # Проверяем, существует ли список и не пуст ли он
+                if messages and len(messages) > 0:
+                    last_element = messages[-1]  # Получаем последний элемент
+                    # Проверяем, что последний символ не равен '\n'
+                    if not last_element.endswith('\n'):
+                        messages[-1] = last_element + '\n'  # Добавляем '\n' к последнему элементу
+
+                self.add_text("\n".join(messages))
+            
+            # Плановое повторение (самозапланирование через 1 секунду)
+            # Важно: self.after() должен быть вне блока with, чтобы не блокировать поток GUI
+            self.after(1000, lambda: self.flush_buffers())
+
+        # Централизация окна
     def center_window(self):
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()

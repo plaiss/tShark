@@ -9,6 +9,7 @@ import os
 import re
 import utils
 import select
+import threading
 
 frameBeacon = '0x0008'
 
@@ -190,6 +191,8 @@ class SecondWindow(tk.Toplevel):
         # Запуск мониторинга
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.start_monitoring()
+        self.flush_lock = threading.Lock()
+
 
     def create_context_menu(self, widget):
         # Создание контекстного меню
