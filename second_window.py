@@ -62,17 +62,6 @@ class SecondWindow(tk.Toplevel):
             "-l"
         ]
 
-        # # Команда для определения типа устройства (AP или STA)
-        # self.CHECK_TYPE_CMD = [
-        #     "tshark", "-i", config.interface,
-        #     "-s", "0",
-        #     "-T", "fields",
-        #     "-e", "wlan.fc.type_subtype",
-        #     "-Y", f"wlan.addr=={self.mac_address}",
-        #     "-c", "100",
-        #     "-l"
-        # ]
-
         # Основной grid
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=2)  # Левый блок (таблица + управление)
@@ -82,13 +71,15 @@ class SecondWindow(tk.Toplevel):
         left_frame = tk.Frame(self, padx=5, pady=5)
         left_frame.grid(row=0, column=0, sticky="nsew")
 
+
         # Шапка таблицы
         headers = ["Характеристика", "Значение"]
         for col, header in enumerate(headers):
             hdr = tk.Label(
                 left_frame, text=header, relief=tk.RAISED,
                 padx=8, pady=4, font=("Arial", 11, "bold"),
-                bg="#f0f0f0"
+                bg="#f0f0f0",
+                width=20
             )
             hdr.grid(row=0, column=col, sticky="ew")
 
@@ -111,7 +102,7 @@ class SecondWindow(tk.Toplevel):
         for idx, (key, _) in enumerate(rows):
             # Название строки
             key_label = tk.Label(
-                left_frame, text=key, anchor="w", width=10,
+                left_frame, text=key, anchor="w", width=15,
                 font=("Arial", 10), padx=5
             )
             key_label.grid(row=row_idx+1, column=0, sticky="w", pady=2)
@@ -130,7 +121,8 @@ class SecondWindow(tk.Toplevel):
                 # Остальные строки остаются обычными лейблами
                 value_label = tk.Label(
                     left_frame, text=_ or "", anchor="w",
-                    font=("Arial", 10), padx=5
+                    font=("Arial", 10), padx=5,
+                    width=18
                 )
                 value_label.grid(row=row_idx+1, column=1, sticky="w", pady=2)
             
