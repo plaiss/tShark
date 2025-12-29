@@ -306,7 +306,8 @@ class WifiMonitor(tk.Tk):
             # print(f"[SORT] Отсортированные данные: {values}")
 
         except (ValueError, AttributeError, TypeError) as e:
-            # print(f"[SORT] Ошибка сортировки: {e}")
+            logger.error(f"Ошибка сортировки: {e}")
+            print(f"[SORT] Ошибка сортировки: {e}")
             values.sort(
                 key=lambda x: str.lower(str(x[1]) if x[1] is not None else ''),
                 reverse=new_order
@@ -420,6 +421,12 @@ class WifiMonitor(tk.Tk):
             _stop.clear()  # Снимаем флаг остановки
             self.start_tshark()
             self.set_button_properties('Стоп', {'text': 'Стоп'})  # Меняем текст на "Стоп"
+    
+    def start_tshark(self):
+        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+            return  # Если поток уже запущен, ничего не делаем
+        self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
+        self.tshark_thread.start()
 
     def clean_buffers(self, controlled=False):
         if controlled:
@@ -437,11 +444,6 @@ class WifiMonitor(tk.Tk):
       
 
 
-    def start_tshark(self):
-        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
-            return  # Если поток уже запущен, ничего не делаем
-        self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
-        self.tshark_thread.start()
 
 
 
@@ -466,18 +468,12 @@ class WifiMonitor(tk.Tk):
     def export_csv(self):
         """Экспорт данных в CSV-файл."""
         try:
-            # Останавливаем сканирование перед началом экспорта
-            # self.toggle_scanning()
-
             # Прямо вызываем класс ExportDialog для начала экспорта
             ExportDialog(self.master, self.tree)
 
         except Exception as e:
             print(f"Ошибка при открытии окна экспорта: {e}")
             messagebox.showerror("Ошибка", "Не удалось открыть окно экспорта данных.")
-            # Если сканирование было остановлено, но окно не открылось — возобновляем
-            # if self.scanning_paused:
-            #     self.toggle_scanning()
 
     def _on_export_dialog_close(self, dialog_window):
         """Обработчик закрытия окна экспорта."""
@@ -519,13 +515,11 @@ class WifiMonitor(tk.Tk):
 
         except OSError as err:
             messagebox.showerror("Ошибка", f"Невозможно открыть терминал: {err}")
+            logger.error(f"Невозможно открыть терминал: {err}")
             return
 
 
     def show_settings(self):
-        #    """Открывает окно настроек и останавливает процесс сканирования перед открытием"""
-        # self.toggle_scanning()  # Сначала останавливаем сканирование
-    
         # Затем открываем окно настроек
         settings_window = SettingsWindow(self.master)
         settings_window.grab_set()  # Фокусируется на окне настроек
