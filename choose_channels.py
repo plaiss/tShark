@@ -93,7 +93,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         cur_channel = utils.get_current_channel()
         for checkbox_group in [self.checkboxes_2_4, self.checkboxes_5]:
             for widget, var in checkbox_group:
-                if str(widget["text"]) == str(cur_channel):
+                if str(widget["text"]) == str(cur_channel[0]):
                     var.set(True)                     # Ставим галочку
                     widget.config(font=("Arial", 11, "bold"))  # Делаем текст жирным
                     break
