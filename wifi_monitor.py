@@ -526,7 +526,9 @@ class WifiMonitor(tk.Tk):
                 for channel in channels:
                     if self.scanning_active == False:
                         break
+                    # logger.info("Before changing channel")
                     self.change_channel(channel)
+                    # logger.info("Before changing channel")
                     time.sleep(delay_time)
 
         self.scanner_thread = threading.Thread(target=run_scanner, daemon=True)
@@ -534,6 +536,7 @@ class WifiMonitor(tk.Tk):
         self.scanner_thread.start()
 
     def change_channel(self, channel, password=config.password):
+        logger.info("Before changing channel")
         # Формируем команду
         command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
         # Выполнение команды с передачей пароля через stdin
@@ -541,8 +544,10 @@ class WifiMonitor(tk.Tk):
 
         if process.returncode != 0:
             print(f"Ошибка: {process.stderr}")  # Выводим сообщение об ошибке
+            logger.info(f"Ошибка: {process.stderr}")
         else:
             # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
+            logger.info("Успешно сменил канал на {channel} для интерфейса {config.interface}.")
             # Обновляем лейбл с номером канала
             # updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
             # self.title_label.config(text=updated_text)
