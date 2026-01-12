@@ -1,3 +1,4 @@
+import logging
 import tkinter as tk
 from tkinter import ttk
 import matplotlib.pyplot as plt
@@ -30,21 +31,19 @@ class SecondWindow(tk.Toplevel):
         self.parent = parent
         self.title("Детали устройства")
         
-        # Фиксированный размер окна 800x480
-        self.geometry("800x480")
-        self.maxsize(800, 480)
-        self.minsize(800, 480)
+        # Автоматическое раскрытие окна на весь экран
+        self.attributes('-fullscreen', True)
+        # Убираем шапку окна
+        self.overrideredirect(True)
 
         self.paused = False
         self.ema_value = None
         self.device_type = ""
         self.last_valid_time = time.time()
         
-
-
         # Валидация MAC-адреса
         if not mac_address or not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", mac_address):
-            self.mac_address = "2C:57:41:83:32:01"
+            self.mac_address = "2C:57:41:83:32:02"
         else:
             self.mac_address = mac_address
         current_channel_num, frequency = utils.get_current_channel()
@@ -162,6 +161,10 @@ class SecondWindow(tk.Toplevel):
             command=self.toggle_filter, font=("Arial", 10)
         )
         self.filter_toggle.grid(row=0, column=2, padx=3, pady=5)
+
+        # Добавляем кнопку закрытия в нижний левый угол
+        close_button = tk.Button(self, text="Закрыть", command=self.destroy, font=("Arial", 10))
+        close_button.place(relx=0, rely=1, x=10, y=-35, anchor="sw")  # Нижний левый угол
 
         # Правый контейнер (график)
         right_frame = tk.Frame(self, padx=5, pady=5)
