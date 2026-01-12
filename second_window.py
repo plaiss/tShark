@@ -203,7 +203,25 @@ class SecondWindow(tk.Toplevel):
 
         self.start_monitoring()
         self.schedule_plot_update()  # Запускаем периодическую перерисовку
+        self.rssi_buffer = []        # Буфер для медианного фильтра (окно 3)
+        self.ema_value = None         # Начальное значение EMA
+        self.last_valid_time = time.time()
+        self.use_filter_var = tk.BooleanVar(value=True)  # Флаг включения сглаживания
+        self.alpha = 0.2            # Коэффициент EMA (можно менять через слайдер)
 
+
+        self.last_rssi = None           # Последнее «валидное» значение RSSI (для порога)
+        self.ema_value = None          # Начальное значение EMA
+        self.last_valid_time = time.time()
+        self.use_filter_var = tk.BooleanVar(value=True)  # Флаг включения сглаживания
+        self.alpha = 0.2             # Коэффициент EMA (можно менять через слайдер)
+
+        self.last_rssi = None           # Последнее «валидное» значение RSSI
+        self.consecutive_rejects = 0    # Счётчик последовательных выбросов
+        self.ema_value = None          # Начальное значение EMA
+        self.last_valid_time = time.time()
+        self.use_filter_var = tk.BooleanVar(value=True)  # Флаг сглаживания
+        self.alpha = 0.2             # Коэффициент EMA
 
     def create_context_menu(self, widget):
         # Создание контекстного меню
@@ -330,46 +348,275 @@ class SecondWindow(tk.Toplevel):
             print(f"[ERROR] {e}")
             self.after(50, self._read_next_line)
 
+    # def _process_response(self, response):
+    #     """Обрабатываем строку, обновляем данные, но не перерисовываем график."""
+    #     parts = response.strip().split("\t")
+    #     if len(parts) != 2:
+    #         return
+
+    #     frame_number, rssi_value = parts
+    #     try:
+    #         current_rssi = int(rssi_value)
+    #         if -100 <= current_rssi <= -20:
+    #             self.last_valid_time = time.time()
+
+
+    #             # Сглаживание
+    #             if self.use_filter_var.get():
+    #                 if self.ema_value is None:
+    #                     self.ema_value = current_rssi
+    #                 else:
+    #                     self.ema_value = (self.alpha * current_rssi +
+    #                                       (1 - self.alpha) * self.ema_value)
+    #                 display_rssi = self.ema_value
+    #             else:
+    #                 display_rssi = current_rssi
+
+    #             # Обновляем интерфейс
+    #             self.labels["Текущий кадр"]["text"] = frame_number
+    #             self.labels["RSSI"]["text"] = f"{display_rssi:.2f} dBm"
+
+    #             # Добавляем в буфер (ограничиваем длину)
+    #             self.rssi_values.append(display_rssi)
+    #             self.timestamps.append(time.time())
+
+
+    #             # if len(self.rssi_values) >
+    #             if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
+    #                 self.rssi_values.pop(0)
+    #                 self.timestamps.pop(0)
+
+    #     except ValueError:
+    #         pass
+
+    # def _process_response(self, response):
+    #     """Обрабатываем строку: медианный фильтр → EMA → обновление интерфейса."""
+    #     parts = response.strip().split("\t")
+    #     if len(parts) != 2:
+    #         return  # Пропускаем некорректные строки
+
+    #     frame_number, rssi_value = parts
+    #     try:
+    #         current_rssi = int(rssi_value)
+    #         if -100 <= current_rssi <= -20:  # Валидный диапазон RSSI
+    #             self.last_valid_time = time.time()
+
+    #             # 1. Медианный фильтр (окно 3)
+    #             self.rssi_buffer.append(current_rssi)
+
+    #             if len(self.rssi_buffer) == 3:
+    #                 sorted_buf = sorted(self.rssi_buffer)
+    #                 filtered_rssi = sorted_buf[1]  # Медиана (второй элемент в отсортированном списке из 3)
+    #                 # Сдвигаем окно: удаляем самый старый элемент
+    #                 self.rssi_buffer.pop(0)
+    #             else:
+    #                 # Если в буфере меньше 3 значений — используем текущее (без фильтрации)
+    #                 filtered_rssi = current_rssi
+
+
+    #             # Вывод отладки: исходное и отфильтрованное значение
+    #             print(f"Raw: {current_rssi}, Filtered: {filtered_rssi}")
+
+    #             # 2. EMA-сглаживание поверх отфильтрованных данных
+    #             if self.use_filter_var.get():  # Если сглаживание включено
+    #                 if self.ema_value is None:
+    #                     self.ema_value = filtered_rssi
+    #                 else:
+    #                     self.ema_value = (
+    #                         self.alpha * filtered_rssi +
+    #                         (1 - self.alpha) * self.ema_value
+    #                     )
+    #                 display_rssi = self.ema_value
+    #             else:
+    #                 display_rssi = filtered_rssi  # Без сглаживания — берём отфильтрованное значение
+
+    #             # 3. Обновление интерфейса и буферов
+    #             self.labels["Текущий кадр"]["text"] = frame_number
+    #             self.labels["RSSI"]["text"] = f"{display_rssi:.2f} dBm"
+
+    #             self.rssi_values.append(display_rssi)
+    #             self.timestamps.append(time.time())
+
+    #             # Ограничиваем длину буферов
+    #             if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
+    #                 self.rssi_values.pop(0)
+    #                 self.timestamps.pop(0)
+
+    #         # Если RSSI вне диапазона [-100, -20] — игнорируем
+    #         else:
+    #             pass
+
+    #     except ValueError:
+    #         # Если rssi_value не число — пропускаем
+    #         pass
+    #     except Exception as e:
+    #         # На всякий случай ловим неожиданные ошибки
+    #         print(f"[ERROR in _process_response] {e}")
+
+    # def _process_response(self, response):
+    #     """
+    #     Обрабатываем строку: пороговый фильтр (ограничение дельты) → EMA → обновление интерфейса.
+    #     """
+    #     parts = response.strip().split("\t")
+    #     if len(parts) != 2:
+    #         return  # Пропускаем некорректные строки
+
+
+    #     frame_number, rssi_value = parts
+    #     try:
+    #         current_rssi = int(rssi_value)
+    #         if -100 <= current_rssi <= -20:  # Валидный диапазон RSSI
+    #             self.last_valid_time = time.time()
+
+
+    #             # 1. Пороговый фильтр: ограничиваем максимальную дельту
+    #             threshold = 10  # Порог в дБ (настройка)
+
+    #             filtered_rssi = current_rssi  # Изначально берём текущее значение
+
+
+    #             if self.last_rssi is not None:
+    #                 delta = abs(current_rssi - self.last_rssi)
+    #                 if delta > threshold:
+    #                     # Выброс: используем предыдущее валидное значение
+    #                     filtered_rssi = self.last_rssi
+    #                     print(f"Raw: {current_rssi}, Filtered: {filtered_rssi} (выброс, delta={delta})")
+    #                 else:
+    #                     # Допустимое изменение: обновляем last_rssi
+    #                     self.last_rssi = current_rssi
+    #                     print(f"Raw: {current_rssi}, Filtered: {filtered_rssi}")
+    #             else:
+    #                 # Первое значение: просто сохраняем
+    #                 self.last_rssi = current_rssi
+    #                 print(f"Raw: {current_rssi}, Filtered: {filtered_rssi}")
+
+
+    #             # 2. EMA-сглаживание поверх отфильтрованных данных
+    #             if self.use_filter_var.get():  # Если сглаживание включено
+    #                 if self.ema_value is None:
+    #                     self.ema_value = filtered_rssi
+    #                 else:
+    #                     self.ema_value = (
+    #                         self.alpha * filtered_rssi +
+    #                         (1 - self.alpha) * self.ema_value
+    #                     )
+    #                 display_rssi = self.ema_value
+    #             else:
+    #                 display_rssi = filtered_rssi  # Без сглаживания — берём отфильтрованное значение
+
+
+    #             # 3. Обновление интерфейса и буферов
+    #             self.labels["Текущий кадр"]["text"] = frame_number
+    #             self.labels["RSSI"]["text"] = f"{display_rssi:.2f} dBm"
+
+
+    #             self.rssi_values.append(display_rssi)
+    #             self.timestamps.append(time.time())
+
+
+    #             # Ограничиваем длину буферов
+    #             if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
+    #                 self.rssi_values.pop(0)
+    #                 self.timestamps.pop(0)
+
+
+    #         # Если RSSI вне диапазона [-100, -2 Newton] — игнорируем
+    #         else:
+    #             pass
+
+    #     except ValueError:
+    #         # Если rssi_value не число — пропускаем
+    #         pass
+    #     except Exception as e:
+    #         # На всякий случай ловим неожиданные ошибки
+    #         print(f"[ERROR in _process_response] {e}")
+
     def _process_response(self, response):
-        """Обрабатываем строку, обновляем данные, но не перерисовываем график."""
+        """
+        Обрабатываем строку: пороговый фильтр (с ограничением на 10 выбросов) → EMA → обновление интерфейса.
+        """
         parts = response.strip().split("\t")
         if len(parts) != 2:
-            return
+            return  # Пропускаем некорректные строки
 
         frame_number, rssi_value = parts
         try:
             current_rssi = int(rssi_value)
-            if -100 <= current_rssi <= -20:
+            if -100 <= current_rssi <= -20:  # Валидный диапазон RSSI
                 self.last_valid_time = time.time()
 
+                # 1. Пороговый фильтр с ограничением на последовательные выбросы
+                threshold = 5  # Порог в дБ (настройка)
+                max_consecutive_rejects = 10  # Максимум 10 выбросов подряд
 
-                # Сглаживание
-                if self.use_filter_var.get():
-                    if self.ema_value is None:
-                        self.ema_value = current_rssi
+                filtered_rssi = current_rssi  # Изначально берём текущее значение
+                is_rejected = False
+
+                if self.last_rssi is not None:
+                    delta = abs(current_rssi - self.last_rssi)
+                    if delta > threshold:
+                        # Проверяем счётчик выбросов
+                        if self.consecutive_rejects < max_consecutive_rejects:
+                            filtered_rssi = self.last_rssi
+                            self.consecutive_rejects += 1
+                            is_rejected = True
+                            print(f"Raw: {current_rssi}, Filtered: {filtered_rssi} "
+                                f"(выброс #{self.consecutive_rejects}, delta={delta})")
+                        else:
+                            # Превышен лимит выбросов: принимаем текущее значение как новое базовое
+                            filtered_rssi = current_rssi
+                            self.last_rssi = current_rssi
+                            self.consecutive_rejects = 0  # Сброс счётчика
+                            print(f"Raw: {current_rssi}, Filtered: {filtered_rssi} "
+                                f"(принудительный приём после {max_consecutive_rejects} выбросов)")
                     else:
-                        self.ema_value = (self.alpha * current_rssi +
-                                          (1 - self.alpha) * self.ema_value)
+                        # Допустимое изменение: обновляем last_rssi и сбрасываем счётчик
+                        self.last_rssi = current_rssi
+                        self.consecutive_rejects = 0
+                        print(f"Raw: {current_rssi}, Filtered: {filtered_rssi}")
+                else:
+                    # Первое значение: просто сохраняем
+                    self.last_rssi = current_rssi
+                    self.consecutive_rejects = 0
+                    print(f"Raw: {current_rssi}, Filtered: {filtered_rssi}")
+
+                # 2. EMA-сглаживание поверх отфильтрованных данных
+                if self.use_filter_var.get():  # Если сглаживание включено
+                    if self.ema_value is None:
+                        self.ema_value = filtered_rssi
+                    else:
+                        self.ema_value = (
+                            self.alpha * filtered_rssi +
+                            (1 - self.alpha) * self.ema_value
+                        )
                     display_rssi = self.ema_value
                 else:
-                    display_rssi = current_rssi
+                    display_rssi = filtered_rssi  # Без сглаживания — берём отфильтрованное значение
 
-                # Обновляем интерфейс
+
+                # 3. Обновление интерфейса и буферов
                 self.labels["Текущий кадр"]["text"] = frame_number
                 self.labels["RSSI"]["text"] = f"{display_rssi:.2f} dBm"
 
-                # Добавляем в буфер (ограничиваем длину)
                 self.rssi_values.append(display_rssi)
                 self.timestamps.append(time.time())
 
-
-                # if len(self.rssi_values) >
+                # Ограничиваем длину буферов
                 if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
                     self.rssi_values.pop(0)
                     self.timestamps.pop(0)
 
+            # Если RSSI вне диапазона [-100, -20] — игнорируем
+            else:
+                pass
+
         except ValueError:
+            # Если rssi_value не число — пропускаем
             pass
+        except Exception as e:
+            # На всякий случай ловим неожиданные ошибки
+            print(f"[ERROR in _process_response] {e}")
+
 
     def plot_graph(self):
         """Перерисовываем график."""
@@ -393,7 +640,7 @@ class SecondWindow(tk.Toplevel):
     def schedule_plot_update(self):
         """Планируем периодическую перерисовку графика каждые 200 мс."""
         self.plot_graph()
-        self.after(200, self.schedule_plot_update)
+        self.after(100, self.schedule_plot_update)
 
     def update_alpha(self, event=None):
         """Обновляем коэффициент сглаживания."""
