@@ -439,8 +439,8 @@ class WifiMonitor(tk.Tk):
             # self.clear_text()  # Очищаем текстовую область
         
     # Очищает текстовую область
-    def clear_text(self):
-        self.text_area.delete('1.0', tk.END)
+    # def clear_text(self):
+    #     self.text_area.delete('1.0', tk.END)
       
 
 
@@ -463,7 +463,8 @@ class WifiMonitor(tk.Tk):
         config._last_seen.clear()
         config._seen_count.clear()
         self.tree.delete(*self.tree.get_children())
-        self.clear_text()
+        # self.clear_text()
+        self.text_area.delete('1.0', tk.END)
 
     def export_csv(self):
         """Экспорт данных в CSV-файл."""

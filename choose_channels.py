@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox, Frame, Label, Checkbutton, Button, OptionMenu, StringVar, BooleanVar
 import utils
 
+import subprocess
+import re
+
 class ChannelSelectorDialog(simpledialog.Dialog):
     def __init__(self, parent, interface, channels=None, delay_time=None):
         """
@@ -97,6 +100,16 @@ class ChannelSelectorDialog(simpledialog.Dialog):
                     var.set(True)                     # Ставим галочку
                     widget.config(font=("Arial", 11, "bold"))  # Делаем текст жирным
                     break
+        
+        # Получаем доступные каналы для интерфейса
+        available_channels = self.get_available_channels(self.interface)
+        # Отключаем неподдерживаемые каналы
+        for widget, var in self.checkboxes_2_4 + self.checkboxes_5:
+            channel_num = int(widget["text"])
+            if channel_num not in available_channels:
+                widget.config(state="disabled", fg="gray50")
+                var.set(False)  # Снимаем галочку, если была
+
 
     def toggle_range_selection(self, group):
         all_vars = [var for _, var in group]
@@ -123,6 +136,38 @@ class ChannelSelectorDialog(simpledialog.Dialog):
                 selected_channels.append(int(widget["text"]))
         delay_time = float(self.delay_choice.get())
         self.result = (selected_channels, delay_time)
+
+
+    def get_available_channels(self, interface):
+        """
+        Получает список доступных каналов для указанного интерфейса через iwlist.
+        Возвращает set() номеров каналов.
+        """
+        try:
+            result = subprocess.run(
+                ["iwlist", interface, "channel"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            output = result.stdout
+
+            # Ищем строки вида "Channel 01 : 2.412 GHz"
+            channels = set()
+            for line in output.splitlines():
+                match = re.search(r"Channel\s+(\d+)\s*:", line)
+                if match:
+                    channels.add(int(match.group(1)))
+            return channels
+
+        except subprocess.CalledProcessError as e:
+            print(f"Ошибка при выполнении iwlist: {e}")
+            return set()  # Возвращаем пустой набор при ошибке
+        except Exception as e:
+            print(f"Неожиданная ошибка: {e}")
+            return set()
+
+
 
 if __name__ == "__main__":
     root = tk.Tk()
