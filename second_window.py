@@ -72,7 +72,6 @@ class SecondWindow(tk.Toplevel):
         left_frame = tk.Frame(self, padx=5, pady=5)
         left_frame.grid(row=0, column=0, sticky="nsew")
 
-
         # Шапка таблицы
         headers = ["Характеристика", "Значение"]
         for col, header in enumerate(headers):
@@ -135,6 +134,7 @@ class SecondWindow(tk.Toplevel):
         control_frame.grid(row=len(rows)+1, column=0, columnspan=2, sticky="ew")
         control_frame.columnconfigure(1, weight=2)
 
+
         # Кнопка паузы
         self.pause_start_button = tk.Button(
             control_frame, text="Пауза", command=self.toggle_pause,
@@ -170,8 +170,13 @@ class SecondWindow(tk.Toplevel):
         # Правый контейнер (график)
         right_frame = tk.Frame(self, padx=5, pady=5)
         right_frame.grid(row=0, column=1, sticky="nsew")
+        right_frame.grid
+                # ... продолжение __init__ ...
+
+
         right_frame.grid_rowconfigure(0, weight=1)  # График занимает всю высоту
         right_frame.grid_columnconfigure(0, weight=1)
+
 
         # График RSSI
         fig = plt.Figure(figsize=(5, 4), dpi=100)
@@ -194,16 +199,18 @@ class SecondWindow(tk.Toplevel):
 
         # Запуск мониторинга
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        self.start_monitoring()
         self.flush_lock = threading.Lock()
-        self.raw_rssi_values = []      # Хранит сырые значения RSSI
-        self.raw_timestamps = []       # Временные отметки сырых данных
+
+        self.start_monitoring()
+        self.schedule_plot_update()  # Запускаем периодическую перерисовку
+
 
     def create_context_menu(self, widget):
         # Создание контекстного меню
         menu = tk.Menu(widget, tearoff=False)
         menu.add_command(label="Копировать", command=lambda: self.copy_mac_address(widget))
         widget.bind("<Button-3>", lambda event: menu.post(event.x_root, event.y_root))
+
 
     def copy_mac_address(self, widget):
         # Копирует выбранный текст в буфер обмена
@@ -289,95 +296,52 @@ class SecondWindow(tk.Toplevel):
         else:
             self.pause_start_button.config(text="Пауза")
 
+
     def start_monitoring(self):
         """Запускаем мониторинг через .after()."""
         self._read_next_line()
 
+
     def _read_next_line(self):
-        """Читаем одну строку и планируем следующий вызов."""
+        """Читаем данные пакетно, планируем следующий вызов через 50 мс."""
         if self.paused:
-            self.after(1000, self._read_next_line)
+            self.after(50, self._read_next_line)
             return
 
         try:
-            # Проверяем наличие данных (неблокирующий вызов)
-            if select.select([self.proc.stdout], [], [], 0.1)[0]:
-                line = self.proc.stdout.readline()
-                if line:
-                    response = line.decode().strip()
-                    if response:
-                        self._process_response(response)
-            else:
-                # Нет данных — ждём 100 мс
-                self.after(100, self._read_next_line)
-                return
+            # Собираем до 10 строк за один вызов
+            batch = []
+            for _ in range(10):
+                if select.select([self.proc.stdout], [], [], 0.01)[0]:
+                    line = self.proc.stdout.readline()
+                    if line:
+                        batch.append(line.decode().strip())
+                else:
+                    break
+
+            # Обрабатываем пакет
+            for response in batch:
+                if response:
+                    self._process_response(response)
+
+            # Планируем следующий вызов через 50 мс
+            self.after(50, self._read_next_line)
         except Exception as e:
             print(f"[ERROR] {e}")
-
-        self.after(100, self._read_next_line)
-
-    # def _process_response(self, response):
-    #     """Обрабатываем одну строку данных."""
-    #     parts = response.strip().split("\t")
-    #     if len(parts) != 2:
-    #         return  # Пропускаем некорректные строки
-
-    #     frame_number, rssi_value = parts
-
-    #     try:
-    #         current_rssi = float(rssi_value)
-    #         if -100 <= current_rssi <= -20:
-    #             self.last_valid_time = time.time()
-
-    #             # Сглаживание
-    #             if self.use_filter_var.get():
-    #                 if self.ema_value is None:
-    #                     self.ema_value = current_rssi
-    #                 else:
-    #                     self.ema_value = (self.alpha * current_rssi +
-    #                                      (1 - self.alpha) * self.ema_value)
-    #                 display_rssi = self.ema_value
-    #             else:
-    #                 display_rssi = current_rssi
-
-    #             # Обновляем виджеты
-    #             self.labels["Текущий кадр"]["text"] = frame_number
-    #             self.labels["RSSI"]["text"] = f"{display_rssi:.2f} dBm"
-    #             self.rssi_values.append(display_rssi)
-    #             self.timestamps.append(time.time())
-
-
-    #             # Ограничиваем длину буфера
-    #             if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
-    #                 self.rssi_values.pop(0)
-    #                 self.timestamps.pop(0)
-
-    #             self.plot_graph()
-    #     except ValueError:
-    #         pass  # Пропускаем некорректные значения RSSI
+            self.after(50, self._read_next_line)
 
     def _process_response(self, response):
-        """Обрабатываем одну строку данных."""
+        """Обрабатываем строку, обновляем данные, но не перерисовываем график."""
         parts = response.strip().split("\t")
         if len(parts) != 2:
-            return  # Пропускаем некорректные строки
+            return
 
         frame_number, rssi_value = parts
-
         try:
-            # current_rssi = float(rssi_value)
             current_rssi = int(rssi_value)
             if -100 <= current_rssi <= -20:
                 self.last_valid_time = time.time()
 
-                # Накапливаем сырой сигнал
-                self.raw_rssi_values.append(current_rssi)
-                self.raw_timestamps.append(self.last_valid_time)
-
-                # Ограничиваем количество накопленных данных
-                if len(self.raw_rssi_values) > MAX_POINTS_ON_GRAPH * 10:  # Буфер увеличен в 10 раз
-                    self.raw_rssi_values.pop(0)
-                    self.raw_timestamps.pop(0)
 
                 # Сглаживание
                 if self.use_filter_var.get():
@@ -394,57 +358,27 @@ class SecondWindow(tk.Toplevel):
                 self.labels["Текущий кадр"]["text"] = frame_number
                 self.labels["RSSI"]["text"] = f"{display_rssi:.2f} dBm"
 
-                # Добавляем сглаженное значение в основной массив
+                # Добавляем в буфер (ограничиваем длину)
                 self.rssi_values.append(display_rssi)
                 self.timestamps.append(time.time())
 
-                # Ограничиваем длину основного буфера
+
+                # if len(self.rssi_values) >
                 if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
                     self.rssi_values.pop(0)
                     self.timestamps.pop(0)
 
-                self.plot_graph()
         except ValueError:
-            pass  # Пропускаем некорректные значения RSSI
-
-    # def decimate_data(self, data, timestamps, factor=100):
-    #         # Простая реализация децимации с уменьшением количества точек в фактор раз
-    #         return data[::factor], timestamps[::factor]
-    
-
-    def decimate_data(self, data, timestamps, factor=100):
-        # Преобразуем в массивы NumPy
-        data = np.array(data)
-        timestamps = np.array(timestamps)
-        
-        n = len(data)
-        # Обрезаем до кратного factor
-        n_trimmed = (n // factor) * factor
-        data_trimmed = data[:n_trimmed]
-        timestamps_trimmed = timestamps[:n_trimmed]
-        
-        # Усредняем по блокам размера factor
-        data_dec = np.mean(data_trimmed.reshape(-1, factor), axis=1)
-        # Для временных меток берём начало каждого блока
-        timestamps_dec = timestamps_trimmed[::factor]
-        
-        return data_dec, timestamps_dec
-
+            pass
 
     def plot_graph(self):
-
-         # Применяем децимацию
-        rssi_values, timestamps = self.decimate_data(self.raw_rssi_values, self.raw_timestamps)
-
-        """Обновляем график RSSI."""
+        """Перерисовываем график."""
         if len(self.timestamps) < 2 or len(self.rssi_values) < 2:
             return
 
         self.ax.clear()
         self.ax.grid(True, linestyle='--', alpha=0.7)
-        # self.ax.set_ylabel('RSSI (dBm)', fontsize=10)
         self.ax.plot(self.timestamps, self.rssi_values, color='blue', linewidth=1)
-
 
         # Настройка осей
         yticks = list(range(-100, -20, 10))
@@ -453,33 +387,31 @@ class SecondWindow(tk.Toplevel):
         self.ax.xaxis.set_visible(False)
         self.ax.margins(x=0.02)
 
+
         self.canvas.draw_idle()
 
+    def schedule_plot_update(self):
+        """Планируем периодическую перерисовку графика каждые 200 мс."""
+        self.plot_graph()
+        self.after(200, self.schedule_plot_update)
+
     def update_alpha(self, event=None):
-        """Обновление коэффициента сглаживания."""
+        """Обновляем коэффициент сглаживания."""
         self.alpha = self.alpha_slider.get()
 
     def toggle_filter(self):
-        """Включение/выключение сглаживания."""
+        """Включаем/отключаем сглаживание."""
         pass  # Логика уже в _process_response
 
-    def destroy(self):
-        """Завершение программы."""
+    def on_closing(self):
+        """Обработчик закрытия окна."""
         self.stop_updating()
-        time.sleep(0.5)
-        if self.proc and self.proc.poll() is None:
-            self.proc.terminate()
-            time.sleep(0.3)
-            if self.proc.poll() is None:
-                self.proc.kill()
-        plt.close('all')
-        super().destroy()
-        if __name__ == "__main__":
-            self.parent.destroy()
+        self.destroy()
 
-# Запуск программы
+# Пример использования (если нужно)
 if __name__ == "__main__":
     root = tk.Tk()
-    app = SecondWindow(root)
     root.withdraw()  # Скрываем главное окно
-    app.mainloop()
+    window = SecondWindow(root, mac_address="0A:2C:47:0B:CD:D3")
+    window.protocol("WM_DELETE_WINDOW", window.on_closing)
+    root.mainloop()
