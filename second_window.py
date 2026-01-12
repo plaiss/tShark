@@ -11,6 +11,7 @@ import re
 import utils
 import select
 import threading
+import numpy as np
 
 frameBeacon = '0x0008'
 
@@ -43,7 +44,7 @@ class SecondWindow(tk.Toplevel):
         
         # Валидация MAC-адреса
         if not mac_address or not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", mac_address):
-            self.mac_address = "2C:57:41:83:32:02"
+            self.mac_address = "0A:2C:47:0B:CD:D3"
         else:
             self.mac_address = mac_address
         current_channel_num, frequency = utils.get_current_channel()
@@ -195,7 +196,8 @@ class SecondWindow(tk.Toplevel):
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.start_monitoring()
         self.flush_lock = threading.Lock()
-
+        self.raw_rssi_values = []      # Хранит сырые значения RSSI
+        self.raw_timestamps = []       # Временные отметки сырых данных
 
     def create_context_menu(self, widget):
         # Создание контекстного меню
@@ -314,6 +316,46 @@ class SecondWindow(tk.Toplevel):
 
         self.after(100, self._read_next_line)
 
+    # def _process_response(self, response):
+    #     """Обрабатываем одну строку данных."""
+    #     parts = response.strip().split("\t")
+    #     if len(parts) != 2:
+    #         return  # Пропускаем некорректные строки
+
+    #     frame_number, rssi_value = parts
+
+    #     try:
+    #         current_rssi = float(rssi_value)
+    #         if -100 <= current_rssi <= -20:
+    #             self.last_valid_time = time.time()
+
+    #             # Сглаживание
+    #             if self.use_filter_var.get():
+    #                 if self.ema_value is None:
+    #                     self.ema_value = current_rssi
+    #                 else:
+    #                     self.ema_value = (self.alpha * current_rssi +
+    #                                      (1 - self.alpha) * self.ema_value)
+    #                 display_rssi = self.ema_value
+    #             else:
+    #                 display_rssi = current_rssi
+
+    #             # Обновляем виджеты
+    #             self.labels["Текущий кадр"]["text"] = frame_number
+    #             self.labels["RSSI"]["text"] = f"{display_rssi:.2f} dBm"
+    #             self.rssi_values.append(display_rssi)
+    #             self.timestamps.append(time.time())
+
+
+    #             # Ограничиваем длину буфера
+    #             if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
+    #                 self.rssi_values.pop(0)
+    #                 self.timestamps.pop(0)
+
+    #             self.plot_graph()
+    #     except ValueError:
+    #         pass  # Пропускаем некорректные значения RSSI
+
     def _process_response(self, response):
         """Обрабатываем одну строку данных."""
         parts = response.strip().split("\t")
@@ -323,9 +365,19 @@ class SecondWindow(tk.Toplevel):
         frame_number, rssi_value = parts
 
         try:
-            current_rssi = float(rssi_value)
+            # current_rssi = float(rssi_value)
+            current_rssi = int(rssi_value)
             if -100 <= current_rssi <= -20:
                 self.last_valid_time = time.time()
+
+                # Накапливаем сырой сигнал
+                self.raw_rssi_values.append(current_rssi)
+                self.raw_timestamps.append(self.last_valid_time)
+
+                # Ограничиваем количество накопленных данных
+                if len(self.raw_rssi_values) > MAX_POINTS_ON_GRAPH * 10:  # Буфер увеличен в 10 раз
+                    self.raw_rssi_values.pop(0)
+                    self.raw_timestamps.pop(0)
 
                 # Сглаживание
                 if self.use_filter_var.get():
@@ -333,19 +385,20 @@ class SecondWindow(tk.Toplevel):
                         self.ema_value = current_rssi
                     else:
                         self.ema_value = (self.alpha * current_rssi +
-                                         (1 - self.alpha) * self.ema_value)
+                                          (1 - self.alpha) * self.ema_value)
                     display_rssi = self.ema_value
                 else:
                     display_rssi = current_rssi
 
-                # Обновляем виджеты
+                # Обновляем интерфейс
                 self.labels["Текущий кадр"]["text"] = frame_number
                 self.labels["RSSI"]["text"] = f"{display_rssi:.2f} dBm"
+
+                # Добавляем сглаженное значение в основной массив
                 self.rssi_values.append(display_rssi)
                 self.timestamps.append(time.time())
 
-
-                # Ограничиваем длину буфера
+                # Ограничиваем длину основного буфера
                 if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
                     self.rssi_values.pop(0)
                     self.timestamps.pop(0)
@@ -354,15 +407,42 @@ class SecondWindow(tk.Toplevel):
         except ValueError:
             pass  # Пропускаем некорректные значения RSSI
 
+    # def decimate_data(self, data, timestamps, factor=100):
+    #         # Простая реализация децимации с уменьшением количества точек в фактор раз
+    #         return data[::factor], timestamps[::factor]
+    
+
+    def decimate_data(self, data, timestamps, factor=100):
+        # Преобразуем в массивы NumPy
+        data = np.array(data)
+        timestamps = np.array(timestamps)
+        
+        n = len(data)
+        # Обрезаем до кратного factor
+        n_trimmed = (n // factor) * factor
+        data_trimmed = data[:n_trimmed]
+        timestamps_trimmed = timestamps[:n_trimmed]
+        
+        # Усредняем по блокам размера factor
+        data_dec = np.mean(data_trimmed.reshape(-1, factor), axis=1)
+        # Для временных меток берём начало каждого блока
+        timestamps_dec = timestamps_trimmed[::factor]
+        
+        return data_dec, timestamps_dec
+
 
     def plot_graph(self):
+
+         # Применяем децимацию
+        rssi_values, timestamps = self.decimate_data(self.raw_rssi_values, self.raw_timestamps)
+
         """Обновляем график RSSI."""
         if len(self.timestamps) < 2 or len(self.rssi_values) < 2:
             return
 
         self.ax.clear()
         self.ax.grid(True, linestyle='--', alpha=0.7)
-        self.ax.set_ylabel('RSSI (dBm)', fontsize=10)
+        # self.ax.set_ylabel('RSSI (dBm)', fontsize=10)
         self.ax.plot(self.timestamps, self.rssi_values, color='blue', linewidth=1)
 
 
