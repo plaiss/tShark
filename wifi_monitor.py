@@ -32,6 +32,11 @@ class WifiMonitor(tk.Tk):
         # self.logger = logging.getLogger(__name__)
         # Настройка главного окна приложения
         self.title("WiFi Monitor")
+        
+        # Полноценное развертывание окна
+        self.attributes('-fullscreen', True)
+        # self.overrideredirect(True)
+        
         self.minsize(width=800, height=480)
         self.center_window()  # Центрируем окно
         

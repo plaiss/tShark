@@ -142,7 +142,7 @@ class SecondWindow(tk.Toplevel):
         fig = plt.Figure(figsize=(5, 4), dpi=100)
         self.ax = fig.add_subplot(111)
         self.ax.grid(True, linestyle='--', alpha=0.7)
-        self.ax.set_ylabel('RSSI (dBm)', fontsize=10)
+        # self.ax.set_ylabel('RSSI (dBm)', fontsize=10)
         self.canvas = FigureCanvasTkAgg(fig, master=right_frame)
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.grid(row=0, column=0, sticky="nsew")
@@ -310,7 +310,8 @@ class SecondWindow(tk.Toplevel):
                     self.ema_value = ema_candidate
 
                 # Диагностика
-                print(f"Raw: {current_rssi}, EMA: {self.ema_value:.2f}, Alpha: {alpha:.2f}, Step Limit: {step_limit}")
+
+                # print(f"Raw: {current_rssi}, EMA: {self.ema_value:.2f}, Alpha: {self.alpha:.2f}, Step Limit: {step_limit}")
 
                 # Обновление интерфейса
                 self.labels["Текущий кадр"]["text"] = frame_number
