@@ -77,7 +77,12 @@ class WifiMonitor(tk.Tk):
         
         # Полоса статуса снизу окна
         self.status_bar()
-        
+
+        # Кнопка "Закрыть" на свободном пространстве справа
+        close_button = tk.Button(self, text="X", font=("Arial", 10, "bold"), command=self.quit)
+        close_button.pack(side=tk.RIGHT, anchor="ne", before=self.status_text)
+
+
         # Индикатор состояния потока
         self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
         self.indicator.pack(side='left')
