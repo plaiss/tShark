@@ -81,9 +81,9 @@ class SecondWindow(tk.Toplevel):
             )
             hdr.grid(row=0, column=col, sticky="ew")
 
-        # Тело таблицы (компактное)
+
         rows = [
-            ("Адрес устройства", ""),
+            ("Адрес устройства", ""),  # Первая строка специально оставляется пустой для текста
             ("Производитель", manufacturer or "N/A"),
             ("Тип устройства", self.device_type),
             ("SSID", self.ssid),          
@@ -105,15 +105,26 @@ class SecondWindow(tk.Toplevel):
             )
             key_label.grid(row=row_idx+1, column=0, sticky="w", pady=2)
 
-            # Остальные строки остаются обычными лейблами
-            value_label = tk.Label(
-                left_frame, text=_ or "", anchor="w",
-                font=("Arial", 10), padx=5,
-                width=18
-            )
-            value_label.grid(row=row_idx+1, column=1, sticky="w", pady=2)
+            # Если первая строка - используем виджет Text
+            if idx == 0:
+                value_widget = tk.Text(left_frame, height=1, width=18, state="normal", font=("Arial", 10), borderwidth=0, highlightthickness=0, background="#EFEFEF")
+                value_widget.insert("1.0", self.mac_address)
+                value_widget.tag_add("centered", "1.0", "end")
+                value_widget.tag_configure("centered", justify="center")
+                value_widget.config(state="disabled")
+                value_widget.grid(row=row_idx+1, column=1, sticky="w", pady=2)
+                # Контекстное меню для копирования
+                self.create_context_menu(value_widget)
+            else:
+                # Остальные строки остаются обычными лейблами
+                value_label = tk.Label(
+                    left_frame, text=_ or "", anchor="w",
+                    font=("Arial", 10), padx=5,
+                    width=25
+                )
+                value_label.grid(row=row_idx+1, column=1, sticky="w", pady=2)
             
-            self.labels[key] = value_label
+            self.labels[key] = value_widget if idx == 0 else value_label
             row_idx += 1
 
         # Панель управления (под таблицей)
@@ -232,7 +243,19 @@ class SecondWindow(tk.Toplevel):
             logging.warning("tshark превысил таймаут (5 сек)")
         except Exception as e:
             logging.error(f"Произошла ошибка при обработке данных: {e}")
-            
+
+    def create_context_menu(self, widget):
+        # Создание контекстного меню
+        menu = tk.Menu(widget, tearoff=False)
+        menu.add_command(label="Копировать", command=lambda: self.copy_mac_address(widget))
+        widget.bind("<Button-3>", lambda event: menu.post(event.x_root, event.y_root))
+
+    def copy_mac_address(self, widget):
+        # Копирует выбранный текст в буфер обмена
+        selection = widget.selection_get()
+        self.clipboard_clear()
+        self.clipboard_append(selection)
+
     def stop_updating(self):
         """Остановить мониторинг."""
         if self.proc and self.proc.poll() is None:
@@ -364,6 +387,6 @@ class SecondWindow(tk.Toplevel):
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Скрываем главное окно
-    window = SecondWindow(root, mac_address="0A:2C:47:0B:CD:D3")
+    window = SecondWindow(root, mac_address="86:DB:E5:38:96:3C")
     window.protocol("WM_DELETE_WINDOW", window.on_closing)
     root.mainloop()
