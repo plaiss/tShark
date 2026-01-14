@@ -40,8 +40,6 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         self.parent.focus_set()
         self.destroy()
 
-
-
     def body(self, master):
         # Надпись сверху окна
         tk.Label(master, text="Выберите каналы для сканирования:", justify=tk.LEFT).pack(pady=5)
@@ -115,13 +113,12 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             if index is not None:
                 self.delay_choice.set(self.delay_options[index])
         
-
         cur_channel = utils.get_current_channel()
         for checkbox_group in [self.checkboxes_2_4, self.checkboxes_5]:
             for widget, var in checkbox_group:
                 if str(widget["text"]) == str(cur_channel[0]):
-                    var.set(True)                     # Ставим галочку
-                    widget.config(font=("Arial", 11, "bold"))  # Делаем текст жирным
+                    var.set(True)                     
+                    widget.config(font=("Arial", 11, "bold"))  
                     break
         
         # Получаем доступные каналы для интерфейса
@@ -131,7 +128,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             channel_num = int(widget["text"])
             if channel_num not in available_channels:
                 widget.config(state="disabled", fg="gray50")
-                var.set(False)  # Снимаем галочку, если была
+                var.set(False)  
         
         # Контейнер для кнопок (внизу окна)
         button_frame = tk.Frame(master)
@@ -145,14 +142,13 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             width=10,
             height=20, 
             font=("Arial", 9),
-            relief="flat",           # убрать объём
-            bg="#4CAF50",          # зелёный фон
-            fg="white",             # белый текст
-            activebackground="#45a049",  # цвет при наведении
+            relief="flat",           
+            bg="#4CAF50",          
+            fg="white",             
+            activebackground="#45a049",
             activeforeground="white"
         )
         ok_button.pack(side=tk.LEFT, padx=10)
-
 
         # Кнопка Cancel
         cancel_button = tk.Button(
@@ -162,25 +158,25 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             width=10,
             font=("Arial", 9),
             relief="flat",
-            bg="#f44336",          # красный фон
+            bg="#f44336",          
             fg="white",
             activebackground="#d32f2f",
             activeforeground="white"
         )
         cancel_button.pack(side=tk.RIGHT, padx=5)
 
-
-        self.geometry("350x450")  # Ширина × высота в пикселях
-        self.overrideredirect(True)  # Убираем шапку и рамку
-
-
+        self.geometry("350x450")  
+        self.overrideredirect(True)  
 
     def toggle_range_selection(self, group):
         all_vars = [var for _, var in group]
         initial_state = any(var.get() for var in all_vars)
         new_state = not initial_state
-        for var in all_vars:
-            var.set(new_state)
+        
+        for widget, var in group:
+            if widget['state'] != 'disabled':
+                var.set(new_state)
+                
         button_text = "Снять весь диапазон" if new_state else "Выбрать весь диапазон"
         btn_widget = self.btn_range_2_4 if group is self.checkboxes_2_4 else self.btn_range_5
         btn_widget.config(text=button_text)
@@ -188,8 +184,11 @@ class ChannelSelectorDialog(simpledialog.Dialog):
     def toggle_selection(self):
         current_state = bool(any(var.get() for _, var in self.checkboxes_2_4 + self.checkboxes_5))
         new_state = not current_state
-        for _, var in self.checkboxes_2_4 + self.checkboxes_5:
-            var.set(new_state)
+        
+        for widget, var in self.checkboxes_2_4 + self.checkboxes_5:
+            if widget['state'] != 'disabled':
+                var.set(new_state)
+                
         button_text = "Снять все" if new_state else "Выбрать все"
         self.toggle_button.config(text=button_text)
 
@@ -201,12 +200,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         delay_time = float(self.delay_choice.get())
         self.result = (selected_channels, delay_time)
 
-
     def get_available_channels(self, interface):
-        """
-        Получает список доступных каналов для указанного интерфейса через iwlist.
-        Возвращает set() номеров каналов.
-        """
         try:
             result = subprocess.run(
                 ["iwlist", interface, "channel"],
@@ -216,7 +210,6 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             )
             output = result.stdout
 
-            # Ищем строки вида "Channel 01 : 2.412 GHz"
             channels = set()
             for line in output.splitlines():
                 match = re.search(r"Channel\s+(\d+)\s*:", line)
@@ -226,18 +219,15 @@ class ChannelSelectorDialog(simpledialog.Dialog):
 
         except subprocess.CalledProcessError as e:
             print(f"Ошибка при выполнении iwlist: {e}")
-            return set()  # Возвращаем пустой набор при ошибке
+            return set()
         except Exception as e:
             print(f"Неожиданная ошибка: {e}")
             return set()
 
-
-
 if __name__ == "__main__":
     root = tk.Tk()
-    root.withdraw()  # Скрываем основное окно
-    # Примеры передачи предыдущих настроек:
-    previous_channels = [1, 6, 10, 36]  # Например, были выбраны каналы 1, 6 и 11
-    previous_delay = 0.5             # Предыдущая задержка была 0.5 секунды
+    root.withdraw()  
+    previous_channels = [1, 6, 10, 36]  
+    previous_delay = 0.5              
     app = ChannelSelectorDialog(root, "wlan1", channels=previous_channels, delay_time=previous_delay)
     root.mainloop()
