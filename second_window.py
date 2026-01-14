@@ -29,6 +29,7 @@ def get_data_stream(proc):
 class SecondWindow(tk.Toplevel):
     def __init__(self, parent, mac_address=None, manufacturer=None, channel=None):
         super().__init__(parent)
+        self.geometry("800x480")
         self.parent = parent
         self.title("Мониторинг RSSI")
         
@@ -387,6 +388,6 @@ class SecondWindow(tk.Toplevel):
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Скрываем главное окно
-    window = SecondWindow(root, mac_address="86:DB:E5:38:96:3C")
+    window = SecondWindow(root, mac_address="F2:40:4A:B0:80:F5")
     window.protocol("WM_DELETE_WINDOW", window.on_closing)
     root.mainloop()
