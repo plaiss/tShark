@@ -15,7 +15,7 @@ class SettingsWindow(tk.Toplevel):
         super().__init__(parent)
         self.parent = parent
         self.title("Network Interface Settings")
-        self.geometry("800x600")  # Изменяем размер окна
+        self.geometry("800x400")  # Изменяем размер окна
         self.resizable(True, True)  # Разрешаем изменение размеров окна
         
         # Метка с указанием текущего интерфейса

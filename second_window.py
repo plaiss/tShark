@@ -77,7 +77,7 @@ class SecondWindow(tk.Toplevel):
                 left_frame, text=header, relief=tk.RAISED,
                 padx=8, pady=4, font=("Arial", 11, "bold"),
                 bg="#f0f0f0",
-                width=20
+                width=15
             )
             hdr.grid(row=0, column=col, sticky="ew")
 
@@ -120,7 +120,7 @@ class SecondWindow(tk.Toplevel):
                 value_label = tk.Label(
                     left_frame, text=_ or "", anchor="w",
                     font=("Arial", 10), padx=5,
-                    width=25
+                    width=18
                 )
                 value_label.grid(row=row_idx+1, column=1, sticky="w", pady=2)
             
