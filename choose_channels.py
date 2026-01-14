@@ -7,17 +7,40 @@ import re
 
 class ChannelSelectorDialog(simpledialog.Dialog):
     def __init__(self, parent, interface, channels=None, delay_time=None):
-        """
-        Конструктор принимает дополнительно два параметра:
-        :param channels: list[int], список номеров выбранных каналов
-        :param delay_time: float, время задержки (секунд)
-        """
         self.parent = parent
         self.interface = interface
-        self.channels = channels or []          # Переданные каналы
-        self.delay_time = delay_time #or 1       # Переданное время задержки
-        self.selected_channels = []            # Массив выбранных каналов
+        self.channels = channels or []
+        self.delay_time = delay_time
+        self.selected_channels = []
         super().__init__(parent, "Выбор каналов")
+
+    def buttonbox(self):
+        box = tk.Frame(self)
+        
+        tk.Button(
+            box, text="OK", width=10, command=self.ok, default=tk.ACTIVE
+        ).pack(side=tk.LEFT, padx=5, pady=5)
+        
+        tk.Button(
+            box, text="Cancel", width=10, command=self.cancel
+        ).pack(side=tk.LEFT, padx=5, pady=5)
+        
+        self.bind("<Return>", self.ok)
+        self.bind("<Escape>", self.cancel)
+        box.pack()
+
+    def ok(self, event=None):
+        if not self.validate():
+            self.initial_focus.focus_set()
+            return
+        self.apply()
+        self.cancel()
+
+    def cancel(self, event=None):
+        self.parent.focus_set()
+        self.destroy()
+
+
 
     def body(self, master):
         # Надпись сверху окна
@@ -109,6 +132,47 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             if channel_num not in available_channels:
                 widget.config(state="disabled", fg="gray50")
                 var.set(False)  # Снимаем галочку, если была
+        
+        # Контейнер для кнопок (внизу окна)
+        button_frame = tk.Frame(master)
+        button_frame.pack(pady=10, padx=10, fill=tk.X)
+
+        # Кнопка OK
+        ok_button = tk.Button(
+            button_frame,
+            text="OK",
+            command=self.ok,
+            width=10,
+            height=20, 
+            font=("Arial", 9),
+            relief="flat",           # убрать объём
+            bg="#4CAF50",          # зелёный фон
+            fg="white",             # белый текст
+            activebackground="#45a049",  # цвет при наведении
+            activeforeground="white"
+        )
+        ok_button.pack(side=tk.LEFT, padx=10)
+
+
+        # Кнопка Cancel
+        cancel_button = tk.Button(
+            button_frame,
+            text="Cancel",
+            command=self.cancel,
+            width=10,
+            font=("Arial", 9),
+            relief="flat",
+            bg="#f44336",          # красный фон
+            fg="white",
+            activebackground="#d32f2f",
+            activeforeground="white"
+        )
+        cancel_button.pack(side=tk.RIGHT, padx=5)
+
+
+        self.geometry("350x450")  # Ширина × высота в пикселях
+        self.overrideredirect(True)  # Убираем шапку и рамку
+
 
 
     def toggle_range_selection(self, group):
