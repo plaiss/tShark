@@ -21,7 +21,7 @@ from settings_window import SettingsWindow
 from export_dialog import ExportDialog
 from choose_channels import ChannelSelectorDialog  # Новое окно выбора каналов
 import logging
-from whitelist_window import WhitelistEditor
+from whitelist_window import EditorWindow
 
 logger = logging.getLogger(__name__)
 
@@ -531,8 +531,9 @@ class WifiMonitor(tk.Tk):
     #         return
 
     def show_whitelist(self):
-        editor_window = WhitelistEditor(self)
-        editor_window.focus_set()
+        """Метод для открытия окна редактора"""
+        editor = EditorWindow()
+        editor.mainloop()
 
     def show_settings(self):
         # Затем открываем окно настроек

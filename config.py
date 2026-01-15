@@ -33,7 +33,6 @@ _stop = threading.Event()
 _traffic_by_mac = {}
 
 MAC_RE = re.compile(r'[^0-9a-f]')
-DB_PATH = "oui.db"
+DB_PATH = "database.db"
 
 IEEE_OUI_URL = "https://standards-oui.ieee.org/oui/oui.txt"
-# DB_PATH = Path("oui.db")
