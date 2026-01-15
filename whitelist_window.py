@@ -62,6 +62,10 @@ class DatabaseManager:
                 if mac_address:
                     self.insert_mac_address(mac_address)
 
+    def normalize_mac_address(self, mac_address):
+        """Приводит MAC-адрес к нормальному виду (без разделителей)"""
+        return ''.join(re.findall(r'\w+', mac_address)).upper()
+
 class EditorWindow(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -123,6 +127,7 @@ class EditorWindow(tk.Tk):
         # Обновляем TreeView при старте
         self.refresh_tree_view()
 
+    
     def on_column_click(self):
         """Обработчик события клик на заголовке столбца (для сортировки)"""
         direction = getattr(self, 'direction', 'ASC')
@@ -228,9 +233,6 @@ class EditorWindow(tk.Tk):
             normalized_mac = ':'.join(record[0][i:i+2] for i in range(0, len(record[0]), 2))
             self.tree_view.insert('', 'end', values=(normalized_mac,))
 
-    def normalize_mac_address(self, mac_address):
-        """Приводит MAC-адрес к нормальному виду (без разделителей)"""
-        return ''.join(re.findall(r'\w+', mac_address)).upper()
 
     def import_from_file(self):
         """Импортирует MAC-адреса из файла"""

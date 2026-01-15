@@ -436,7 +436,7 @@ class WifiMonitor(tk.Tk):
     def start_tshark(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             return  # Если поток уже запущен, ничего не делаем
-        self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
+        self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD), daemon=True)
         self.tshark_thread.start()
 
     def clean_buffers(self, controlled=False):
@@ -447,15 +447,6 @@ class WifiMonitor(tk.Tk):
             # Оставляем только очистку лога
               print ('здесь могла бы быть ваша реклама')
               pass
-            # self.clear_text()  # Очищаем текстовую область
-        
-    # Очищает текстовую область
-    # def clear_text(self):
-    #     self.text_area.delete('1.0', tk.END)
-      
-
-
-
 
 
     def switch_to_monitor_mode(self):

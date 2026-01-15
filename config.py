@@ -18,14 +18,11 @@ TSHARK_CMD = [
     "-e", "wlan.fc.type_subtype" 
 ]
 
-WHITELIST_PATH = 'whitelist.txt'
-SEEN_TTL_SECONDS = None  # если None — не очищать по времени
 
 # Глобальные структуры и блокировки
 _whitelist = set()
 _whitelist_lock = threading.Lock()
 
-# Используем словарь mac -> last_seen_timestamp для точной TTL-логики
 _last_seen = {}
 _seen_count = {}  # количество обнаружений для каждого MAC
 _seen_lock = threading.Lock()

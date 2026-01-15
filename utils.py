@@ -9,18 +9,8 @@ import subprocess
 import subprocess
 import getpass
 from tkinter import messagebox
-
 import config
 import main
-
-def handle_sighup(signum, frame):
-    # Перезагрузка whitelist при получении сигнала SIGHUP
-    # global WHITELIST_PATH
-    if config.WHITELIST_PATH:
-        with config._whitelist_lock:
-            config._whitelist.clear()
-            config._whitelist.update(load_whitelist(config.WHITELIST_PATH))
-        print("Whitelist reloaded", file=sys.stderr)
 
 def normalize_mac_OUI(mac):
     s = re.sub(r'[^0-9A-Fa-f]', '', mac).upper()
@@ -52,9 +42,6 @@ def normalize_mac(mac_str):
     return cleaned  # Например, "420A387AD951"
 
 
-
-
-
 def lookup_vendor_db(mac, db_path=config.DB_PATH, return_full=True):
     oui = normalize_mac_OUI(mac)
     if not oui:
@@ -74,10 +61,10 @@ def lookup_vendor_db(mac, db_path=config.DB_PATH, return_full=True):
         if not return_full:
             return description
         else:
-            # mac = mac + ' ('+ description + ')'
             mac = f' {mac}|({description})'
 
         return mac
+
 
 def is_locally_administered(mac: str) -> bool:
     """
@@ -91,36 +78,6 @@ def is_locally_administered(mac: str) -> bool:
     first_octet = int(s[0:2], 16)
     return (first_octet & 0x02) != 0
 
-def load_whitelist(path):
-    s = set()
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                mac = normalize_mac(line)
-                if len(mac) == 12:
-                    s.add(mac)
-    except Exception as e:
-        print(f"Failed to load whitelist {path}: {e}", file=sys.stderr)
-    return s
-
-def seen_cleaner(ttl):
-    if ttl is None:
-        return
-    while not config._stop.wait(ttl):
-        now = time.time()
-        removed = 0
-        with config._seen_lock:
-            keys = list(config._last_seen.keys())
-            for k in keys:
-                if now - config._last_seen.get(k, 0) > ttl:
-                    config._last_seen.pop(k, None)
-                    config._seen_count.pop(k, None)
-                    removed += 1
-        if removed:
-            print(f"Removed {removed} entries from seen (TTL {ttl}s)", file=sys.stderr)
 
 def parse_time_epoch(text):
     try:
@@ -131,6 +88,7 @@ def parse_time_epoch(text):
         return f"{time.strftime('%H:%M:%S', time.localtime(t))}.{ms:03d}"
     except Exception:
         return text
+
 
 def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
     """
@@ -242,12 +200,10 @@ def decode_wlan_type_subtype(val, show_bits=True, show_codes=True):
 
     if show_bits:
         pass
-        # parts.append(f"[ToDS={to_ds} FromDS={from_ds} Protected={protected} Order={order}]")
-
-    # print (len(" ".join(parts)))
     result = " ".join(parts)
     result = f"{result:<40}"
     return result
+
 
 def get_wlan_mode(interface='wlan0'):
     try:
@@ -273,11 +229,8 @@ def get_wlan_mode(interface='wlan0'):
     return None
 
 
-
-
-
-# Функция перевода интерфейса в режим мониторинга
 def enable_monitor_mode(interface, password):
+    # Функция перевода интерфейса в режим мониторинга
     commands = [
         ['sudo', '-S', 'rfkill', 'unblock', 'wifi' ],
         ['sudo', '-S', 'ifconfig', interface, 'down'],
@@ -291,14 +244,11 @@ def enable_monitor_mode(interface, password):
         except subprocess.CalledProcessError as e:
             print(f"Ошибка выполнения команды: {cmd}. Сообщение: {e.stderr}")
             return False
-
-    # print(f'Интерфейс {interface} успешно переведен в режим монитора.')
-    # main.tshark_thread.restart()
     return True
 
 
-# Функция парсинга информации о Wi-Fi канале
 def parse_wifi_info(output):
+    # Функция парсинга информации о Wi-Fi канале
     pattern = r'channel\s*(\d+)\s*([^)]+)'
     match = re.search(pattern, output)
     if match:
@@ -306,6 +256,7 @@ def parse_wifi_info(output):
         frequency = match.group(2)[1:]  # Убираем первый символ ":"
         return channel_num, frequency
     return None, None
+
 
 def get_current_channel():
         # Получаем информацию о Wi-Fi канале

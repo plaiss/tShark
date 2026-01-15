@@ -96,7 +96,7 @@ def profile_function(func):
 
 
 
-def tshark_worker(root, cmd, ttl):
+def tshark_worker(root, cmd):
 
     logger.info("Starting TShark worker.")  # Зарегистрировали старт
     try:
@@ -161,7 +161,6 @@ def tshark_worker(root, cmd, ttl):
 
             now = time.time()
             with config._seen_lock:
-                # Повышаем счетчик независимо от времени TTL
                 config._seen_count[mac_n] = config._seen_count.get(mac_n, 0) + 1
                 mac_count = config._seen_count[mac_n]
                 # Обновляем время последнего обнаружения
@@ -191,33 +190,13 @@ def tshark_worker(root, cmd, ttl):
 
 
 def main():
-    global WHITELIST_PATH, SEEN_TTL_SECONDS
-    WHITELIST_PATH = config.WHITELIST_PATH
     root = WifiMonitor()
-    SEEN_TTL_SECONDS = config.SEEN_TTL_SECONDS
-    if WHITELIST_PATH:
-        with config._whitelist_lock:
-            config._whitelist.clear()
-            config._whitelist.update(utils.load_whitelist(WHITELIST_PATH))
-
-    try:
-        signal.signal(signal.SIGHUP, utils.handle_sighup)
-    except Exception:
-        pass
-
-
-    if SEEN_TTL_SECONDS is not None:
-        t = threading.Thread(target=utils.seen_cleaner, args=(SEEN_TTL_SECONDS,), daemon=True)
-        t.start()
 
     if utils.get_wlan_mode(config.interface) == 'Monitor':
         # Запускаем поток и передаем ссылку на него в класс App
-        # tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD, SEEN_TTL_SECONDS), daemon=True)
-        tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
+        tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD), daemon=True)
         tshark_thread.start()
         root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
-
-    # root.after(5000, lambda: flush_buffers(root))
     root.mainloop()
     
 
