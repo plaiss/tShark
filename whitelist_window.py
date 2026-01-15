@@ -30,8 +30,9 @@ class DatabaseManager:
 
     def insert_mac_address(self, mac_address):
         """Добавляет новый MAC-адрес в таблицу"""
+        normalized_mac = self.normalize_mac_address(mac_address)
         cursor = self.conn.cursor()
-        cursor.execute(f'INSERT OR IGNORE INTO {TABLE_NAME}(mac_address) VALUES(?)', (mac_address,))
+        cursor.execute(f'INSERT OR IGNORE INTO {TABLE_NAME}(mac_address) VALUES(?)', (normalized_mac,))
         self.conn.commit()
 
     def update_mac_address(self, old_mac, new_mac):
@@ -216,17 +217,20 @@ class EditorWindow(tk.Tk):
                 messagebox.showinfo("Результат поиска", "Совпадений не найдено.")
 
     def refresh_tree_view_with_results(self, results, order_by='ASC'):
-        """Обновляет представление данных с результатами поиска"""
         items = self.tree_view.get_children()
         for item in items:
             self.tree_view.delete(item)
+        
+        # Сортируем полученные результаты вручную
+        results.sort(key=lambda x: x[0], reverse=(order_by == 'DESC'))
 
         for record in results:
             normalized_mac = ':'.join(record[0][i:i+2] for i in range(0, len(record[0]), 2))
             self.tree_view.insert('', 'end', values=(normalized_mac,))
 
-        # Обновляем счётчик записей
-        self.record_count_label['text'] = f"Совпадений: {len(results)}"
+    def normalize_mac_address(self, mac_address):
+        """Приводит MAC-адрес к нормальному виду (без разделителей)"""
+        return ''.join(re.findall(r'\w+', mac_address)).upper()
 
     def import_from_file(self):
         """Импортирует MAC-адреса из файла"""
