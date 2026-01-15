@@ -17,8 +17,7 @@ import cProfile
 import io
 from pstats import Stats
 import logging.handlers
-from whitelist_window import DatabaseManager  # Импортируем менеджер базы данных
-
+from database_manager import DatabaseManager  # Импортируем менеджер базы данных
 
 LOG_FORMAT = '%(asctime)s [%(levelname)-8s]: %(message)s (%(filename)s:%(lineno)d)'
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -47,7 +46,7 @@ class LimitedSizeCache(OrderedDict):
     def add(self, key, value):
         """
         Добавляет элемент в кэш.
-        Если достигается предел размера, удаляется старый элемент.
+        Если достигает предела размера, удаляется старый элемент.
         """
         # Добавляем элемент в начало очереди
         self[key] = value
@@ -96,9 +95,7 @@ def profile_function(func):
     return wrapper
 
 
-
-def tshark_worker(root, cmd):
-
+def tshark_worker(root, cmd, ttl):
     logger.info("Starting TShark worker.")  # Зарегистрировали старт
     try:
         proc = subprocess.Popen(
@@ -162,6 +159,7 @@ def tshark_worker(root, cmd):
 
             now = time.time()
             with config._seen_lock:
+                # Повышаем счетчик независимо от времени TTL
                 config._seen_count[mac_n] = config._seen_count.get(mac_n, 0) + 1
                 mac_count = config._seen_count[mac_n]
                 # Обновляем время последнего обнаружения
@@ -191,20 +189,32 @@ def tshark_worker(root, cmd):
 
 
 def main():
-    global DATABASE_NAME
-    DATABASE_NAME = config.DB_PATH
+    global DATABASE_NAME, SEEN_TTL_SECONDS
+    DATABASE_NAME = config.DATABASE_NAME
     root = WifiMonitor()
+    SEEN_TTL_SECONDS = config.SEEN_TTL_SECONDS
     if DATABASE_NAME:
         with config._whitelist_lock:
             config._whitelist.clear()
             db_manager = DatabaseManager()
             config._whitelist.update({rec[0] for rec in db_manager.fetch_all_mac_addresses()})
 
+    try:
+        # Больше не нужно регистрировать сигнал SIGHUP
+        pass
+    except Exception:
+        pass
+
+    if SEEN_TTL_SECONDS is not None:
+        t = threading.Thread(target=utils.seen_cleaner, args=(SEEN_TTL_SECONDS,), daemon=True)
+        t.start()
+
     if utils.get_wlan_mode(config.interface) == 'Monitor':
         # Запускаем поток и передаем ссылку на него в класс App
-        tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD), daemon=True)
+        tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD, config.SEEN_TTL_SECONDS), daemon=True)
         tshark_thread.start()
         root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
+
     root.mainloop()
     
 
