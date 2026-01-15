@@ -21,6 +21,7 @@ from settings_window import SettingsWindow
 from export_dialog import ExportDialog
 from choose_channels import ChannelSelectorDialog  # Новое окно выбора каналов
 import logging
+from whitelist_window import WhitelistEditor
 
 logger = logging.getLogger(__name__)
 
@@ -496,39 +497,42 @@ class WifiMonitor(tk.Tk):
         
         # Дополнительно: можно обновить интерфейс или выполнить другие действия после закрытия
 
+    # def show_whitelist(self):
+    #     """Показывает содержание белого списка и открывает его для редактирования в отдельном окне терминала."""
+    #     # Определение пути к файлу white-list
+    #     whitelist_path = config.WHITELIST_PATH  # Или локально определённое значение
+
+    #     # Команда для открытия xterm с запущенным nano
+    #     terminal_command = [
+    #         'xterm',
+    #         '-T', 'Редактирование белого списка',  # Название окна
+    #         # '-hold',                               # Держать окно открытым после выхода из nano
+    #         '-e',                                  # Выполнить команду
+    #         'nano', whitelist_path                 # Запуск nano с указанным файлом
+    #     ]
+
+    #     try:
+    #         # Запуск терминала с nano и получение объекта процесса
+    #         process = subprocess.Popen(terminal_command)
+
+    #         # Ожидание завершения процесса
+    #         process.wait()  # Ждать, пока пользователь закончит редактирование
+
+    #         # Отправка сигнала SIGHUP основному процессу tshark
+    #         pid = os.getpid()  # PID текущего процесса
+    #         os.kill(pid, signal.SIGHUP)
+
+    #         # Уведомление пользователя о завершении
+    #         messagebox.showinfo("Готово", "Белый список успешно обновлён!")
+
+    #     except OSError as err:
+    #         messagebox.showerror("Ошибка", f"Невозможно открыть терминал: {err}")
+    #         logger.error(f"Невозможно открыть терминал: {err}")
+    #         return
+
     def show_whitelist(self):
-        """Показывает содержание белого списка и открывает его для редактирования в отдельном окне терминала."""
-        # Определение пути к файлу white-list
-        whitelist_path = config.WHITELIST_PATH  # Или локально определённое значение
-
-        # Команда для открытия xterm с запущенным nano
-        terminal_command = [
-            'xterm',
-            '-T', 'Редактирование белого списка',  # Название окна
-            # '-hold',                               # Держать окно открытым после выхода из nano
-            '-e',                                  # Выполнить команду
-            'nano', whitelist_path                 # Запуск nano с указанным файлом
-        ]
-
-        try:
-            # Запуск терминала с nano и получение объекта процесса
-            process = subprocess.Popen(terminal_command)
-
-            # Ожидание завершения процесса
-            process.wait()  # Ждать, пока пользователь закончит редактирование
-
-            # Отправка сигнала SIGHUP основному процессу tshark
-            pid = os.getpid()  # PID текущего процесса
-            os.kill(pid, signal.SIGHUP)
-
-            # Уведомление пользователя о завершении
-            messagebox.showinfo("Готово", "Белый список успешно обновлён!")
-
-        except OSError as err:
-            messagebox.showerror("Ошибка", f"Невозможно открыть терминал: {err}")
-            logger.error(f"Невозможно открыть терминал: {err}")
-            return
-
+        editor_window = WhitelistEditor(self)
+        editor_window.focus_set()
 
     def show_settings(self):
         # Затем открываем окно настроек
