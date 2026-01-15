@@ -86,6 +86,9 @@ class EditorWindow(tk.Tk):
         self.tree_view.heading('#1', text='MAC Address', command=self.on_column_click)
         self.tree_view.grid(row=0, column=0, sticky='nsew')
 
+        # Связываем двойной клик с редактированием
+        self.tree_view.bind('<Double-Button-1>', lambda event: self.edit_selected_mac())
+
         # Прокрутка
         vsb = ttk.Scrollbar(self, orient="vertical", command=self.tree_view.yview)
         vsb.grid(row=0, column=1, sticky='ns')
@@ -207,7 +210,8 @@ class EditorWindow(tk.Tk):
                 self.current_data = results  # запоминаем текущую выборку
                 self.refresh_tree_view_with_results(results)
                 self.show_all_btn.grid()  # показываем кнопку "Показать все"
-                self.record_count_label['text'] = f"Совпадений ({cleaned_query}): {len(results)}"
+                normalized_query = ':'.join(cleaned_query[i:i+2] for i in range(0, len(cleaned_query), 2))
+                self.record_count_label['text'] = f"Совпадений: {len(results)} ({normalized_query})"
             else:
                 messagebox.showinfo("Результат поиска", "Совпадений не найдено.")
 
