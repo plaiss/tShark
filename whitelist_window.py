@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import sqlite3
+import re
 
 # Имя базы данных
 DATABASE_NAME = 'database.db'
@@ -13,18 +14,18 @@ class DatabaseManager:
 
     def create_table_if_not_exists(self):
         """Создаёт таблицу, если её ещё нет"""
-        sql_create_table = '''
-        CREATE TABLE IF NOT EXISTS {} (
+        sql_create_table = f'''
+        CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
             mac_address TEXT PRIMARY KEY
         );
-        '''.format(TABLE_NAME)
+        '''
         self.conn.execute(sql_create_table)
         self.conn.commit()
 
-    def fetch_all_mac_addresses(self):
-        """Возвращает все MAC-адреса из таблицы"""
+    def fetch_all_mac_addresses(self, order_by='ASC'):
+        """Возвращает все MAC-адреса из таблицы с указанной сортировкой"""
         cursor = self.conn.cursor()
-        cursor.execute(f'SELECT * FROM {TABLE_NAME}')
+        cursor.execute(f'SELECT * FROM {TABLE_NAME} ORDER BY mac_address {order_by}')
         return cursor.fetchall()
 
     def insert_mac_address(self, mac_address):
@@ -65,33 +66,29 @@ class EditorWindow(tk.Tk):
         super().__init__()
         self.title("Редактор MAC-адресов")
         self.resizable(False, False)  # Заблокируем изменение размеров окна
-        self.geometry("800x480+0+0")  # Зафиксируем размеры окна 800х480 пикселей
-        # self.overrideredirect(True)  # Уберём шапку окна
-        # self.attributes('-fullscreen', True)
-        self.attributes("-topmost", True)  # Размещаем окно поверх всех остальных окон
+        self.geometry("800x480+0+0")  # Размер окна 800х480 пикселей, левый верхний угол
+        self.attributes("-topmost", True)  # Окно поверх всех остальных окон
 
         # Инициализируем менеджер базы данных
         self.db_manager = DatabaseManager()
 
+        # Кол-во записей
+        self.record_count_label = tk.Label(self, text="Всего записей: ")
+        self.record_count_label.grid(row=1, column=0, sticky='sw')
+
         # Дерево
         self.tree_view = ttk.Treeview(self, columns=('MAC Address'), show='headings')
-        self.tree_view.heading('#1', text='MAC Address')
-        self.tree_view.grid(row=0, column=0, sticky='nsew')  # Растягиваем дерево на всё окно
+        self.tree_view.heading('#1', text='MAC Address', command=self.on_column_click)
+        self.tree_view.grid(row=0, column=0, sticky='nsew')
+
+        # Прокрутка
+        vsb = ttk.Scrollbar(self, orient="vertical", command=self.tree_view.yview)
+        vsb.grid(row=0, column=1, sticky='ns')
+        self.tree_view.configure(yscrollcommand=vsb.set)
 
         # Конфигурация grid, чтобы дерево занимало всё пространство окна
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
-
-        # Обновляем TreeView при старте
-        self.refresh_tree_view()
-
-        # Элементы интерфейса
-        self.tree_view = ttk.Treeview(self, columns=('MAC Address'), show='headings')
-        self.tree_view.heading('#1', text='MAC Address')
-        self.tree_view.grid(row=0, column=0, sticky='nsew')
-        vsb = ttk.Scrollbar(self, orient="vertical", command=self.tree_view.yview)
-        vsb.grid(row=0, column=1, sticky='ns')
-        self.tree_view.configure(yscrollcommand=vsb.set)
 
         # Меню
         menu_bar = tk.Menu(self)
@@ -111,21 +108,42 @@ class EditorWindow(tk.Tk):
         edit_menu.add_command(label="Искать MAC-адрес", command=self.search_mac)
         menu_bar.add_cascade(label="Редактировать", menu=edit_menu)
 
-        # Загрузим данные в TreeView
+        # Горячая клавиша для поиска
+        self.bind("<Control-f>", lambda event: self.search_mac())
+
+        # Обновляем TreeView при старте
         self.refresh_tree_view()
 
-    def refresh_tree_view(self):
+    def on_column_click(self):
+        """Обработчик события клик на заголовке столбца (для сортировки)"""
+        direction = getattr(self, 'direction', 'ASC')
+        if direction == 'ASC':
+            direction = 'DESC'
+        else:
+            direction = 'ASC'
+        self.direction = direction
+        self.refresh_tree_view(direction)
+
+    def refresh_tree_view(self, order_by='ASC'):
         """Обновляет представление данных в дереве"""
         items = self.tree_view.get_children()
         for item in items:
             self.tree_view.delete(item)
-        data = self.db_manager.fetch_all_mac_addresses()
+
+        data = self.db_manager.fetch_all_mac_addresses(order_by)
         for record in data:
-            self.tree_view.insert('', 'end', values=record)
+            # Формируем MAC-адрес с разделителями двоеточиями
+            normalized_mac = ':'.join(record[0][i:i+2] for i in range(0, len(record[0]), 2))
+            self.tree_view.insert('', 'end', values=(normalized_mac,))
+
+        # Обновляем счётчик записей
+        self.record_count_label['text'] = f"Всего записей: {len(data)}"
 
     def add_new_mac(self):
         """Диалог для добавления нового MAC-адреса"""
         entry_dialog = AddMacDialog(self)
+        entry_dialog.top.transient(self)  # Диалог поверх окна
+        entry_dialog.top.lift()  # Убедимся, что окно поднимается поверх всех окон
         self.wait_window(entry_dialog.top)
         if entry_dialog.result:
             self.db_manager.insert_mac_address(entry_dialog.result)
@@ -139,9 +157,12 @@ class EditorWindow(tk.Tk):
             return
         old_mac = self.tree_view.item(selected_item)['values'][0]
         entry_dialog = EditMacDialog(self, old_mac)
+        entry_dialog.top.transient(self)  # Диалог поверх окна
+        entry_dialog.top.lift()  # Убедимся, что окно поднимается поверх всех окон
         self.wait_window(entry_dialog.top)
         if entry_dialog.result:
-            self.db_manager.update_mac_address(old_mac, entry_dialog.result)
+            new_mac = entry_dialog.result.replace(':', '')
+            self.db_manager.update_mac_address(old_mac.replace(':', ''), new_mac)
             self.refresh_tree_view()
 
     def delete_selected_mac(self):
@@ -154,16 +175,36 @@ class EditorWindow(tk.Tk):
         if answer:
             for item in selected_items:
                 mac_address = self.tree_view.item(item)['values'][0]
-                self.db_manager.delete_mac_address_by_mask(mac_address)
+                self.db_manager.delete_mac_address_by_mask(mac_address.replace(':', ''))
             self.refresh_tree_view()
 
     def search_mac(self):
         """Диалог для поиска MAC-адреса"""
         entry_dialog = SearchMacDialog(self)
+        entry_dialog.top.transient(self)  # Диалог поверх окна
+        entry_dialog.top.lift()  # Убедимся, что окно поднимается поверх всех окон
         self.wait_window(entry_dialog.top)
         if entry_dialog.result:
-            results = self.db_manager.search_mac_addresses(entry_dialog.result)
-            self.refresh_tree_view(results)
+            # Автоудаляем разделители из запроса
+            cleaned_query = re.sub(r'[^\da-fA-F]+', '', entry_dialog.result.lower())
+            results = self.db_manager.search_mac_addresses(cleaned_query)
+            if results:
+                self.refresh_tree_view_with_results(results)
+            else:
+                messagebox.showinfo("Результат поиска", "Совпадений не найдено.")
+
+    def refresh_tree_view_with_results(self, results):
+        """Обновляет представление данных с результатами поиска"""
+        items = self.tree_view.get_children()
+        for item in items:
+            self.tree_view.delete(item)
+
+        for record in results:
+            normalized_mac = ':'.join(record[0][i:i+2] for i in range(0, len(record[0]), 2))
+            self.tree_view.insert('', 'end', values=(normalized_mac,))
+
+        # Обновляем счётчик записей
+        self.record_count_label['text'] = f"Совпадений: {len(results)}"
 
     def import_from_file(self):
         """Импортирует MAC-адреса из файла"""
