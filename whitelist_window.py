@@ -53,12 +53,14 @@ class DatabaseManager:
         cursor.execute(f'SELECT * FROM {TABLE_NAME} WHERE mac_address LIKE ?', ('%' + search_term + '%',))
         return cursor.fetchall()
 
+
     def load_mac_addresses_from_file(self, filename):
-        """Импортирует MAC-адреса из файла"""
+        """Импортирует MAC-адреса из файла, беря только первую колонку до первого пробела."""
         with open(filename, 'r') as file:
             lines = file.readlines()
             for line in lines:
-                mac_address = line.strip()
+                # Берём только первый элемент до первого пробела
+                mac_address = line.split(maxsplit=1)[0].strip()
                 if mac_address:
                     self.insert_mac_address(mac_address)
 

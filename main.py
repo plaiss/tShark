@@ -183,7 +183,7 @@ def tshark_worker(root, cmd):
         except Exception:
             pass
         try:
-            proc.wait(timeout=10) # одна секунда достаточна /!!!!!!!!!!!!!!!!!!!!!
+            proc.wait(timeout=1) # одна секунда достаточна /!!!!!!!!!!!!!!!!!!!!!
         except Exception:
             pass
         # Завершаем очистку буферов
