@@ -7,6 +7,9 @@ import re
 DATABASE_NAME = 'database.db'
 TABLE_NAME = 'whitelist'
 
+CHECKBOX_UNCHECKED = '\u2610'  # Пустой квадрат
+CHECKBOX_CHECKED = '\u2611'    # Залитый квадрат
+
 class DatabaseManager:
     def __init__(self):
         self.conn = sqlite3.connect(DATABASE_NAME)
@@ -74,11 +77,17 @@ class EditorWindow(tk.Tk):
 
         # Кол-во записей
         self.record_count_label = tk.Label(self, text="Всего записей: ")
-        self.record_count_label.grid(row=1, column=0, sticky='sw')
+        self.record_count_label.grid(row=1, column=0, columnspan=2, sticky='ew')  # Центрируем
+
+        # Показать все
+        show_all_btn = tk.Button(self, text="Показать все", command=self.refresh_tree_view)
+        show_all_btn.grid(row=1, column=1, sticky='ne')
 
         # Дерево
-        self.tree_view = ttk.Treeview(self, columns=('MAC Address'), show='headings')
-        self.tree_view.heading('#1', text='MAC Address', command=self.on_column_click)
+        self.tree_view = ttk.Treeview(self, columns=('Select', 'MAC Address'), show='headings')
+        self.tree_view.heading('#1', text='')
+        self.tree_view.heading('#2', text='MAC Address', command=self.on_column_click)
+        self.tree_view.column('#1', width=50, stretch=False)  # Установка ширины первого столбца
         self.tree_view.grid(row=0, column=0, sticky='nsew')
 
         # Прокрутка
@@ -86,9 +95,16 @@ class EditorWindow(tk.Tk):
         vsb.grid(row=0, column=1, sticky='ns')
         self.tree_view.configure(yscrollcommand=vsb.set)
 
+        # Выбор всех чекбоксов
+        select_all_checkbtn = tk.Checkbutton(self, text="Выделить все", command=self.select_all)
+        select_all_checkbtn.grid(row=1, column=0, sticky='sw')
+
         # Конфигурация grid, чтобы дерево занимало всё пространство окна
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
+
+        # Связываем двойной клик с редактированием
+        self.tree_view.bind('<Double-Button-1>', self.on_double_click)
 
         # Меню
         menu_bar = tk.Menu(self)
@@ -134,7 +150,7 @@ class EditorWindow(tk.Tk):
         for record in data:
             # Формируем MAC-адрес с разделителями двоеточиями
             normalized_mac = ':'.join(record[0][i:i+2] for i in range(0, len(record[0]), 2))
-            self.tree_view.insert('', 'end', values=(normalized_mac,))
+            self.tree_view.insert('', 'end', values=(CHECKBOX_UNCHECKED, normalized_mac))
 
         # Обновляем счётчик записей
         self.record_count_label['text'] = f"Всего записей: {len(data)}"
@@ -155,7 +171,7 @@ class EditorWindow(tk.Tk):
         if not selected_item:
             messagebox.showwarning("Предупреждение", "Выберите MAC-адрес для редактирования.")
             return
-        old_mac = self.tree_view.item(selected_item)['values'][0]
+        old_mac = self.tree_view.item(selected_item)['values'][1]
         entry_dialog = EditMacDialog(self, old_mac)
         entry_dialog.top.transient(self)  # Диалог поверх окна
         entry_dialog.top.lift()  # Убедимся, что окно поднимается поверх всех окон
@@ -174,7 +190,7 @@ class EditorWindow(tk.Tk):
         answer = messagebox.askokcancel("Подтверждение", "Вы действительно хотите удалить выбранные MAC-адреса?")
         if answer:
             for item in selected_items:
-                mac_address = self.tree_view.item(item)['values'][0]
+                mac_address = self.tree_view.item(item)['values'][1]
                 self.db_manager.delete_mac_address_by_mask(mac_address.replace(':', ''))
             self.refresh_tree_view()
 
@@ -201,7 +217,7 @@ class EditorWindow(tk.Tk):
 
         for record in results:
             normalized_mac = ':'.join(record[0][i:i+2] for i in range(0, len(record[0]), 2))
-            self.tree_view.insert('', 'end', values=(normalized_mac,))
+            self.tree_view.insert('', 'end', values=(CHECKBOX_UNCHECKED, normalized_mac))
 
         # Обновляем счётчик записей
         self.record_count_label['text'] = f"Совпадений: {len(results)}"
@@ -212,6 +228,33 @@ class EditorWindow(tk.Tk):
         if filename:
             self.db_manager.load_mac_addresses_from_file(filename)
             self.refresh_tree_view()
+
+    def select_all(self):
+        """Выбирает или снимает выделение всех записей"""
+        all_checked = any(self.tree_view.item(child)["values"][0] == CHECKBOX_CHECKED for child in self.tree_view.get_children())
+        for child in self.tree_view.get_children():
+            self.tree_view.set(child, '#1', CHECKBOX_CHECKED if not all_checked else CHECKBOX_UNCHECKED)
+
+    def invert_checkbox_state(self, event):
+        """Инвертирует состояние чекбокса при клике"""
+        item = self.tree_view.identify_row(event.y)
+        current_state = self.tree_view.item(item)["values"][0]
+        new_state = CHECKBOX_CHECKED if current_state == CHECKBOX_UNCHECKED else CHECKBOX_UNCHECKED
+        self.tree_view.set(item, '#1', new_state)
+
+    def on_double_click(self, event):
+        """Обработчик двойного клика для редактирования MAC-адреса"""
+        item = self.tree_view.identify_row(event.y)
+        if item:
+            mac_address = self.tree_view.item(item)['values'][1]
+            entry_dialog = EditMacDialog(self, mac_address)
+            entry_dialog.top.transient(self)  # Диалог поверх окна
+            entry_dialog.top.lift()  # Убедимся, что окно поднимается поверх всех окон
+            self.wait_window(entry_dialog.top)
+            if entry_dialog.result:
+                new_mac = entry_dialog.result.replace(':', '')
+                self.db_manager.update_mac_address(mac_address.replace(':', ''), new_mac)
+                self.refresh_tree_view()
 
 class AddMacDialog:
     def __init__(self, parent):
