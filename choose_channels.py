@@ -130,6 +130,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
                 widget.config(state="disabled", fg="gray50")
                 var.set(False)  
         
+
         # Контейнер для кнопок (внизу окна)
         button_frame = tk.Frame(master)
         button_frame.pack(pady=5, padx=10, fill=tk.X)
@@ -168,6 +169,8 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         self.geometry("350x450")  
         self.overrideredirect(True)  
 
+        self.update_button_texts()
+
     def toggle_range_selection(self, group):
         all_vars = [var for _, var in group]
         initial_state = any(var.get() for var in all_vars)
@@ -176,6 +179,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         for widget, var in group:
             if widget['state'] != 'disabled':
                 var.set(new_state)
+        self.update_button_texts()  # Обновить тексты после изменения
                 
         button_text = "Снять весь диапазон" if new_state else "Выбрать весь диапазон"
         btn_widget = self.btn_range_2_4 if group is self.checkboxes_2_4 else self.btn_range_5
@@ -191,6 +195,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
                 
         button_text = "Снять все" if new_state else "Выбрать все"
         self.toggle_button.config(text=button_text)
+        self.update_button_texts()  # Обновить тексты после изменения
 
     def apply(self):
         selected_channels = []
@@ -223,6 +228,31 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         except Exception as e:
             print(f"Неожиданная ошибка: {e}")
             return set()
+        
+    def update_button_texts(self):
+        """Обновляет текст на кнопках в зависимости от текущего состояния чекбоксов."""
+        
+        # Проверяем, есть ли хотя бы один отмеченный канал в 2.4 GHz
+        any_2_4_selected = any(var.get() for _, var in self.checkboxes_2_4)
+        # Обновляем кнопку для диапазона 2.4 GHz
+        self.btn_range_2_4.config(
+            text="Снять весь диапазон" if any_2_4_selected else "Выбрать весь диапазон"
+        )
+
+        # Проверяем, есть ли хотя бы один отмеченный канал в 5 GHz
+        any_5_selected = any(var.get() for _, var in self.checkboxes_5)
+        # Обновляем кнопку для диапазона 5 GHz
+        self.btn_range_5.config(
+            text="Снять весь диапазон" if any_5_selected else "Выбрать весь диапазон"
+        )
+
+        # Проверяем, есть ли хоть один отмеченный канал в обоих диапазонах
+        any_selected = any_2_4_selected or any_5_selected
+        # Обновляем основную кнопку «Выбрать/снять все»
+        self.toggle_button.config(
+            text="Снять все" if any_selected else "Выбрать все"
+    )
+
 
 if __name__ == "__main__":
     root = tk.Tk()
