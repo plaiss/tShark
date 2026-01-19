@@ -132,7 +132,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         
         # Контейнер для кнопок (внизу окна)
         button_frame = tk.Frame(master)
-        button_frame.pack(pady=10, padx=10, fill=tk.X)
+        button_frame.pack(pady=5, padx=10, fill=tk.X)
 
         # Кнопка OK
         ok_button = tk.Button(
@@ -141,7 +141,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             command=self.ok,
             width=10,
             height=20, 
-            font=("Arial", 9),
+            font=("Arial", 10),
             relief="flat",           
             bg="#4CAF50",          
             fg="white",             
@@ -156,7 +156,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
             text="Cancel",
             command=self.cancel,
             width=10,
-            font=("Arial", 9),
+            font=("Arial", 10),
             relief="flat",
             bg="#f44336",          
             fg="white",
