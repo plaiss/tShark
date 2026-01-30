@@ -340,12 +340,26 @@ class WifiMonitor(tk.Tk):
 
 
 
-
-    # Добавляет текст в журнал
     def add_text(self, text):
-        # self.text_area.insert(tk.END, text + "\n")
+        # Добавляем новый текст
         self.text_area.insert(tk.END, text)
-        self.text_area.yview_moveto(1.0) #прокручивает вертикальный скролл виджета до самого низа (1.0 = 100% позиции по вертикали)
+        
+        # Получаем весь текст из виджета
+        all_text = self.text_area.get('1.0', tk.END)
+        
+        # Разбиваем на строки, убираем пустые строки в конце
+        lines = [line for line in all_text.splitlines() if line.strip()]
+        
+        # Если строк больше 10 — оставляем только последние 10
+        if len(lines) > 10:
+            lines = lines[-10:]
+        
+        # Очищаем виджет и вставляем обрезанный текст
+        self.text_area.delete('1.0', tk.END)
+        self.text_area.insert('1.0', '\n'.join(lines) + '\n')
+        
+        # Прокручиваем в конец
+        self.text_area.yview_moveto(1.0)
 
 
 
