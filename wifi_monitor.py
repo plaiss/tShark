@@ -629,6 +629,10 @@ class WifiMonitor(tk.Tk):
             self.start_tshark()
             new_props = {'relief': 'sunken'}  # Сделаем кнопку утопленной
             self.set_button_properties('Стоп', new_props)
+    def update_status_with_packet_count(self):
+        status_msg = f"Всего пакетов: {config.total_packet_count} | Найдено устройств: {len(config._last_seen)}"
+        self.status_text.replace(1.0, tk.END, status_msg)
+
 
 
 if __name__ == "__main__":

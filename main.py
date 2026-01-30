@@ -13,12 +13,11 @@ import config
 from wifi_monitor import WifiMonitor  # Импортируем класс из отдельного файла
 from collections import deque, OrderedDict
 import queue
-import cProfile
-import io
-from pstats import Stats
 import logging.handlers
 from whitelist_window import DatabaseManager  # Импортируем менеджер базы данных
 
+_packets_received = 0
+_is_worker_running = False  # Флаг, показывающий, запущен ли уже поток
 
 LOG_FORMAT = '%(asctime)s [%(levelname)-8s]: %(message)s (%(filename)s:%(lineno)d)'
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -81,25 +80,57 @@ def cached_lookup_vendor_db(mac, db_path, verbose=False):
     return vendor
 
 
-# Профилирующий декоратор
-def profile_function(func):
-    def wrapper(*args, **kwargs):
-        profiler = cProfile.Profile()
-        profiler.enable()
-        result = func(*args, **kwargs)
-        profiler.disable()
+PACKET_THRESHOLD = 100000  # порог сброса после достижения 100 тыс. пакетов
 
-        # Сохраняем профилирование в бинарном формате
-        profiler.dump_stats('profile.bin')
+def cleanup_resources():
+    """
+    Функция для очистки ресурсов и сброса счётчиков.
+    """
+    global _packets_received
+    _packets_received = 0
+    logger.info("Очистка ресурсов и сброс счётчиков...")
+    config._seen_count.clear()
+    config._last_seen.clear()
+    # дополнительная чистка, если требуется
 
-        return result
-    return wrapper
+def kill_tshark_process(proc):
+    """
+    Завершает активный процесс tshark.
+    """
+    try:
+        proc.terminate()
+        proc.wait(timeout=1)  # сокращаем тайм-аут до 1 секунды
+    except subprocess.TimeoutExpired:
+        logger.warning("Timeout истек при попытке завершения tshark. Осуществляется принудительная остановка.")
+        proc.kill()  # принудительно останавливаем процесс
+    except Exception as e:
+        logger.error(f"Ошибка при закрытии tshark: {e}")
 
+def start_new_tshark_session(cmd):
+    """
+    Начинает новую сессию tshark.
+    """
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
 
+def restart_tshark_if_needed(proc):
+    """
+    Функция проверяет условие для перезапуска tshark и инициирует его.
+    """
+    global _packets_received
+    if _packets_received >= PACKET_THRESHOLD:
+        logger.info("Перезапуск tshark ввиду достижения лимита пакетов.")
+        _packets_received = 0
+        kill_tshark_process(proc)
+        return start_new_tshark_session(config.TSHARK_CMD)
+    return proc
 
 def tshark_worker(root, cmd):
-
-    logger.info("Starting TShark worker.")  # Зарегистрировали старт
+    global _packets_received, _is_worker_running
+    if _is_worker_running:
+        logger.warning("Поток tshark_worker уже запущен. Повторный запуск игнорируется.")
+        return
+    _is_worker_running = True
+    logger.info("Запуск tshark worker.")  # зарегистрируем старт
     try:
         proc = subprocess.Popen(
             cmd,
@@ -108,10 +139,10 @@ def tshark_worker(root, cmd):
             text=True,
             bufsize=1
         )
-        logger.info("TShark process started successfully.")
+        logger.info("Процесс tshark успешно стартовал.")
     except Exception as e:
         root.add_text(f"Ошибка при старте tshark: {e}" + "\n")
-        logger.error(f"Failed to start TShark: {e}")
+        logger.error(f"Не удалось запустить tshark: {e}")
         config._stop.set()
         return
 
@@ -122,73 +153,82 @@ def tshark_worker(root, cmd):
     threading.Thread(target=stderr_reader, daemon=True).start()
 
     try:
-        for raw in proc.stdout:
-            if config._stop.is_set():
-                break
-            raw = raw.rstrip("\n")
-            if not raw:
-                continue
-            parts = raw.split("\t")
-            if len(parts) < 5:
-                continue
-            
-            raw_time = parts[0]
-            mac = parts[1] if len(parts) > 1 else ""
-            rssi = parts[2] if len(parts) > 2 else ""
-            channel = parts[3] if len(parts) > 3 else ""
-            subtype = parts[4] if len(parts) > 4 else ""
+        while not config._stop.is_set():  # пока не установлен флаг остановки
+            for raw in proc.stdout:
+                if config._stop.is_set():  # дополнительная проверка внутри цикла
+                    break
+                _packets_received += 1
+                config.total_packet_count += 1  # ← счётчик всех обработанных пакетов
+                logger.debug(f"Принято {_packets_received} пакетов (всего: {config.total_packet_count}).")
 
-            mac_n = utils.normalize_mac(mac)
-            if not mac_n:
-                continue
-                    
-            # Вычисляем размер полезных данных (исключая служебные фреймы)
-            useful_bytes = 0
-            if not subtype.startswith(("Beacon", "Probe Response", "Probe Request")):
-                useful_bytes = len(raw.encode('utf-8'))
+                if _packets_received >= PACKET_THRESHOLD:
+                    proc = restart_tshark_if_needed(proc)
+                    # очистим ресурсы и вернёмся к началу внешнего цикла
+                    cleanup_resources()
+                    continue
+                raw = raw.rstrip("\n")
+                if not raw:
+                    continue
+                parts = raw.split("\t")
+                if len(parts) < 5:
+                    continue
                 
-            # Накапливаем полезный трафик для каждого MAC-адреса
-            global _traffic_by_mac
-            config._traffic_by_mac[mac_n] = config._traffic_by_mac.get(mac_n, 0) + useful_bytes
+                raw_time = parts[0]
+                mac = parts[1] if len(parts) > 1 else ""
+                rssi = parts[2] if len(parts) > 2 else ""
+                channel = parts[3] if len(parts) > 3 else ""
+                subtype = parts[4] if len(parts) > 4 else ""
 
-            # Проверка белого списка
-            if config._whitelist:
-                allowed = mac_n not in config._whitelist
-            else:
-                allowed = True
+                mac_n = utils.normalize_mac(mac)
+                if not mac_n:
+                    continue
+                        
+                # Вычисляем размер полезных данных (исключая служебные фреймы)
+                useful_bytes = 0
+                if not subtype.startswith(("Beacon", "Probe Response", "Probe Request")):
+                    useful_bytes = len(raw.encode('utf-8'))
+                    
+                # Накапливаем полезный трафик для каждого MAC-адреса
+                global _traffic_by_mac
+                config._traffic_by_mac[mac_n] = config._traffic_by_mac.get(mac_n, 0) + useful_bytes
 
-            if not allowed:
-                continue  # Пропускаем пакет, если он запрещён
+                # Проверка белого списка
+                if config._whitelist:
+                    allowed = mac_n not in config._whitelist
+                else:
+                    allowed = True
 
-            now = time.time()
-            with config._seen_lock:
-                config._seen_count[mac_n] = config._seen_count.get(mac_n, 0) + 1
-                mac_count = config._seen_count[mac_n]
-                # Обновляем время последнего обнаружения
-                config._last_seen[mac_n] = now
+                if not allowed:
+                    continue  # пропускаем пакет, если он запрещён
 
-            pretty_time = utils.parse_time_epoch(raw_time)
-            mac_vendor = cached_lookup_vendor_db(mac_n, config.DB_PATH, False)
-            
-            # Складываем данные в буферы класса
-            root.tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, config._traffic_by_mac.get(mac_n)))
-            root.log_queue.put(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
+                now = time.time()
+                with config._seen_lock:
+                    config._seen_count[mac_n] = config._seen_count.get(mac_n, 0) + 1
+                    mac_count = config._seen_count[mac_n]
+                    # Обновляем время последнего обнаружения
+                    config._last_seen[mac_n] = now
 
+                pretty_time = utils.parse_time_epoch(raw_time)
+                mac_vendor = cached_lookup_vendor_db(mac_n, config.DB_PATH, False)
+                
+                # Складываем данные в буферы класса
+                root.tree_buffer.append((mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, config._traffic_by_mac.get(mac_n)))
+                root.log_queue.put(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
 
     finally:
-        # Здесь можно дополнительно очистить данные
-        root.clean_buffers(controlled=True)  # Применяем контролируемую очистку
+        # Завершаем работу потока
+        root.clean_buffers(controlled=True)  # контролируемая очистка
         try:
             proc.terminate()
         except Exception:
             pass
         try:
-            proc.wait(timeout=1) # одна секунда достаточна /!!!!!!!!!!!!!!!!!!!!!
+            proc.wait(timeout=1) # одна секунда достаточна
         except Exception:
             pass
         # Завершаем очистку буферов
         root.clean_buffers()
-
+        _is_worker_running = False  # снимаем флаг активности
 
 def main():
     global DATABASE_NAME
@@ -204,7 +244,7 @@ def main():
         # Запускаем поток и передаем ссылку на него в класс App
         tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD), daemon=True)
         tshark_thread.start()
-        root.tshark_thread = tshark_thread  # Присваиваем ссылку на поток в экземпляр App
+        root.tshark_thread = tshark_thread  # сохраняем ссылку на поток в экземпляр App
     root.mainloop()
     
 

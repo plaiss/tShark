@@ -33,3 +33,4 @@ MAC_RE = re.compile(r'[^0-9a-f]')
 DB_PATH = "database.db"
 
 IEEE_OUI_URL = "https://standards-oui.ieee.org/oui/oui.txt"
+total_packet_count = 0
