@@ -29,96 +29,82 @@ logger = logging.getLogger(__name__)
 class WifiMonitor(tk.Tk):
     def __init__(self):
         super().__init__()
-    
-        # self.logger = logging.getLogger(__name__)
-        # Настройка главного окна приложения
+
+        # === 1. Инициализация и базовые настройки окна ===
         self.title("WiFi Monitor")
-        
-        # Полноценное развертывание окна
         self.attributes('-fullscreen', True)
-        # self.overrideredirect(True)
-        
         self.minsize(width=800, height=480)
-        self.center_window()  # Центрируем окно
-        
-        # Переменная состояния чекбокса (инициализируем до использования)
+        self.center_window()
+
+        # === 2. Управление состояниями и данными ===
         self.reverse_check_var = tk.BooleanVar(value=False)
-        
-        # Хранилище ссылок на созданные кнопки
         self.buttons = {}  # Словарь для хранения ссылок на кнопки
         
-        # Главный фрейм для всего интерфейса
+        # Состояния сортировки столбцов
+        self._column_sort_state = {}
+        for col in ["#1", "#2", "#3", "#4", "#5", "#6", "#7"]:
+            self._column_sort_state[col] = True  # По умолчанию — прямой порядок
+        
+        self.scanning_active = False  # Флаг активности сканирования
+        self.prev_channels = []
+        self.prev_delay_time = 0
+        self.tree_buffer = deque(maxlen=1000)  # Буфер для дерева
+        self.log_queue = queue.Queue()  # Очередь логов
+        self.flush_lock = threading.Lock()  # Лок для синхронизации очистки
+
+        # === 3. Структура интерфейса (компоновка виджетов) ===
         main_frame = tk.Frame(self)
         main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Центральный контейнер для разделения на левую и правую стороны
+
         central_container = tk.Frame(main_frame)
         central_container.pack(fill=tk.BOTH, expand=True)
-        
+
         # Левый контейнер для таблицы (TreeView)
         table_container = tk.Frame(central_container)
-        table_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)  # Таблица занимает всю левую сторону
-        
-        # Таблица с устройствами
-        self.tree_view(table_container)
-        
+        table_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
         # Правый контейнер для панели инструментов
         toolbar_container = tk.Frame(central_container, bg="#f0f0f0")
-        toolbar_container.pack(side=tk.RIGHT, fill=tk.Y)  # Кнопки располагаются справа, растягиваются по высоте
-        
-        # Создаем сами кнопки
-        self.create_buttons(toolbar_container)
-        
-        # Новый контейнер для журнала сообщений
-        log_container = tk.Frame(main_frame)
-        log_container.pack(side=tk.TOP, fill=tk.X)  # Ставим контейнер под центральным контейнером, растянув по ширине
-        
-        # Создаем сам журнал сообщений
-        self.log_view(log_container)
-        
-        # Полоса статуса снизу окна
-        self.status_bar()
+        toolbar_container.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Кнопка "Закрыть" на свободном пространстве справа
+        # Контейнер для журнала сообщений
+        log_container = tk.Frame(main_frame)
+        log_container.pack(side=tk.TOP, fill=tk.X)
+
+        # === 4. Создание интерфейсных элементов ===
+        self.tree_view(table_container)  # Таблица устройств
+        self.create_buttons(toolbar_container)  # Кнопки панели инструментов
+        self.log_view(log_container)  # Журнал сообщений
+        self.status_bar()  # Строка состояния
+
+        # Кнопка «Закрыть»
         close_button = tk.Button(self, text="X", font=("Arial", 10, "bold"), command=self.quit)
         close_button.pack(side=tk.RIGHT, anchor="ne", before=self.status_text)
-
 
         # Индикатор состояния потока
         self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
         self.indicator.pack(side='left')
-        # Присваиваем обработчик события для индикатора RUNNING
-        self.indicator.bind('<Button-1>', self.on_running_indicator_click)
-        
-        # Новый индикатор для состояния сканирования каналов
+
+        # Индикатор состояния сканирования каналов
         self.channel_indicator = tk.Label(self, text="", background="grey", width=7, height=1)
         self.channel_indicator.pack(side='left')
-        
-        # Добавляем связывание события Button-1 (щелчок левой кнопкой мыши)
-        self.channel_indicator.bind('<Button-1>', self.on_channel_indicator_click)
 
-        # Новый индикатор для отображения текущего канала
+        # Индикатор текущего канала
         self.channel_label = tk.Label(self, text="Channel:", background="lightblue", width=10, height=1)
         self.channel_label.pack(side='left')
+
+        # === 5. Обработка событий ===
+        self.indicator.bind('<Button-1>', self.on_running_indicator_click)
+        self.channel_indicator.bind('<Button-1>', self.on_channel_indicator_click)
+
+        # === 6. Обновление состояния интерфейса ===
         
-        self.update_indicator()
         self.update_channel_indicator()
         self.refresh_status()
 
-        # Словарь состояний сортировки для каждого столбца
-        self._column_sort_state = {}
-        for col in ["#1", "#2", "#3", "#4", "#5", "#6", "#7"]:
-            self._column_sort_state[col] = True  # По умолчанию сортировка прямого порядка
-        # Флаг активности сканирования
-        self.scanning_active = False
-        self.prev_channels = []
-        self.prev_delay_time =0
-        # Перемещаем сюда объявление буфера
-        self.tree_buffer = deque(maxlen=1000)
-        self.log_queue = queue.Queue()
-
-        self.flush_lock = threading.Lock()
+        # === 7. Очистка и синхронизация данных ===
         self.flush_buffers()
+
 
     def flush_buffers(self):
         # Получаем блокировку (если уже занята — ждём)
@@ -149,7 +135,8 @@ class WifiMonitor(tk.Tk):
                 self.add_text("\n".join(messages))
             
             # Плановое повторение (самозапланирование через 1 секунду)
-            # Важно: self.after() должен быть вне блока with, чтобы не блокировать поток GUI
+            # Важно: self.af ter() должен быть вне блока with, чтобы не блокировать поток GUI
+            self.update_indicator()
             self.after(1000, lambda: self.flush_buffers())
 
         # Централизация окна
@@ -237,7 +224,7 @@ class WifiMonitor(tk.Tk):
         else:
             self.channel_indicator.config(background="#ccc", text='no scan')
 
-        self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
+        # self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
 
     def update_channel_indicator(self):
         # Получаем текущий канал
@@ -245,8 +232,6 @@ class WifiMonitor(tk.Tk):
         if not current_channel:
             current_channel = 1 # Заглушка, если не Monitor mode
         self.channel_label.config(text=f"Ch:{current_channel}", background="lightblue")
-        # Повторяем проверку каждые 2 секунды
-        # self.after(2000, self.update_channel_indicator)
 
     def on_device_double_click(self, event):
         selected_item = self.tree.focus()
@@ -398,8 +383,6 @@ class WifiMonitor(tk.Tk):
             # self.status_text.tag_remove("highlight", "1.0", tk.END)  # удалить тег со всего текста
             new_props = {'relief': 'sunken', 'state': 'disabled'}
             self.set_button_properties('Monitor mode', new_props)
-        # Повторяем проверку каждые 2 секунды
-        # self.after(10000, self.refresh_status)
 
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
