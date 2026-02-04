@@ -99,10 +99,10 @@ def kill_tshark_process(proc):
     """
     try:
         proc.terminate()
-        proc.wait(timeout=1)  # сокращаем тайм-аут до 1 секунды
+        proc.wait(timeout=1) # сокращаем тайм-аут до 1 секунды
     except subprocess.TimeoutExpired:
         logger.warning("Timeout истек при попытке завершения tshark. Осуществляется принудительная остановка.")
-        proc.kill()  # принудительно останавливаем процесс
+        proc.kill() # принудительно останавливаем процесс
     except Exception as e:
         logger.error(f"Ошибка при закрытии tshark: {e}")
 
@@ -130,7 +130,7 @@ def tshark_worker(root, cmd):
         logger.warning("Поток tshark_worker уже запущен. Повторный запуск игнорируется.")
         return
     _is_worker_running = True
-    logger.info("Запуск tshark worker.")  # зарегистрируем старт
+    logger.info("Запуск tshark worker.")  # Зарегистрировали старт
     try:
         proc = subprocess.Popen(
             cmd,
@@ -148,22 +148,26 @@ def tshark_worker(root, cmd):
 
     def stderr_reader():
         for line in proc.stderr:
-            root.add_text(f"\n{line.rstrip()}\n")
+            root.log_queue.put(line.rstrip())
 
     threading.Thread(target=stderr_reader, daemon=True).start()
 
     try:
-        while not config._stop.is_set():  # пока не установлен флаг остановки
+        while not config._stop.is_set():  # Пока не установлен флаг остановки
             for raw in proc.stdout:
-                if config._stop.is_set():  # дополнительная проверка внутри цикла
+                if config._stop.is_set():  # Дополнительная проверка внутри цикла
                     break
                 _packets_received += 1
-                config.total_packet_count += 1  # ← счётчик всех обработанных пакетов
+                config.total_packet_count += 1  # Общий счётчик всех пакетов
                 logger.debug(f"Принято {_packets_received} пакетов (всего: {config.total_packet_count}).")
+
+                # Логирование каждые 5000 пакетов
+                if (_packets_received % 5000 == 0):
+                    logger.info(f"Получено пакетов с текущего перезапуска: {_packets_received}, всего пакетов с начала работы: {config.total_packet_count}.")
 
                 if _packets_received >= PACKET_THRESHOLD:
                     proc = restart_tshark_if_needed(proc)
-                    # очистим ресурсы и вернёмся к началу внешнего цикла
+                    # Очищаем ресурсы и возвращаемся к началу внешнего цикла
                     cleanup_resources()
                     continue
                 raw = raw.rstrip("\n")
@@ -199,7 +203,7 @@ def tshark_worker(root, cmd):
                     allowed = True
 
                 if not allowed:
-                    continue  # пропускаем пакет, если он запрещён
+                    continue  # Пропускаем пакет, если он запрещён
 
                 now = time.time()
                 with config._seen_lock:
@@ -217,18 +221,18 @@ def tshark_worker(root, cmd):
 
     finally:
         # Завершаем работу потока
-        root.clean_buffers(controlled=True)  # контролируемая очистка
+        root.clean_buffers(controlled=True)  # Контролируемая очистка
         try:
             proc.terminate()
         except Exception:
             pass
         try:
-            proc.wait(timeout=1) # одна секунда достаточна
+            proc.wait(timeout=1) # Одна секунда достаточна
         except Exception:
             pass
         # Завершаем очистку буферов
         root.clean_buffers()
-        _is_worker_running = False  # снимаем флаг активности
+        _is_worker_running = False  # Снимаем флаг активности
 
 def main():
     global DATABASE_NAME
@@ -244,6 +248,7 @@ def main():
         # Запускаем поток и передаем ссылку на него в класс App
         tshark_thread = threading.Thread(target=tshark_worker, args=(root, config.TSHARK_CMD), daemon=True)
         tshark_thread.start()
+        logger.info("Создание нового потока tshar из main.py, строка 250 завершено")
         root.tshark_thread = tshark_thread  # сохраняем ссылку на поток в экземпляр App
     root.mainloop()
     

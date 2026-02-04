@@ -25,6 +25,7 @@ from whitelist_window import EditorWindow
 
 logger = logging.getLogger(__name__)
 
+# Логгер настроен в первом файле, тут его повторно настраивать не нужно
 
 class WifiMonitor(tk.Tk):
     def __init__(self):
@@ -105,6 +106,14 @@ class WifiMonitor(tk.Tk):
         # === 7. Очистка и синхронизация данных ===
         self.flush_buffers()
 
+        # Периодически проверяем очередь и обновляем интерфейс
+        self.poll_log_queue()
+
+    def poll_log_queue(self):
+        while not self.log_queue.empty():
+            msg = self.log_queue.get()
+            self.add_text(msg + "\n")
+        self.after(100, self.poll_log_queue)
 
     def flush_buffers(self):
         # Получаем блокировку (если уже занята — ждём)
@@ -123,19 +132,10 @@ class WifiMonitor(tk.Tk):
             while not self.log_queue.empty():
                 messages.append(self.log_queue.get())
             if messages:
-
-
-                # Проверяем, существует ли список и не пуст ли он
-                if messages and len(messages) > 0:
-                    last_element = messages[-1]  # Получаем последний элемент
-                    # Проверяем, что последний символ не равен '\n'
-                    if not last_element.endswith('\n'):
-                        messages[-1] = last_element + '\n'  # Добавляем '\n' к последнему элементу
-
                 self.add_text("\n".join(messages))
             
             # Плановое повторение (самозапланирование через 1 секунду)
-            # Важно: self.af ter() должен быть вне блока with, чтобы не блокировать поток GUI
+            # Важно: self.after() должен быть вне блока with, чтобы не блокировать поток GUI
             self.update_indicator()
             self.after(1000, lambda: self.flush_buffers())
 
@@ -336,7 +336,7 @@ class WifiMonitor(tk.Tk):
         lines = [line for line in all_text.splitlines() if line.strip()]
         
         # Если строк больше 10 — оставляем только последние 10
-        if len(lines) > 10:
+        if len(lines) > 1000:
             lines = lines[-10:]
         
         # Очищаем виджет и вставляем обрезанный текст
@@ -431,10 +431,13 @@ class WifiMonitor(tk.Tk):
             self.set_button_properties('Стоп', {'text': 'Стоп'})  # Меняем текст на "Стоп"
     
     def start_tshark(self):
+        logger.info("Начинается попытка запуска tshark")
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+            logger.info("Игнорируем запуск, поскольку поток уже активен")
             return  # Если поток уже запущен, ничего не делаем
         self.tshark_thread = threading.Thread(target=main.tshark_worker, args=(self, config.TSHARK_CMD), daemon=True)
         self.tshark_thread.start()
+        logger.info("Создание нового потока tshark завершено")
 
     def clean_buffers(self, controlled=False):
         if controlled:
@@ -526,7 +529,7 @@ class WifiMonitor(tk.Tk):
     def show_settings(self):
         # Затем открываем окно настроек
         settings_window = SettingsWindow(self.master)
-        settings_window.grab_set()  # Фокусируется на окне настроек
+        settings_window.grab_set() # Фокусируется на окне настроек
 
     def show_channel_selector(self):
         dialog = ChannelSelectorDialog(self, config.interface, channels=getattr(self, 'prev_channels', None), delay_time=getattr(self, 'prev_delay_time', None))
