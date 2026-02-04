@@ -118,14 +118,14 @@ class WifiMonitor(tk.Tk):
     def flush_buffers(self):
         # Получаем блокировку (если уже занята — ждём)
         with self.flush_lock:
-            logger.info("Flushing buffers...")
+            # logger.info("Flushing buffers...")
             
             # Массовое обновление дерева
             while self.tree_buffer:
                 mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = self.tree_buffer.popleft()
                 self.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
 
-            logger.info("Buffers flushed successfully.")
+            # logger.info("Buffers flushed successfully.")
             
             # Обработка логов
             messages = []
@@ -209,7 +209,7 @@ class WifiMonitor(tk.Tk):
         
     def update_indicator(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
-            logger.info("TShark thread is alive.DEF update_indicator")
+            # logger.info("TShark thread is alive.DEF update_indicator")
             self.indicator.config(background="red", text='running')
             new_props = {'relief': 'sunken', 'text': 'Стоп'}
             self.set_button_properties('Стоп', new_props)

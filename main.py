@@ -15,6 +15,7 @@ from collections import deque, OrderedDict
 import queue
 import logging.handlers
 from whitelist_window import DatabaseManager  # Импортируем менеджер базы данных
+import os 
 
 _packets_received = 0
 _is_worker_running = False  # Флаг, показывающий, запущен ли уже поток
@@ -27,11 +28,12 @@ file_handler = logging.handlers.RotatingFileHandler(
     backupCount=5,               # Количество резервных копий старых файлов
     encoding='utf-8'
 )
-logging.basicConfig(level=logging.INFO, handlers=[file_handler])
+# logging.basicConfig(level=logging.INFO, handlers=[file_handler])
+logging.basicConfig(level=logging.INFO, handlers=[file_handler], format=LOG_FORMAT, datefmt=DATE_FORMAT)
 logger = logging.getLogger(__name__)
 formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
 file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+# logger.addHandler(file_handler)
 
 # Класс для ограничения размера кэша с использованием LRU-стратегии
 class LimitedSizeCache(OrderedDict):
@@ -119,9 +121,13 @@ def restart_tshark_if_needed(proc):
     global _packets_received
     if _packets_received >= PACKET_THRESHOLD:
         logger.info("Перезапуск tshark ввиду достижения лимита пакетов.")
+        logger.info(f"Перезапуск tshark (пакетов: {_packets_received}). PID старого процесса: {proc.pid}")
         _packets_received = 0
         kill_tshark_process(proc)
-        return start_new_tshark_session(config.TSHARK_CMD)
+        new_proc = start_new_tshark_session(config.TSHARK_CMD)
+        logger.info(f"Новый процесс tshark запущен. PID: {new_proc.pid}")
+        return new_proc
+        # return start_new_tshark_session(config.TSHARK_CMD)
     return proc
 
 def tshark_worker(root, cmd):
@@ -131,6 +137,7 @@ def tshark_worker(root, cmd):
         return
     _is_worker_running = True
     logger.info("Запуск tshark worker.")  # Зарегистрировали старт
+    logger.info(f"Процесс tshark успешно стартовал. PID={os.getpid()}, Thread={threading.get_ident()}")
     try:
         proc = subprocess.Popen(
             cmd,
