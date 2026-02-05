@@ -191,7 +191,7 @@ class SecondWindow(tk.Toplevel):
             "-e", "wlan.fc.type_subtype",
             "-e", "wlan.ssid",
             "-Y", f"wlan.addr=={self.mac_address}",
-            "-c", "100"
+            "-c", "50"
         ]
         
         try:

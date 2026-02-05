@@ -274,7 +274,7 @@ def tshark_worker(root, cmd):
                 
                 # 3. Ждём завершения с таймаутом (5 сек)
                 try:
-                    proc.wait(timeout=5)
+                    proc.wait(timeout=7)
                     logger.info(f"[FINALLY] Процесс PID={proc.pid} успешно завершён.")
                 except subprocess.TimeoutExpired:
                     logger.warning(f"[FINALLY] Таймаут ожидания PID={proc.pid}. Принудительное завершение.")

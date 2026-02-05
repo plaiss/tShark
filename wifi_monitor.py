@@ -23,6 +23,9 @@ from choose_channels import ChannelSelectorDialog  # Новое окно выб�
 import logging
 from whitelist_window import EditorWindow
 from threading import Lock
+from choose_channels import ChannelSelectorDialog
+# from choose_channels import get_available_channels  # импортируем нужный метод
+
 change_channel_lock = Lock()
 logger = logging.getLogger(__name__)    # Логгер настроен в первом файле, тут его повторно настраивать не нужно
 
@@ -615,6 +618,9 @@ class WifiMonitor(tk.Tk):
                 f"[CHANNEL_CHANGE] Завершение смены канала {channel}. "
                 f"Общее время: {total_time:.2f} сек, статус: {'успешно' if process and process.returncode == 0 else 'ошибка'}"
             )
+            #         # Заблокированный ресурс освобождается независимо от успеха операции
+            # if change_channel_lock.locked():
+            #     change_channel_lock.release()
 
     def stop_scanning(self):
         # Отключаем флаг активности сканирования
@@ -626,13 +632,27 @@ class WifiMonitor(tk.Tk):
 
         self.add_text("Процесс сканирования каналов остановлен." + "\n")
     
+    # def on_channel_indicator_click(self, event):
+    #     if self.scanning_active:
+    #         self.stop_scanning()
+    #     else:
+    #         # Например, начать сканирование или выбрать каналы вручную
+    #         print ('Вот здесь желтая кнопочка')
+    #         self.show_channel_selector()
     def on_channel_indicator_click(self, event):
-        if self.scanning_active:
-            self.stop_scanning()
+        if not self.scanning_active:
+            # Получаем доступные каналы из другого модуля
+            available_channels = utils.get_available_channels(config.interface)
+            if available_channels:
+                self.prev_channels = available_channels
+                # Начинаем сканирование по всем доступным каналам с минимальным временем задержки
+                self.scan_selected_channels(list(available_channels), delay_time=0.25)
         else:
-            # Например, начать сканирование или выбрать каналы вручную
-            print ('Вот здесь желтая кнопочка')
-            self.show_channel_selector()
+            self.prev_channels = []
+            self.stop_scanning()
+
+
+
             
     def on_running_indicator_click(self, event):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():

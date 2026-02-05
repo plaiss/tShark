@@ -1,9 +1,11 @@
 import tkinter as tk
 from tkinter import simpledialog, messagebox, Frame, Label, Checkbutton, Button, OptionMenu, StringVar, BooleanVar
 import utils
-
+import config
 import subprocess
 import re
+
+
 
 class ChannelSelectorDialog(simpledialog.Dialog):
     def __init__(self, parent, interface, channels=None, delay_time=None):
@@ -122,7 +124,7 @@ class ChannelSelectorDialog(simpledialog.Dialog):
                     break
         
         # Получаем доступные каналы для интерфейса
-        available_channels = self.get_available_channels(self.interface)
+        available_channels = utils.get_available_channels(config.interface)
         # Отключаем неподдерживаемые каналы
         for widget, var in self.checkboxes_2_4 + self.checkboxes_5:
             channel_num = int(widget["text"])
@@ -205,29 +207,29 @@ class ChannelSelectorDialog(simpledialog.Dialog):
         delay_time = float(self.delay_choice.get())
         self.result = (selected_channels, delay_time)
 
-    def get_available_channels(self, interface):
-        try:
-            result = subprocess.run(
-                ["iwlist", interface, "channel"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            output = result.stdout
+    # def get_available_channels(self, interface):
+    #     try:
+    #         result = subprocess.run(
+    #             ["iwlist", interface, "channel"],
+    #             capture_output=True,
+    #             text=True,
+    #             check=True
+    #         )
+    #         output = result.stdout
 
-            channels = set()
-            for line in output.splitlines():
-                match = re.search(r"Channel\s+(\d+)\s*:", line)
-                if match:
-                    channels.add(int(match.group(1)))
-            return channels
+    #         channels = set()
+    #         for line in output.splitlines():
+    #             match = re.search(r"Channel\s+(\d+)\s*:", line)
+    #             if match:
+    #                 channels.add(int(match.group(1)))
+    #         return channels
 
-        except subprocess.CalledProcessError as e:
-            print(f"Ошибка при выполнении iwlist: {e}")
-            return set()
-        except Exception as e:
-            print(f"Неожиданная ошибка: {e}")
-            return set()
+    #     except subprocess.CalledProcessError as e:
+    #         print(f"Ошибка при выполнении iwlist: {e}")
+    #         return set()
+    #     except Exception as e:
+    #         print(f"Неожиданная ошибка: {e}")
+    #         return set()
         
     def update_button_texts(self):
         """Обновляет текст на кнопках в зависимости от текущего состояния чекбоксов."""

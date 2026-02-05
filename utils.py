@@ -268,3 +268,27 @@ def get_current_channel():
             error_message = f"Error retrieving Wi-Fi information: {e}"
             print(error_message)
             messagebox.showerror("Wi-Fi Info Error", error_message)
+
+def get_available_channels(interface):
+    try:
+        result = subprocess.run(
+            ["iwlist", interface, "channel"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        output = result.stdout
+
+        channels = set()
+        for line in output.splitlines():
+            match = re.search(r"Channel\s+(\d+)\s*:", line)
+            if match:
+                channels.add(int(match.group(1)))
+        return channels
+
+    except subprocess.CalledProcessError as e:
+        print(f"Ошибка при выполнении iwlist: {e}")
+        return set()
+    except Exception as e:
+        print(f"Неожиданная ошибка: {e}")
+    return set()
