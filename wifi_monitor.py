@@ -22,10 +22,9 @@ from export_dialog import ExportDialog
 from choose_channels import ChannelSelectorDialog  # Новое окно выбора каналов
 import logging
 from whitelist_window import EditorWindow
-
-logger = logging.getLogger(__name__)
-
-# Логгер настроен в первом файле, тут его повторно настраивать не нужно
+from threading import Lock
+change_channel_lock = Lock()
+logger = logging.getLogger(__name__)    # Логгер настроен в первом файле, тут его повторно настраивать не нужно
 
 class WifiMonitor(tk.Tk):
     def __init__(self):
@@ -566,23 +565,97 @@ class WifiMonitor(tk.Tk):
         self.scanning_active = True  # Включаем сканирование
         self.scanner_thread.start()
 
-    def change_channel(self, channel, password=config.password):
-        logger.info("Before changing channel")
-        # Формируем команду
-        command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
-        # Выполнение команды с передачей пароля через stdin
-        process = subprocess.run(command, input=f'{password}\n', encoding='utf-8', capture_output=True)
+    # def change_channel(self, channel, password=config.password):
+    #     logger.info("Before changing channel")
+    #     with change_channel_lock:
+    #         logger.info("channel_lock complited")
+    #         # Формируем команду
+    #         command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
+    #         # Выполнение команды с передачей пароля через stdin
+    #         process = subprocess.run(command, input=f'{password}\n', encoding='utf-8', capture_output=True)
 
-        if process.returncode != 0:
-            print(f"Ошибка: {process.stderr}")  # Выводим сообщение об ошибке
-            logger.info(f"Ошибка: {process.stderr}")
-        else:
-            # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
-            logger.info(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
-            # Обновляем лейбл с номером канала
-            # updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
-            # self.title_label.config(text=updated_text)
-            self.update_channel_indicator()
+    #         if process.returncode != 0:
+    #             print(f"Ошибка: {process.stderr}")  # Выводим сообщение об ошибке
+    #             logger.info(f"Ошибка: {process.stderr}")
+    #         else:
+    #             # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
+    #             logger.info(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
+    #             # Обновляем лейбл с номером канала
+    #             # updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
+    #             # self.title_label.config(text=updated_text)
+    #             self.update_channel_indicator()
+
+    def change_channel(self, channel, password=config.password):
+        try:
+            # 1. Начальное логирование
+            start_time = time.time()
+            logger.info(f"[CHANNEL_CHANGE] Начало смены канала на {channel}. Текущее время: {start_time:.2f}")
+
+
+            # 2. Проверка блокировки
+            if change_channel_lock.locked():
+                logger.warning(f"[CHANNEL_CHANGE] Лок уже занят! Кто-то держит блокировку. Ожидание...")
+            
+            
+            with change_channel_lock:
+                logger.debug(f"[CHANNEL_CHANGE] Лок получен для канала {channel}. Время: {time.time():.2f}")
+
+                
+                # 3. Формирование команды
+                command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
+                logger.debug(f"[CHANNEL_CHANGE] Выполняется команда: {' '.join(command)}")
+
+
+                # 4. Выполнение с таймаутом и обработкой ошибок
+                try:
+                    process = subprocess.run(
+                        command,
+                        input=f'{password}\n',
+                        encoding='utf-8',
+                        capture_output=True,
+                        timeout=10  # Таймаут 10 секунд
+                    )
+                    
+                    
+                    # 5. Анализ результата
+                    if process.returncode == 0:
+                        logger.info(
+                            f"[CHANNEL_CHANGE] Успешно сменил канал на {channel} "
+                            f"(время операции: {time.time() - start_time:.2f} сек)"
+                        )
+                        self.update_channel_indicator()
+                    else:
+                        error_msg = (
+                            f"Ошибка при смене канала {channel}: "
+                            f"код={process.returncode}, stderr={process.stderr}"
+                        )
+                        logger.error(f"[CHANNEL_CHANGE] {error_msg}")
+                        print(error_msg)
+                        
+                except subprocess.TimeoutExpired:
+                    logger.critical(
+                        f"[CHANNEL_CHANGE] Таймаут при смене канала {channel}! "
+                        f"Команда: {' '.join(command)}"
+                    )
+                except Exception as e:
+                    logger.critical(
+                        f"[CHANNEL_CHANGE] Неожиданная ошибка при смене канала {channel}: {e}\n"
+                        f"Traceback: {traceback.format_exc()}"
+                    )
+
+        except Exception as e:
+            logger.critical(
+                f"[CHANNEL_CHANGE] Критическая ошибка в методе change_channel: {e}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
+        finally:
+            # 6. Финальное логирование
+            total_time = time.time() - start_time
+            logger.debug(
+                f"[CHANNEL_CHANGE] Завершение смены канала {channel}. "
+                f"Общее время: {total_time:.2f} сек, статус: {'успешно' if process and process.returncode == 0 else 'ошибка'}"
+            )
+
 
     def stop_scanning(self):
         # Отключаем флаг активности сканирования
