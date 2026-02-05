@@ -95,23 +95,56 @@ def cleanup_resources():
     config._last_seen.clear()
     # дополнительная чистка, если требуется
 
+# def kill_tshark_process(proc):
+#     """
+#     Завершает активный процесс tshark.
+#     """
+#     try:
+#         proc.terminate()
+#         proc.wait(timeout=1) # сокращаем тайм-аут до 1 секунды
+#     except subprocess.TimeoutExpired:
+#         logger.warning("Timeout истек при попытке завершения tshark. Осуществляется принудительная остановка.")
+#         proc.kill() # принудительно останавливаем процесс
+#     except Exception as e:
+#         logger.error(f"Ошибка при закрытии tshark: {e}")
+
 def kill_tshark_process(proc):
-    """
-    Завершает активный процесс tshark.
-    """
+    logger.info(f"[KILL_TSHARK] Попытка завершения процесса PID={proc.pid}")
+    
+    if proc.poll() is not None:
+        logger.info("[KILL_TSHARK] Процесс уже завершён.")
+        return
+
     try:
         proc.terminate()
-        proc.wait(timeout=1) # сокращаем тайм-аут до 1 секунды
+        logger.debug("[KILL_TSHARK] Отправлен SIGTERM. Ожидание завершения...")
+        proc.wait(timeout=5)
+        logger.info("[KILL_TSHARK] Процесс успешно завершён.")
     except subprocess.TimeoutExpired:
-        logger.warning("Timeout истек при попытке завершения tshark. Осуществляется принудительная остановка.")
-        proc.kill() # принудительно останавливаем процесс
+        logger.warning("[KILL_TSHARK] Таймаут ожидания. Принудительное завершение.")
+        try:
+            process = psutil.Process(proc.pid)
+            process.kill()
+            logger.info("[KILL_TSHARK] Процесс убит через psutil.")
+        except psutil.NoSuchProcess:
+            logger.info("[KILL_TSHARK] Процесс уже завершился.")
+        except Exception as e:
+            logger.error(f"[KILL_TSHARK] Ошибка при убийстве процесса: {e}")
     except Exception as e:
-        logger.error(f"Ошибка при закрытии tshark: {e}")
+        logger.error(f"[KILL_TSHARK] Неожиданная ошибка: {e}")
 
 def start_new_tshark_session(cmd):
     """
     Начинает новую сессию tshark.
     """
+        # Проверка на висячие процессы
+    try:
+        result = subprocess.run(['pgrep', 'tshark'], capture_output=True, text=True)
+        if result.stdout:
+            logger.warning(f"Найден запущенный tshark (PID: {result.stdout.strip()})")
+    except Exception as e:
+        logger.debug(f"Не удалось проверить процессы tshark: {e}")
+                     
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
 
 def restart_tshark_if_needed(proc):
@@ -124,6 +157,7 @@ def restart_tshark_if_needed(proc):
         logger.info(f"Перезапуск tshark (пакетов: {_packets_received}). PID старого процесса: {proc.pid}")
         _packets_received = 0
         kill_tshark_process(proc)
+        time.sleep(2)  # Пауза перед новым запуском
         new_proc = start_new_tshark_session(config.TSHARK_CMD)
         logger.info(f"Новый процесс tshark запущен. PID: {new_proc.pid}")
         return new_proc
@@ -227,19 +261,55 @@ def tshark_worker(root, cmd):
                 root.log_queue.put(f"{mac}|{rssi}| {utils.decode_wlan_type_subtype(subtype)} | {pretty_time} | Канал: {channel}")
 
     finally:
-        # Завершаем работу потока
-        root.clean_buffers(controlled=True)  # Контролируемая очистка
+        # Флаг для отслеживания состояния завершения
+        cleanup_completed = False
+        
         try:
-            proc.terminate()
-        except Exception:
-            pass
-        try:
-            proc.wait(timeout=1) # Одна секунда достаточна
-        except Exception:
-            pass
-        # Завершаем очистку буферов
-        root.clean_buffers()
-        _is_worker_running = False  # Снимаем флаг активности
+            # 1. Проверяем, существует ли процесс и ещё работает
+            if proc is not None and proc.poll() is None:
+                logger.info(f"[FINALLY] Попытка завершения процесса PID={proc.pid}")
+                
+                # 2. Отправляем SIGTERM (корректное завершение)
+                proc.terminate()
+                
+                # 3. Ждём завершения с таймаутом (5 сек)
+                try:
+                    proc.wait(timeout=5)
+                    logger.info(f"[FINALLY] Процесс PID={proc.pid} успешно завершён.")
+                except subprocess.TimeoutExpired:
+                    logger.warning(f"[FINALLY] Таймаут ожидания PID={proc.pid}. Принудительное завершение.")
+                    # 4. Принудительно убиваем процесс
+                    proc.kill()
+                    try:
+                        proc.wait(timeout=2)  # Ждём подтверждения убийства
+                        logger.info(f"[FINALLY] Процесс PID={proc.pid} убит.")
+                    except subprocess.TimeoutExpired:
+                        logger.error(f"[FINALLY] Не удалось завершить процесс PID={proc.pid}!")
+            
+            else:
+                if proc is None:
+                    logger.debug("[FINALLY] proc равен None (процесс не был запущен).")
+                else:
+                    logger.debug(f"[FINALLY] Процесс PID={proc.pid} уже завершён (код возврата: {proc.poll()}).")
+            
+            
+            # 5. Контролируемая очистка буферов
+            root.clean_buffers(controlled=True)
+            cleanup_completed = True
+            
+        except Exception as e:
+            logger.error(f"[FINALLY] Ошибка при завершении процесса: {e}", exc_info=True)
+        finally:
+            # 6. Гарантированная очистка буферов (даже при ошибке)
+            try:
+                root.clean_buffers()  # Неконтролируемая очистка
+            except Exception as e:
+                logger.error(f"[FINALLY] Ошибка при очистке буферов: {e}")
+            
+            # 7. Снимаем флаг активности
+            _is_worker_running = False
+            logger.info("[FINALLY] Рабочий поток остановлен. Флаг _is_worker_running = False")
+
 
 def main():
     global DATABASE_NAME

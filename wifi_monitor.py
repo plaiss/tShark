@@ -139,6 +139,7 @@ class WifiMonitor(tk.Tk):
             self.after(1000, lambda: self.flush_buffers())
 
         # Централизация окна
+
     def center_window(self):
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
@@ -147,8 +148,6 @@ class WifiMonitor(tk.Tk):
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-
 
     def tree_view(self, frame):
         # Заголовок дерева
@@ -199,9 +198,9 @@ class WifiMonitor(tk.Tk):
         # Текстовая область для журналов и сообщений
         self.text_area = scrolledtext.ScrolledText(frame, wrap=tk.NONE, height=5)  # Ограничиваем высоту в 5 строк
         self.text_area.pack(fill='both', expand=True)  # Растягиваем по ширине и занимаем весь контейнер
-
-    # Полоса статуса
+   
     def status_bar(self):
+         # Полоса статуса
         self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, width=37, font=("TkDefaultFont", 10))  # Высота в одну строку
         self.status_text.pack(side=tk.LEFT, anchor='w')
         # Автообновление индикатора состояния потока
@@ -237,9 +236,9 @@ class WifiMonitor(tk.Tk):
         data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
         if data:
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
-
-    # Открывает второе окно с информацией о устройстве
+    
     def open_second_window(self, *, data=None):
+        # Открывает второе окно с информацией о устройстве
         scanner_was_running = False
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             _stop.set()  # Устанавливаем флаг остановки
@@ -322,8 +321,6 @@ class WifiMonitor(tk.Tk):
         
         # print("[SORT] Сортировка завершена")
 
-
-
     def add_text(self, text):
         # Добавляем новый текст
         self.text_area.insert(tk.END, text)
@@ -344,8 +341,6 @@ class WifiMonitor(tk.Tk):
         
         # Прокручиваем в конец
         self.text_area.yview_moveto(1.0)
-
-
 
     def update_tree(self, mac_address, vendor, rssi, last_seen, channel_number, appearance_count, useful_bytes):
         with config._seen_lock:
@@ -406,17 +401,16 @@ class WifiMonitor(tk.Tk):
             btn = tk.Button(toolbar, text=button_name, **btn_props)
             btn.pack(side=tk.TOP, fill=tk.X, expand=True, padx=5, pady=5)  # Располагаем кнопки вертикально
             self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
-
-    # Универсальный метод для установки любых свойств кнопки
+    
     def set_button_properties(self, button_name, properties):
         """
         Изменяет любые свойства указанной кнопки.
         :param button_name: Имя кнопки
         :param properties: Словарь новых свойств (например, {'relief': 'sunken', 'bg': 'red'})
         """
+        # Универсальный метод для установки любых свойств кнопки
         if button_name in self.buttons:
             self.buttons[button_name].config(**properties)
-
             
     def toggle_scanning(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
@@ -446,7 +440,6 @@ class WifiMonitor(tk.Tk):
             # Оставляем только очистку лога
               print ('здесь могла бы быть ваша реклама')
               pass
-
 
     def switch_to_monitor_mode(self):
         """Перевод интерфейса в мониторный режим."""
@@ -487,38 +480,7 @@ class WifiMonitor(tk.Tk):
         
         # Дополнительно: можно обновить интерфейс или выполнить другие действия после закрытия
 
-    # def show_whitelist(self):
-    #     """Показывает содержание белого списка и открывает его для редактирования в отдельном окне терминала."""
-    #     # Определение пути к файлу white-list
-    #     whitelist_path = config.WHITELIST_PATH  # Или локально определённое значение
 
-    #     # Команда для открытия xterm с запущенным nano
-    #     terminal_command = [
-    #         'xterm',
-    #         '-T', 'Редактирование белого списка',  # Название окна
-    #         # '-hold',                               # Держать окно открытым после выхода из nano
-    #         '-e',                                  # Выполнить команду
-    #         'nano', whitelist_path                 # Запуск nano с указанным файлом
-    #     ]
-
-    #     try:
-    #         # Запуск терминала с nano и получение объекта процесса
-    #         process = subprocess.Popen(terminal_command)
-
-    #         # Ожидание завершения процесса
-    #         process.wait()  # Ждать, пока пользователь закончит редактирование
-
-    #         # Отправка сигнала SIGHUP основному процессу tshark
-    #         pid = os.getpid()  # PID текущего процесса
-    #         os.kill(pid, signal.SIGHUP)
-
-    #         # Уведомление пользователя о завершении
-    #         messagebox.showinfo("Готово", "Белый список успешно обновлён!")
-
-    #     except OSError as err:
-    #         messagebox.showerror("Ошибка", f"Невозможно открыть терминал: {err}")
-    #         logger.error(f"Невозможно открыть терминал: {err}")
-    #         return
 
     def show_whitelist(self):
         """Метод для открытия окна редактора"""
@@ -691,8 +653,6 @@ class WifiMonitor(tk.Tk):
     def update_status_with_packet_count(self):
         status_msg = f"Всего пакетов: {config.total_packet_count} | Найдено устройств: {len(config._last_seen)}"
         self.status_text.replace(1.0, tk.END, status_msg)
-
-
 
 if __name__ == "__main__":
     app = WifiMonitor()
