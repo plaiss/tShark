@@ -480,8 +480,6 @@ class WifiMonitor(tk.Tk):
         
         # Дополнительно: можно обновить интерфейс или выполнить другие действия после закрытия
 
-
-
     def show_whitelist(self):
         """Метод для открытия окна редактора"""
         editor = EditorWindow()
@@ -618,7 +616,6 @@ class WifiMonitor(tk.Tk):
                 f"Общее время: {total_time:.2f} сек, статус: {'успешно' if process and process.returncode == 0 else 'ошибка'}"
             )
 
-
     def stop_scanning(self):
         # Отключаем флаг активности сканирования
         self.scanning_active = False
@@ -634,6 +631,7 @@ class WifiMonitor(tk.Tk):
             self.stop_scanning()
         else:
             # Например, начать сканирование или выбрать каналы вручную
+            print ('Вот здесь желтая кнопочка')
             self.show_channel_selector()
             
     def on_running_indicator_click(self, event):
@@ -650,9 +648,9 @@ class WifiMonitor(tk.Tk):
             self.start_tshark()
             new_props = {'relief': 'sunken'}  # Сделаем кнопку утопленной
             self.set_button_properties('Стоп', new_props)
-    def update_status_with_packet_count(self):
-        status_msg = f"Всего пакетов: {config.total_packet_count} | Найдено устройств: {len(config._last_seen)}"
-        self.status_text.replace(1.0, tk.END, status_msg)
+    # def update_status_with_packet_count(self):
+    #     status_msg = f"Всего пакетов: {config.total_packet_count} | Найдено устройств: {len(config._last_seen)}"
+    #     self.status_text.replace(1.0, tk.END, status_msg)
 
 if __name__ == "__main__":
     app = WifiMonitor()
