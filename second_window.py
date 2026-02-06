@@ -12,20 +12,10 @@ import utils
 import threading
 import numpy as np
 import select
-
 frameBeacon = '0x0008'
-
 # Максимальная длина графика
 MAX_POINTS_ON_GRAPH = 1000
 
-# Поток данных из tshark
-def get_data_stream(proc):
-    for line in iter(proc.stdout.readline, b''):
-        output = line.decode().strip()
-        if output:
-            yield output
-
-# Окно с деталями устройства
 class SecondWindow(tk.Toplevel):
     def __init__(self, parent, mac_address=None, manufacturer=None, channel=None):
         super().__init__(parent)
@@ -34,8 +24,8 @@ class SecondWindow(tk.Toplevel):
         self.title("Мониторинг RSSI")
         
         # Полноценное развертывание окна
-        self.attributes('-fullscreen', True)
-        self.overrideredirect(True)
+        # self.attributes('-fullscreen', True)
+        # self.overrideredirect(True)
 
         self.paused = False
         self.device_type = ""
@@ -46,10 +36,8 @@ class SecondWindow(tk.Toplevel):
             self.mac_address = "0A:2C:47:0B:CD:D3"
         else:
             self.mac_address = mac_address
-        current_channel_num, frequency = utils.get_current_channel()
         
-        # Определение типа устройства
-        self.check_device_type()
+
         
         # Основная команда для мониторинга сигнала (RSSI)
         TSHARK_CMD1 = [
@@ -82,14 +70,18 @@ class SecondWindow(tk.Toplevel):
             )
             hdr.grid(row=0, column=col, sticky="ew")
 
-
+        # Определение типа устройства
+        # self.check_device_type()
+        self.status_label = tk.Label(
+            left_frame, text="Определение типа устройства...", 
+            fg="orange", font=("Arial", 9), anchor="w"
+            )
         rows = [
             ("Адрес устройства", ""),  # Первая строка специально оставляется пустой для текста
             ("Производитель", manufacturer or "N/A"),
-            ("Тип устройства", self.device_type),
-            ("SSID", self.ssid),          
-            ("Канал", str(channel) if current_channel_num else "N/A"),
-            ("Частота", f"{frequency}" if frequency else "N/A"),
+            ("Тип устройства", self.device_type or "N/A"),
+            ("SSID", self.ssid or "N/A"),          
+            ("Канал", str(channel) if channel else "N/A"),
             ("Текущий кадр", "N/A"),
             ("RSSI", "N/A")
         ]
@@ -180,6 +172,8 @@ class SecondWindow(tk.Toplevel):
         self.last_valid_time = time.time()
         self.use_filter_var = tk.BooleanVar(value=True)  # Включено сглаживание
         self.alpha = 0.2            # Коэффициент EMA
+
+
 
     def check_device_type(self):
         """
