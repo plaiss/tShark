@@ -195,7 +195,7 @@ class SecondWindow(tk.Toplevel):
         ]
         
         try:
-            result = subprocess.run(beacon_cmd, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(beacon_cmd, capture_output=True, text=True, timeout=20)
             
             lines = result.stdout.strip().splitlines()
             frames = []

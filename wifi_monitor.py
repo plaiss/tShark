@@ -115,7 +115,7 @@ class WifiMonitor(tk.Tk):
         while not self.log_queue.empty():
             msg = self.log_queue.get()
             self.add_text(msg + "\n")
-        self.after(100, self.poll_log_queue)
+        self.after(1000, self.poll_log_queue)
 
     def flush_buffers(self):
         # Получаем блокировку (если уже занята — ждём)
@@ -139,7 +139,7 @@ class WifiMonitor(tk.Tk):
             # Плановое повторение (самозапланирование через 1 секунду)
             # Важно: self.after() должен быть вне блока with, чтобы не блокировать поток GUI
             self.update_indicator()
-            self.after(1000, lambda: self.flush_buffers())
+            self.after(5000, lambda: self.flush_buffers())
 
         # Централизация окна
 
@@ -257,6 +257,7 @@ class WifiMonitor(tk.Tk):
         channel = data[4]
 
         self.stop_scanning()
+        # self.toggle_scanning()
         self.change_channel(channel)
         SecondWindow(self, mac_address, manufacturer, channel)
         if scanner_was_running == True:
@@ -494,6 +495,7 @@ class WifiMonitor(tk.Tk):
         settings_window.grab_set() # Фокусируется на окне настроек
 
     def show_channel_selector(self):
+        self.stop_scanning()
         dialog = ChannelSelectorDialog(self, config.interface, channels=getattr(self, 'prev_channels', None), delay_time=getattr(self, 'prev_delay_time', None))
 
         if dialog.result:
@@ -528,25 +530,6 @@ class WifiMonitor(tk.Tk):
         self.scanning_active = True  # Включаем сканирование
         self.scanner_thread.start()
 
-    # def change_channel(self, channel, password=config.password):
-    #     logger.info("Before changing channel")
-    #     with change_channel_lock:
-    #         logger.info("channel_lock complited")
-    #         # Формируем команду
-    #         command = ['sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)]
-    #         # Выполнение команды с передачей пароля через stdin
-    #         process = subprocess.run(command, input=f'{password}\n', encoding='utf-8', capture_output=True)
-
-    #         if process.returncode != 0:
-    #             print(f"Ошибка: {process.stderr}")  # Выводим сообщение об ошибке
-    #             logger.info(f"Ошибка: {process.stderr}")
-    #         else:
-    #             # print(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
-    #             logger.info(f"Успешно сменил канал на {channel} для интерфейса {config.interface}.")
-    #             # Обновляем лейбл с номером канала
-    #             # updated_text = f"Обнаруженные уникальные MAC-адреса (Канал: {channel})"
-    #             # self.title_label.config(text=updated_text)
-    #             self.update_channel_indicator()
 
     def change_channel(self, channel, password=config.password):
         try:
@@ -618,9 +601,7 @@ class WifiMonitor(tk.Tk):
                 f"[CHANNEL_CHANGE] Завершение смены канала {channel}. "
                 f"Общее время: {total_time:.2f} сек, статус: {'успешно' if process and process.returncode == 0 else 'ошибка'}"
             )
-            #         # Заблокированный ресурс освобождается независимо от успеха операции
-            # if change_channel_lock.locked():
-            #     change_channel_lock.release()
+
 
     def stop_scanning(self):
         # Отключаем флаг активности сканирования
