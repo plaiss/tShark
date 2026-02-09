@@ -12,9 +12,20 @@ import utils
 import threading
 import numpy as np
 import select
+
 frameBeacon = '0x0008'
+
 # Максимальная длина графика
 MAX_POINTS_ON_GRAPH = 1000
+
+
+# Поток данных из tshark
+def get_data_stream(proc):
+    for line in iter(proc.stdout.readline, b''):
+        output = line.decode().strip()
+        if output:
+            yield output
+
 
 class SecondWindow(tk.Toplevel):
     def __init__(self, parent, mac_address=None, manufacturer=None, channel=None):
@@ -22,23 +33,19 @@ class SecondWindow(tk.Toplevel):
         self.geometry("800x480")
         self.parent = parent
         self.title("Мониторинг RSSI")
-        
-        # Полноценное развертывание окна
-        # self.attributes('-fullscreen', True)
-        # self.overrideredirect(True)
 
         self.paused = False
         self.device_type = ""
         self.last_valid_time = time.time()
-        
+        self.ssid = "N/A"
+
         # Валидация MAC-адреса
         if not mac_address or not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", mac_address):
             self.mac_address = "0A:2C:47:0B:CD:D3"
         else:
             self.mac_address = mac_address
-        
 
-        
+
         # Основная команда для мониторинга сигнала (RSSI)
         TSHARK_CMD1 = [
             "tshark", "-i", config.interface,
@@ -70,17 +77,11 @@ class SecondWindow(tk.Toplevel):
             )
             hdr.grid(row=0, column=col, sticky="ew")
 
-        # Определение типа устройства
-        # self.check_device_type()
-        self.status_label = tk.Label(
-            left_frame, text="Определение типа устройства...", 
-            fg="orange", font=("Arial", 9), anchor="w"
-            )
         rows = [
-            ("Адрес устройства", ""),  # Первая строка специально оставляется пустой для текста
+            ("Адрес устройства", ""),
             ("Производитель", manufacturer or "N/A"),
-            ("Тип устройства", self.device_type or "N/A"),
-            ("SSID", self.ssid or "N/A"),          
+            ("Тип устройства", "N/A"),
+            ("SSID", "N/A"),
             ("Канал", str(channel) if channel else "N/A"),
             ("Текущий кадр", "N/A"),
             ("RSSI", "N/A")
@@ -98,7 +99,7 @@ class SecondWindow(tk.Toplevel):
             )
             key_label.grid(row=row_idx+1, column=0, sticky="w", pady=2)
 
-            # Если первая строка - используем виджет Text
+            # Если первая строка — используем виджет Text
             if idx == 0:
                 value_widget = tk.Text(left_frame, height=1, width=18, state="normal", font=("Arial", 10), borderwidth=0, highlightthickness=0, background="#EFEFEF")
                 value_widget.insert("1.0", self.mac_address)
@@ -146,7 +147,6 @@ class SecondWindow(tk.Toplevel):
         fig = plt.Figure(figsize=(5, 4), dpi=100)
         self.ax = fig.add_subplot(111)
         self.ax.grid(True, linestyle='--', alpha=0.7)
-        # self.ax.set_ylabel('RSSI (dBm)', fontsize=10)
         self.canvas = FigureCanvasTkAgg(fig, master=right_frame)
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.grid(row=0, column=0, sticky="nsew")
@@ -161,23 +161,46 @@ class SecondWindow(tk.Toplevel):
         self.rssi_values = []
         self.timestamps = []
 
-        # Запуск мониторинга
+        # Статусная метка (новое)
+        self.status_label = tk.Label(
+            left_frame, text="Определение типа устройства...",
+            fg="orange", font=("Arial", 9), anchor="w"
+        )
+        self.status_label.grid(row=len(rows)+2, column=0, columnspan=2, sticky="w", pady=2)
+
+        # Запуск мониторинга и графика
         self.proc = subprocess.Popen(TSHARK_CMD1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         self.flush_lock = threading.Lock()
 
         self.start_monitoring()
-        self.schedule_plot_update()  # Запускаем периодическую перерисовку
-        self.rssi_buffer = []        # Буфер для сглаживания
-        self.ema_value = None         # Начальное значение EMA
+        self.schedule_plot_update()
+        self.rssi_buffer = []
+        self.ema_value = None  # Начальное значение EMA
         self.last_valid_time = time.time()
         self.use_filter_var = tk.BooleanVar(value=True)  # Включено сглаживание
         self.alpha = 0.2            # Коэффициент EMA
 
+        # ЗАПУСКАЕМ ОПРЕДЕЛЕНИЕ ТИПА УСТРОЙСТВА В ОТДЕЛЬНОМ ПОТОКЕ
+        threading.Thread(target=self.delayed_device_check, daemon=True).start()
+
+
+    def delayed_device_check(self):
+        """Выполняется в отдельном потоке: определяет тип устройства и SSID."""
+        self.check_device_type()
+        # Передаём обновление интерфейса в основной поток Tkinter
+        self.after(0, self.update_ui_after_check)
+
+    def update_ui_after_check(self):
+        """Обновляет метки интерфейса после завершения check_device_type."""
+        self.labels["Тип устройства"]["text"] = self.device_type
+        self.labels["SSID"]["text"] = self.ssid
+        self.status_label.config(text="Готово", fg="green")
 
 
     def check_device_type(self):
         """
         Определение типа устройства (AP или STA) и SSID с обработкой различных форматов SSID.
+        Выполняется в фоновом потоке.
         """
         beacon_cmd = [
             "tshark", "-i", config.interface,
@@ -189,7 +212,7 @@ class SecondWindow(tk.Toplevel):
         ]
         
         try:
-            result = subprocess.run(beacon_cmd, capture_output=True, text=True, timeout=20)
+            result = subprocess.run(beacon_cmd, capture_output=True, text=True, timeout=30)
             
             lines = result.stdout.strip().splitlines()
             frames = []
@@ -235,9 +258,13 @@ class SecondWindow(tk.Toplevel):
                 self.ssid = "N/A"
         
         except subprocess.TimeoutExpired:
-            logging.warning("tshark превысил таймаут (5 сек)")
+            logging.warning("tshark превысил таймаут (10 сек)")
+            self.device_type = "Unknown (timeout)"
+            self.ssid = "N/A"
         except Exception as e:
             logging.error(f"Произошла ошибка при обработке данных: {e}")
+            self.device_type = "Error"
+            self.ssid = "N/A"
 
     def create_context_menu(self, widget):
         # Создание контекстного меню
@@ -245,11 +272,15 @@ class SecondWindow(tk.Toplevel):
         menu.add_command(label="Копировать", command=lambda: self.copy_mac_address(widget))
         widget.bind("<Button-3>", lambda event: menu.post(event.x_root, event.y_root))
 
+
     def copy_mac_address(self, widget):
         # Копирует выбранный текст в буфер обмена
-        selection = widget.selection_get()
-        self.clipboard_clear()
-        self.clipboard_append(selection)
+        try:
+            selection = widget.get("1.0", "end-1c")
+            self.clipboard_clear()
+            self.clipboard_append(selection)
+        except:
+            pass
 
     def stop_updating(self):
         """Остановить мониторинг."""
@@ -270,7 +301,7 @@ class SecondWindow(tk.Toplevel):
         self._read_next_line()
 
     def _read_next_line(self):
-        """Читаем данные пакетно, планируем следующий вызов через 50 мс."""
+        """Читаем данные пакетно, планируем следующий вызов через 50 мс."""
         if self.paused:
             self.after(50, self._read_next_line)
             return
@@ -291,7 +322,7 @@ class SecondWindow(tk.Toplevel):
                 if response:
                     self._process_response(response)
 
-            # Планируем следующий вызов через 50 мс
+            # Планируем следующий вызов через 50 мс
             self.after(50, self._read_next_line)
         except Exception as e:
             print(f"[ERROR] {e}")
@@ -299,7 +330,7 @@ class SecondWindow(tk.Toplevel):
 
     def _process_response(self, response):
         """
-        Новый процесс обработки данных с использованием адаптивного EMA и ограничений шага.
+        Обработка данных с адаптивным EMA и ограничениями шага.
         """
         parts = response.strip().split("\t")
         if len(parts) != 2:
@@ -315,70 +346,85 @@ class SecondWindow(tk.Toplevel):
                 if self.ema_value is None:
                     self.ema_value = current_rssi
                 else:
-                    alpha = 0.2  # Базовый коэффициент сглаживания
-                    ema_candidate = alpha * current_rssi + (1-alpha)*self.ema_value
+                    alpha = self.alpha  # Базовый коэффициент сглаживания
+                    ema_candidate = alpha * current_rssi + (1 - alpha) * self.ema_value
                     
                     # Ограничение изменения EMA (защита от больших шагов)
-                    step_limit = 5  # Разрешенный максимальный шаг
+                    step_limit = 5  # Разрешённый максимальный шаг
                     change = ema_candidate - self.ema_value
                     if abs(change) > step_limit:
                         direction = 1 if change > 0 else -1
-                        ema_candidate = self.ema_value + direction*step_limit
+                        ema_candidate = self.ema_value + direction * step_limit
                         
                     self.ema_value = ema_candidate
 
-                # Диагностика
-
-                # print(f"Raw: {current_rssi}, EMA: {self.ema_value:.2f}, Alpha: {self.alpha:.2f}, Step Limit: {step_limit}")
 
                 # Обновление интерфейса
                 self.labels["Текущий кадр"]["text"] = frame_number
                 self.labels["RSSI"]["text"] = f"{self.ema_value:.2f} dBm"
 
-                self.rssi_values.append(self.ema_value)
-                self.timestamps.append(time.time())
 
-                # Ограничиваем длину буферов
+                self.rssi_values.append(self.ema_value)
+
+
+
+
+                # Ограничение длины буферов
                 if len(self.rssi_values) > MAX_POINTS_ON_GRAPH:
                     self.rssi_values.pop(0)
                     self.timestamps.pop(0)
 
+
+                # Добавляем текущую временную метку
+                current_time = time.time()
+                self.timestamps.append(current_time)
+
         except ValueError:
-            pass  # Пропускаем неверные данные
-        except Exception as e:
-            print(f"[ERROR in _process_response] {e}")
+            pass  # Пропускаем строки с некорректным RSSI
 
     def plot_graph(self):
-        """Перерисовка графика."""
-        if len(self.timestamps) < 4 or len(self.rssi_values) < 4:  # Минимум 4 точки
+        """Перерисовывает график RSSI."""
+        if not self.rssi_values:
             return
 
         self.ax.clear()
         self.ax.grid(True, linestyle='--', alpha=0.7)
-
-        # Наносим данные на график
-        self.ax.plot(self.timestamps, self.rssi_values, color='blue', linewidth=1.5, zorder=10)
-
-        # Настройки оси Y
+        self.ax.plot(self.timestamps, self.rssi_values, color='blue', linewidth=1.5)
+        
+        # Настройка осей
+        self.ax.set_ylim(-100, -20)
         yticks = list(range(-100, -20, 10))
         self.ax.set_yticks(yticks)
-        self.ax.set_ylim(-100, -20)
         self.ax.xaxis.set_visible(False)
         self.ax.margins(x=0.02)
-
-        self.canvas.draw_idle()
+        
+        self.canvas.draw()
 
     def schedule_plot_update(self):
-        """Планируем периодическую перерисовку графика каждые 100 мс."""
+        """Планирует периодическую перерисовку графика."""
         self.plot_graph()
-        self.after(100, self.schedule_plot_update)
+        self.after(100, self.schedule_plot_update)  # Каждые 100 мс
+
 
     def on_closing(self):
         """Обработчик закрытия окна."""
         self.stop_updating()
         self.destroy()
 
-# Пример использования (если нужно)
+    def toggle_pause(self):
+        """Переключение режима паузы."""
+        self.paused = not self.paused
+        if self.paused:
+            self.pause_start_button.config(text="Старт")
+        else:
+            self.pause_start_button.config(text="Пауза")
+
+    def start_monitoring(self):
+        """Запускает мониторинг."""
+        self._read_next_line()
+
+
+
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Скрываем главное окно
