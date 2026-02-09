@@ -288,13 +288,7 @@ class SecondWindow(tk.Toplevel):
             self.proc.kill()
             self.proc.wait()
 
-    def toggle_pause(self):
-        """Переключение режима паузы."""
-        self.paused = not self.paused
-        if self.paused:
-            self.pause_start_button.config(text="Старт")
-        else:
-            self.pause_start_button.config(text="Пауза")
+
 
     def start_monitoring(self):
         """Запускаем мониторинг через .after()."""
@@ -418,6 +412,7 @@ class SecondWindow(tk.Toplevel):
             self.pause_start_button.config(text="Старт")
         else:
             self.pause_start_button.config(text="Пауза")
+
 
     def start_monitoring(self):
         """Запускает мониторинг."""
