@@ -111,11 +111,19 @@ class WifiMonitor(tk.Tk):
         # Периодически проверяем очередь и обновляем интерфейс
         self.poll_log_queue()
 
+    # def poll_log_queue(self):
+    #     while not self.log_queue.empty():
+    #         msg = self.log_queue.get()
+    #         self.add_text(msg + "\n")
+    #     self.after(1000, self.poll_log_queue)
+
     def poll_log_queue(self):
-        while not self.log_queue.empty():
-            msg = self.log_queue.get()
-            self.add_text(msg + "\n")
-        self.after(1000, self.poll_log_queue)
+      while not self.log_queue.empty():
+          msg = self.log_queue.get()
+          self.add_text(msg)    # Удалили "\n", теперь добавляем только само сообщение
+
+      # Повторно запускаем опрос через 1 секунду
+      self.after(1000, self.poll_log_queue)
 
     def flush_buffers(self):
         # Получаем блокировку (если уже занята — ждём)
@@ -325,26 +333,70 @@ class WifiMonitor(tk.Tk):
         
         # print("[SORT] Сортировка завершена")
 
+    # def add_text(self, text):
+    #     # Добавляем новый текст
+    #     self.text_area.insert(tk.END, text)
+        
+    #     # Получаем весь текст из виджета
+    #     all_text = self.text_area.get('1.0', tk.END)
+        
+    #     # Разбиваем на строки, убираем пустые строки в конце
+    #     lines = [line for line in all_text.splitlines() if line.strip()]
+        
+    #     # Если строк больше 10 — оставляем только последние 10
+    #     if len(lines) > 1000:
+    #         lines = lines[-10:]
+        
+    #     # Очищаем виджет и вставляем обрезанный текст
+    #     self.text_area.delete('1.0', tk.END)
+    #     text2add = '\n'.join(lines) + '\n'
+        
+    #     if text2add.endswith('\n\n'):
+    #         text2add = text2add[:-1]  # убираем последний символ (один \n)
+
+
+    #     self.text_area.insert('1.0', text2add)
+        
+    #     # Прокручиваем в конец
+    #     # self.text_area.yview_moveto(1.0)
+    #     self.text_area.see(tk.END)
+    # #     self.text_area.mark_set(tk.INSERT, tk.END)
+
+
     def add_text(self, text):
-        # Добавляем новый текст
-        self.text_area.insert(tk.END, text)
-        
-        # Получаем весь текст из виджета
-        all_text = self.text_area.get('1.0', tk.END)
-        
-        # Разбиваем на строки, убираем пустые строки в конце
-        lines = [line for line in all_text.splitlines() if line.strip()]
-        
-        # Если строк больше 10 — оставляем только последние 10
-        if len(lines) > 1000:
-            lines = lines[-10:]
-        
-        # Очищаем виджет и вставляем обрезанный текст
-        self.text_area.delete('1.0', tk.END)
-        self.text_area.insert('1.0', '\n'.join(lines) + '\n')
-        
-        # Прокручиваем в конец
-        self.text_area.yview_moveto(1.0)
+            """
+            Добавляет текст сверху вниз в self.text_area, удаляя лишние строки,
+            пропускает пустые строки и поддерживает ограничение видимости.
+            """
+            if isinstance(text, str):
+                lines = text.splitlines()  # Разбиваем на отдельные строки
+            elif isinstance(text, list):
+                lines = text
+            else:
+                raise ValueError("Параметр 'text' должен быть строкой или списком строк.")
+                
+            for line in reversed(lines):
+                if not line.strip():  # Пропускаем пустые строки
+                    continue
+                    
+                # Удаляем самые старые строки, если их больше 1000
+                all_lines = self.text_area.get('1.0', tk.END).split('\n')
+                while len(all_lines) > 1000:
+                    del all_lines[0]
+                
+                # Формируем обновленный список строк
+                new_lines = [''] + all_lines[:-1] + [line]  # добавляем новую строку сверху
+                
+                # Обновляем содержимое text_area
+                self.text_area.delete('1.0', tk.END)
+                self.text_area.insert(tk.END, '\n'.join(new_lines))
+                
+                # Прокручиваем виджет вверх, чтобы новая строка была внизу
+                self.text_area.see(tk.END)
+
+
+
+
 
     def update_tree(self, mac_address, vendor, rssi, last_seen, channel_number, appearance_count, useful_bytes):
         with config._seen_lock:
