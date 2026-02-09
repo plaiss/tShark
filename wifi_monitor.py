@@ -602,180 +602,76 @@ class WifiMonitor(tk.Tk):
     #         )
 
     def change_channel(self, channel):
+        """
+        Безопасный метод смены канала сети Wi-Fi.
+        
+        :param channel: Номер канала для установки
+        """
         start_time = time.time()
-        process = None  # Защита от NameError в finally
-        acquired_lock = False  # Флаг получения блокировки
-
+        process = None
+        acquired_lock = False
 
         try:
             logger.info(f"[CHANNEL_CHANGE] Начало смены канала на {channel}. Время: {start_time:.2f}")
 
+            # Простое использование блокировки без сложного контроля
+            change_channel_lock.acquire()
+            logger.debug(f"[CHANNEL_CHANGE] Лок получен для канала {channel}. Время: {time.time():.2f}")
 
-            # Попытка получить блокировку с таймаутом (5 сек)
-            acquired_lock = change_channel_lock.acquire(timeout=5)
-            if not acquired_lock:
-                logger.error(f"[CHANNEL_CHANGE] Не удалось получить блокировку для канала {channel} за 5 сек")
-                return
+            # Формирование команды
+            command = ["sudo", "iw", "dev", config.interface, "set", "channel", str(channel)]
+            logger.debug(f"[CHANNEL_CHANGE] Выполняется команда: {' '.join(command)}")
 
+            # Выполнение команды с параметрами
             try:
-                with change_channel_lock:  # Гарантированное освобождение при выходе
-                    logger.debug(f"[CHANNEL_CHANGE] Лок получен для канала {channel}. Время: {time.time():.2f}")
+                process = subprocess.run(
+                    command,
+                    input=None,                  # Без ввода пароля
+                    encoding="utf-8",            # Используем старую схему обработки текста
+                    capture_output=True,
+                    timeout=60                   # Большой таймаут для предотвращения преждевременного выхода
+                )
 
+                # Анализ результата
+                if process.returncode == 0:
+                    logger.info(
+                        f"[CHANNEL_CHANGE] Успешно сменил канал на {channel} "
+                        f"(время: {time.time() - start_time:.2f} сек)\n"
+                        f"stdout: {process.stdout}, stderr: {process.stderr}"
+                    )
+                    self.update_channel_indicator()
+                else:
+                    error_msg = (
+                        f"Ошибка при смене канала {channel}: "
+                        f"код={process.returncode}, stdout={process.stdout}, stderr={process.stderr.strip()}"
+                    )
+                    logger.error(f"[CHANNEL_CHANGE] {error_msg}")
 
-                    # Формирование команды
-                    command = [
-                        'sudo', 'iw', 'dev', config.interface, 'set', 'channel', str(channel)
-                    ]
-                    logger.debug(f"[CHANNEL_CHANGE] Выполняется команда: {' '.join(command)}")
+            except subprocess.TimeoutExpired:
+                logger.critical(
+                    f"[CHANNEL_CHANGE] Таймаут при смене канала {channel}. "
+                    f"Команда: {' '.join(command)}, stdout: {process.stdout}, stderr: {process.stderr}"
+                )
+            except Exception as e:
+                logger.critical(
+                    f"[CHANNEL_CHANGE] Неожиданная ошибка при выполнении команды: {e}\n"
+                    f"Команда: {' '.join(command)}\n"
+                    f"Traceback: {traceback.format_exc()}"
+                )
 
-
-                    # Выполнение с таймаутом и обработкой вывода
-                    try:
-                        process = subprocess.run(
-                            command,
-                            text=True,              # Современный аналог encoding='utf-8'
-                            capture_output=True,
-                            timeout=10
-                        )
-
-                        # Анализ результата
-                        if process.returncode == 0:
-                            logger.info(
-                                f"[CHANNEL_CHANGE] Успешно сменил канал на {channel} "
-                                f"(время: {time.time() - start_time:.2f} сек)"
-                            )
-                            self.update_channel_indicator()
-                        else:
-                            error_msg = (
-                                f"Ошибка при смене канала {channel}: "
-                                f"код={process.returncode}, stderr={process.stderr.strip()}"
-                            )
-                            logger.error(f"[CHANNEL_CHANGE] {error_msg}")
-
-
-                    except subprocess.TimeoutExpired:
-                        logger.critical(
-                            f"[CHANNEL_CHANGE] Таймаут при смене канала {channel}. "
-                            f"Команда: {' '.join(command)}"
-                        )
-                    except Exception as e:
-                        logger.critical(
-                            f"[CHANNEL_CHANGE] Неожиданная ошибка при выполнении команды: {e}\n"
-                            f"Команда: {' '.join(command)}\n"
-                            f"Traceback: {traceback.format_exc()}"
-                        )
-
-            finally:
-                # Гарантированное освобождение блокировки
-                if acquired_lock:
-                    change_channel_lock.release()
-
-
-        except Exception as e:
-            logger.critical(
-                f"[CHANNEL_CHANGE] Критическая ошибка в методе change_channel: {e}\n"
-                f"Traceback: {traceback.format_exc()}"
-            )
         finally:
-            total_time = time.time() - start_time
-            status = (
-                'успешно' 
-                if process and process.returncode == 0
-                else 'ошибка'
-            )
-            logger.debug(
-                f"[CHANNEL_CHANGE] Завершение смены канала {channel}. "
-                f"Время: {total_time:.2f} сек, статус: {status}"
-            )
+            # Всегда освобождаем блокировку
+            if change_channel_lock.locked():
+                change_channel_lock.release()
 
-    # def change_channel(self, channel):
-    #         """
-    #         Безопасный метод смены канала сети Wi-Fi.
-            
-    #         :param channel: Номер канала для установки
-    #         """
-    #         start_time = time.time()
-    #         process = None
-    #         acquired_lock = False
+        # Остальная логика обработки завершения
+        total_time = time.time() - start_time
+        status = ("успешно" if process and process.returncode == 0 else "ошибка")
+        logger.debug(
+            f"[CHANNEL_CHANGE] Завершение смены канала {channel}. "
+            f"Время: {total_time:.2f} сек, статус: {status}"
+        )
 
-    #         try:
-    #             logger.info(f"[CHANNEL_CHANGE] Начало смены канала на {channel}. Время: {start_time:.2f}")
-
-    #             # Получаем блокировку с таймаутом
-    #             acquired_lock = change_channel_lock.acquire(timeout=5)
-    #             if not acquired_lock:
-    #                 logger.error(f"[CHANNEL_CHANGE] Не удалось получить блокировку для канала {channel} за 5 сек")
-    #                 return
-
-    #             try:
-    #                 with change_channel_lock:
-    #                     logger.debug(f"[CHANNEL_CHANGE] Лок получен для канала {channel}. Время: {time.time():.2f}")
-
-    #                     # Формирование команды
-    #                     command = ["sudo", "iw", "dev", config["interface"], "set", "channel", str(channel)]
-    #                     logger.debug(f"[CHANNEL_CHANGE] Выполняется команда: {' '.join(command)}")
-
-    #                     # Выполнение команды с параметрами
-    #                     try:
-    #                         process = subprocess.run(
-    #                             command,
-    #                             input=None,                  # Без ввода пароля
-    #                             encoding="utf-8",            # Используем старую схему обработки текста
-    #                             capture_output=True,
-    #                             timeout=10                   # Таймаут 10 секунд
-    #                         )
-
-    #                         # Анализ результата
-    #                         if process.returncode == 0:
-    #                             logger.info(
-    #                                 f"[CHANNEL_CHANGE] Успешно сменил канал на {channel} "
-    #                                 f"(время: {time.time() - start_time:.2f} сек)"
-    #                             )
-    #                             self.update_channel_indicator()
-    #                         else:
-    #                             error_msg = (
-    #                                 f"Ошибка при смене канала {channel}: "
-    #                                 f"код={process.returncode}, stderr={process.stderr.strip()}"
-    #                             )
-    #                             logger.error(f"[CHANNEL_CHANGE] {error_msg}")
-
-    #                     except subprocess.TimeoutExpired:
-    #                         logger.critical(
-    #                             f"[CHANNEL_CHANGE] Таймаут при смене канала {channel}. "
-    #                             f"Команда: {' '.join(command)}"
-    #                         )
-    #                     except Exception as e:
-    #                         logger.critical(
-    #                             f"[CHANNEL_CHANGE] Неожиданная ошибка при выполнении команды: {e}\n"
-    #                             f"Команда: {' '.join(command)}\n"
-    #                             f"Traceback: {traceback.format_exc()}"
-    #                         )
-
-    #             finally:
-    #                 # Освобождение блокировки
-    #                 if acquired_lock:
-    #                     change_channel_lock.release()
-
-    #         except Exception as e:
-    #             logger.critical(
-    #                 f"[CHANNEL_CHANGE] Критическая ошибка в методе change_channel: {e}\n"
-    #                 f"Traceback: {traceback.format_exc()}"
-    #             )
-    #         finally:
-    #             total_time = time.time() - start_time
-    #             status = ("успешно" if process and process.returncode == 0 else "ошибка")
-    #             logger.debug(
-    #                 f"[CHANNEL_CHANGE] Завершение смены канала {channel}. "
-    #                 f"Время: {total_time:.2f} сек, статус: {status}"
-    #             )
-
-    # def on_channel_indicator_click(self, event):
-    #     if self.scanning_active:
-    #         self.stop_scanning()
-    #     else:
-    #         # Например, начать сканирование или выбрать каналы вручную
-    #         print ('Вот здесь желтая кнопочка')
-    #         self.show_channel_selector()
     def on_channel_indicator_click(self, event):
         if not self.scanning_active:
             # Получаем доступные каналы из другого модуля
@@ -788,7 +684,15 @@ class WifiMonitor(tk.Tk):
             self.prev_channels = []
             self.stop_scanning()
 
+    def stop_scanning(self):
+        # Отключаем флаг активности сканирования
+        self.scanning_active = False
+        # Ждем завершения потока (если надо, можете добавить таймаут ожидания)
+        if hasattr(self, 'scanner_thread'):
+            self.scanner_thread.join(timeout=1.0)  # Дожидаемся завершения потока
+            # del self.scanner_thread  # Освобождаем память
 
+        self.add_text("Процесс сканирования каналов остановлен." + "\n")
 
             
     def on_running_indicator_click(self, event):
