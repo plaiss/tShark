@@ -22,31 +22,35 @@ UPDATE_INTERVAL_MS = 50      # Чтение данных (мс)
 PLOT_UPDATE_INTERVAL_MS = 100  # Перерисовка графика (мс)
 TSHARK_TIMEOUT_SEC = 60
 
-import logging
 
 # Настройка логгера для модуля rssi_monitor_async
 logger = logging.getLogger("rssi_monitor_async")
 logger.setLevel(logging.INFO)
 
+
 # Создаём обработчик для записи в файл rssi_monitor.log
 file_handler = logging.FileHandler("LOGS/rssi_monitor.log", encoding="utf-8")
 file_handler.setLevel(logging.INFO)
 
-# Форматировщик (такой же, как в main.py, но можно свой)
+
+# Форматировщик
 LOG_FORMAT = '%(asctime)s [%(levelname)-8s]: %(message)s (%(filename)s:%(lineno)d)'
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
 file_handler.setFormatter(formatter)
 
+
 # Добавляем обработчик к логгеру и отключаем передачу в корневые обработчики
 logger.addHandler(file_handler)
-logger.propagate = False  # Важно: не передавать логи в root-логгер
+logger.propagate = False
+
 
 # Если нужно также выводить в консоль (опционально)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
+
 
 
 class SecondWindow(tk.Toplevel):
@@ -63,23 +67,26 @@ class SecondWindow(tk.Toplevel):
         self.ssid = "N/A"
         self.mac_address = mac_address or "7A:6C:06:3C:F7:DF"
 
+
         # Валидация MAC
         if not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", self.mac_address):
-            logging.warning(f"Некорректный MAC-адрес. Используем дефолтный: {self.mac_address}")
+            logger.warning(f"Некорректный MAC-адрес. Используем дефолтный: {self.mac_address}")
             self.mac_address = "7A:6C:06:3C:F7:DF"
+
 
         # Проверка tshark и интерфейса
         if not shutil.which("tshark"):
-            logging.error("tshark не установлен! Завершаем работу.")
+            logger.error("tshark не установлен! Завершаем работу.")
             self.destroy()
             return
         if not os.path.exists(f"/sys/class/net/{self.interface}"):
-            logging.error(f"Интерфейс {self.interface} не найден!")
+            logger.error(f"Интерфейс {self.interface} не найден!")
             self.destroy()
             return
 
         # GUI setup
         self._setup_ui(manufacturer, channel)
+
 
         # Асинхронный цикл и задача
         self.loop = asyncio.new_event_loop()
@@ -87,15 +94,18 @@ class SecondWindow(tk.Toplevel):
 
         # Запуск асинхронной задачи в отдельном потоке
         threading.Thread(target=self._run_asyncio, daemon=True).start()
-        
-        # ЗАПУСКАЕМ ОБНОВЛЕНИЕ ГРАФИКА ТОЛЬКО ПОСЛЕ ТОГО, КАК ОКНО СОЗДАНО
-        self.after(100, self.schedule_plot_update)  # 100 мс задержки
+
+
+        # ЗАПУСКАЕМ ОБНОВЛЕНИЕ ГРАФИКА В САМОМ КОНЦЕ
+        self.after(100, self.schedule_plot_update)
+
 
     def _setup_ui(self, manufacturer, channel):
         # Основной grid
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=2)
         self.grid_columnconfigure(1, weight=5)
+
 
         # Левый контейнер
         left_frame = tk.Frame(self, padx=5, pady=5)
@@ -110,6 +120,7 @@ class SecondWindow(tk.Toplevel):
                 bg="#f0f0f0", width=15
             )
             hdr.grid(row=0, column=col, sticky="ew")
+
 
         rows = [
             ("Адрес устройства", ""),
@@ -142,10 +153,12 @@ class SecondWindow(tk.Toplevel):
             self.labels[key] = value_widget if idx == 0 else value_label
             row_idx += 1
 
+
         # Панель управления
         control_frame = tk.Frame(left_frame, pady=10)
         control_frame.grid(row=len(rows)+1, column=0, columnspan=2, sticky="ew")
         control_frame.columnconfigure(1, weight=2)
+
 
         self.pause_start_button = tk.Button(
             control_frame, text="Пауза", command=self.toggle_pause, font=("Arial", 10), width=10
@@ -155,15 +168,18 @@ class SecondWindow(tk.Toplevel):
         close_button = tk.Button(self, text="Закрыть", command=self.on_closing, font=("Arial", 10))
         close_button.place(relx=0, rely=1, x=10, y=-35, anchor="sw")
 
+
         # Правый контейнер (график)
         right_frame = tk.Frame(self, padx=5, pady=5)
         right_frame.grid(row=0, column=1, sticky="nsew")
         right_frame.grid_rowconfigure(0, weight=1)
         right_frame.grid_columnconfigure(0, weight=1)
 
+
         fig = plt.Figure(figsize=(5, 4), dpi=100)
         self.ax = fig.add_subplot(111)
         self.ax.grid(True, linestyle='--', alpha=0.7)
+        # self.canvas = FigureCanvasTkAg
         self.canvas = FigureCanvasTkAgg(fig, master=right_frame)
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.grid(row=0, column=0, sticky="nsew")
@@ -176,6 +192,7 @@ class SecondWindow(tk.Toplevel):
 
         self.rssi_values = deque(maxlen=MAX_POINTS_ON_GRAPH)
         self.timestamps = deque(maxlen=MAX_POINTS_ON_GRAPH)
+
         # Статусная метка
         self.status_label = tk.Label(
             left_frame, text="Определение роли устройства...",
@@ -183,12 +200,12 @@ class SecondWindow(tk.Toplevel):
         )
         self.status_label.grid(row=len(rows)+2, column=0, columnspan=2, sticky="w", pady=2)
 
-
         # Инициализация данных для графика
         self.rssi_buffer = []
         self.ema_value = None
         self.use_filter_var = tk.BooleanVar(value=True)
         self.alpha = EMA_ALPHA
+
 
     def create_context_menu(self, widget):
         menu = tk.Menu(widget, tearoff=False)
@@ -211,14 +228,27 @@ class SecondWindow(tk.Toplevel):
         else:
             self.pause_start_button.config(text="Пауза")
 
-
     def on_closing(self):
-        logging.info("Закрытие окна мониторинга")
+        logger.info("Закрытие окна мониторинга")
+        self.paused = True  # Сразу останавливаем обработку данных
+        
+        # Ждём завершения асинхронной задачи (с таймаутом)
+        if self.task and not self.task.done():
+            try:
+                self.loop.call_soon_threadsafe(self.task.cancel)
+                # Даём задаче 2 секунды на завершение
+                self.loop.run_until_complete(asyncio.sleep(2))
+            except:
+                pass
+        
         self._stop_asyncio()
-        self.destroy()
+        logger.info("Ожидание завершения асинхронных задач...")
+        self.destroy()  # Только после остановки задач уничтожаем окно
+
 
     def __del__(self):
         self._stop_asyncio()
+
 
     # --- Асинхронная логика ---
 
@@ -229,7 +259,7 @@ class SecondWindow(tk.Toplevel):
             self.task = self.loop.create_task(self._main_async())
             self.loop.run_until_complete(self.task)
         except Exception as e:
-            logging.error(f"Асинхронная задача прервана: {e}")
+            logger.error(f"Асинхронная задача прервана: {e}")
         finally:
             self.loop.close()
 
@@ -266,7 +296,6 @@ class SecondWindow(tk.Toplevel):
             )
             self._update_status("Определение роли устройства...", "orange")
 
-
             while True:
                 line = await process.stdout.readline()
                 if not line:
@@ -287,7 +316,7 @@ class SecondWindow(tk.Toplevel):
                     return
 
         except Exception as e:
-            logging.error(f"Ошибка при определении роли: {e}")
+            logger.error(f"Ошибка при определении роли: {e}")
             self._update_status(f"Ошибка: {e}", "red")
 
     def _determine_role(self, fc_type: str, fc_subtype: str, sa: str, da: str, bssid: str) -> Optional[str]:
@@ -310,105 +339,105 @@ class SecondWindow(tk.Toplevel):
         self.status_label.config(text="Готово", fg="green")
 
 
-async def _run_tshark_monitor(self):
-    """Этап 2: Мониторинг RSSI с фильтром по роли."""
-    if self.device_type == "Access Point (AP)":
-        filter_expr = f'wlan.bssid == {self.mac_address} or wlan.ra == {self.mac_address}'
-    elif self.device_type == "Station (STA)":
-        filter_expr = f'wlan.ta == {self.mac_address}'
-    else:
-        logger.error("Не определена роль устройства, мониторинг невозможен")
-        return
-
-    cmd = [
-        'tshark', '-l', '-i', self.interface,
-        '-T', 'fields', '-E', 'separator= ',
-        '-e', 'frame.number', '-e', 'wlan_radio.signal_dbm',
-        '-Y', filter_expr
-    ]
-
-    try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        logger.info(f"Запущен tshark с фильтром: {filter_expr}")
-        self._update_status(f"Мониторинг RSSI ({self.device_type})", "green")
-
-
-        while not self.paused:
-            line = await process.stdout.readline()
-            if not line:
-                logger.warning("tshark завершил работу (stdout пуст)")
-                break
-            line_str = line.decode('utf-8', errors='ignore').strip()
-            if not line_str:
-                continue
-
-            parts = line_str.split()
-            if len(parts) == 2:
-                pack_num, signal = parts
-                try:
-                    rssi = int(signal)
-                    if -100 <= rssi <= -20:
-                        logger.debug(f"Получен RSSI: {rssi} dBm (кадр {pack_num})")
-                        self._process_rssi(pack_num, rssi)
-                    else:
-                        logger.debug(f"RSSI вне диапазона: {rssi} dBm")
-                except ValueError:
-                    logger.debug(f"Не удалось преобразовать сигнал: {signal}")
-            else:
-                logger.debug(f"Некорректная строка от tshark: {line_str}")
-
-    except Exception as e:
-        logger.error(f"Ошибка мониторинга: {e}", exc_info=True)
-        self._update_status(f"Ошибка: {e}", "red")
-
-
-
-    def _process_rssi(self, frame_num: str, rssi: int):
-        """Обрабатывает полученное значение RSSI."""
-        self.last_valid_time = time.time()
-
-        # EMA-фильтрация
-        if self.ema_value is None:
-            self.ema_value = rssi
-        else:
-            # Ограничение шага изменения EMA (±10 dBm)
-            delta = rssi - self.ema_value
-            if abs(delta) > 10:
-                rssi = self.ema_value + (10 if delta > 0 else -10)
-            self.ema_value = self.alpha * rssi + (1 - self.alpha) * self.ema_value
-
-
-        # Сглаживание по последним 5 значениям
-        self.rssi_buffer.append(self.ema_value)
-        if len(self.rssi_buffer) > 5:
-            smoothed_rssi = np.mean(self.rssi_buffer[-5:])
-            self.rssi_buffer = self.rssi_buffer[-5:]  # Сохраняем только последние 5
-        else:
-            smoothed_rssi = self.ema_value
-
-
-        # Обновление интерфейса
-        self.labels["Текущий кадр"]["text"] = frame_num
-        self.labels["RSSI"]["text"] = f"{int(smoothed_rssi)} dBm"
-
-
-        # Сохранение точки для графика
-        self.timestamps.append(time.time())
-        self.rssi_values.append(smoothed_rssi)
-
     def _update_status(self, text: str, color: str):
         """Обновляет статусную метку."""
         self.status_label.config(text=text, fg=color)
 
-    
-    # --- Обновление графика ---
+
+    async def _run_tshark_monitor(self):
+        """Этап 2: Мониторинг RSSI с фильтром по роли."""
+        if self.device_type == "Access Point (AP)":
+            filter_expr = f'wlan.bssid == {self.mac_address} or wlan.ra == {self.mac_address}'
+        elif self.device_type == "Station (STA)":
+            filter_expr = f'wlan.ta == {self.mac_address}'
+        else:
+            logger.error("Не определена роль устройства, мониторинг невозможен")
+            return
+
+        cmd = [
+            'tshark', '-l', '-i', self.interface,
+            '-T', 'fields', '-E', 'separator= ',
+            '-e', 'frame.number', '-e', 'wlan_radio.signal_dbm',
+            '-Y', filter_expr
+        ]
+
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            logger.info(f"Запущен tshark с фильтром: {filter_expr}")
+            self._update_status(f"Мониторинг RSSI ({self.device_type})", "green")
+
+            while not self.paused:  # Проверяем флаг на каждой итерации
+                line = await process.stdout.readline()
+                if not line:
+                    logger.warning("tshark завершил работу (stdout пуст)")
+                    break
+                line_str = line.decode('utf-8', errors='ignore').strip()
+                if not line_str:
+                    continue
+
+                parts = line_str.split()
+                if len(parts) == 2:
+                    pack_num, signal = parts
+                    try:
+                        rssi = int(signal)
+                        if -100 <= rssi <= -20:
+                            logger.debug(f"Получен RSSI: {rssi} dBm (кадр {pack_num})")
+                            # Только если окно ещё живо, обновляем UI
+                            if not self.winfo_exists():  # Проверка существования окна
+                                break
+                            self._process_rssi(pack_num, rssi)
+                        else:
+                            logger.debug(f"RSSI вне диапазона: {rssi} dBm")
+                    except ValueError:
+                        logger.debug(f"Не удалось преобразовать сигнал: {signal}")
+                else:
+                    logger.debug(f"Некорректная строка от tshark: {line_str}")
+
+        except Exception as e:
+            logger.error(f"Ошибка мониторинга: {e}", exc_info=True)
+            if self.winfo_exists():  # Только если окно существует
+                self._update_status(f"Ошибка: {e}", "red")
+
+
+
+    def _process_rssi(self, pack_num: str, rssi: int):
+        """Обрабатывает полученное значение RSSI."""
+        current_time = time.time()
+        self.last_valid_time = current_time
+
+        # Проверяем, существует ли окно (не уничтожено)
+        if not self.winfo_exists():
+            return
+
+        # Обновляем метки UI
+        self.labels["Текущий кадр"]["text"] = pack_num
+        self.labels["RSSI"]["text"] = f"{rssi} dBm"
+
+        # Добавляем в буферы
+        self.rssi_values.append(rssi)
+        self.timestamps.append(current_time)
+
+        # Применяем EMA-фильтр, если включён
+        if self.use_filter_var.get():
+            if self.ema_value is None:
+                self.ema_value = rssi
+            else:
+                self.ema_value = self.alpha * rssi + (1 - self.alpha) * self.ema_value
+            filtered_rssi = round(self.ema_value)
+        else:
+            filtered_rssi = rssi
+
+        # Для графика используем фильтрованное значение
+        self.rssi_buffer.append(filtered_rssi)
+
 
     def schedule_plot_update(self):
         """Планирует периодическое обновление графика."""
         self._update_plot()
         self.after(PLOT_UPDATE_INTERVAL_MS, self.schedule_plot_update)
+
 
     def _update_plot(self):
         """Перерисовывает график с прокруткой вправо и заливкой."""
@@ -425,70 +454,40 @@ async def _run_tshark_monitor(self):
         last_time = self.timestamps[-1]
         x_data = [last_time - t for t in self.timestamps]
 
+
         # Линия графика
         self.ax.plot(x_data, self.rssi_values, color='blue', linewidth=1.5, zorder=2)
 
 
-        # Заливка от линии до -100 dBm (снизу)
+        # Заливка
         self.ax.fill_between(
             x_data, self.rssi_values, -100,
             color='skyblue', alpha=0.4, zorder=1
         )
 
-        # Имитация точек при простое (> 5 с без данных)
-        current_time = time.time()
-        if current_time - self.last_valid_time > 5:
-            self.timestamps.append(current_time)
-            self.rssi_values.append(self.rssi_values[-1])
-            x_data.append(0)  # Новая точка справа (x = 0)
-
-
-        # Окно просмотра: последние 60 секунд
+        # Окно просмотра
         window_sec = 60
         x_min = max(0, x_data[-1] - window_sec)
         x_max = x_data[0]
-
-        self.ax.set_xlim(x_max, x_min)  # Ось справа налево
+        self.ax.set_xlim(x_max, x_min)
 
         self.canvas.draw()
 
-# --- Основной блок ---
 
-def signal_handler(signum, frame):
-    logging.info(f"Получен сигнал {signum}, завершение работы...")
-    root.quit()
-    root.destroy()
-
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-
-
+# --- Пример вызова (для тестирования) ---
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Скрываем главное окно
 
 
-    # Параметры для тестирования
-    mac_addr = "7A:6C:06:3C:F7:DF"
-    manufacturer = "Режим тестирования"
-    channel = 6
-    interface = "wlan1"
-
+    # Пример вызова второго окна
     window = SecondWindow(
         parent=root,
-        mac_address=mac_addr,
-        manufacturer=manufacturer,
-        channel=channel,
-        interface=interface
+        mac_address="7A:6C:06:3C:F7:DF",
+        manufacturer="TP-Link",
+        channel=6,
+        interface="wlan1"
     )
 
-    # Запуск обновления графика
-    window.schedule_plot_update()
-
-    try:
-        window.protocol("WM_DELETE_WINDOW", window.on_closing)
-        root.mainloop()
-    except KeyboardInterrupt:
-        logging.info("Прервано пользователем")
-    finally:
-        logging.info("Приложение завершено")
+    window.protocol("WM_DELETE_WINDOW", window.on_closing)
+    window.mainloop()
