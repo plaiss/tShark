@@ -16,6 +16,7 @@ import queue
 import logging.handlers
 from whitelist_window import DatabaseManager  # Импортируем менеджер базы данных
 import os 
+import psutil
 
 _packets_received = 0
 _is_worker_running = False  # Флаг, показывающий, запущен ли уже поток
@@ -23,7 +24,7 @@ _is_worker_running = False  # Флаг, показывающий, запущен
 LOG_FORMAT = '%(asctime)s [%(levelname)-8s]: %(message)s (%(filename)s:%(lineno)d)'
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 file_handler = logging.handlers.RotatingFileHandler(
-    filename='app.log',  # Основной файл логов
+    filename='LOGS/app.log',  # Основной файл логов
     maxBytes=10 * 1024 * 1024,  # Лимит размера файла (~10 MB)
     backupCount=5,               # Количество резервных копий старых файлов
     encoding='utf-8'

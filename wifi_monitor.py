@@ -16,7 +16,8 @@ import config
 import utils
 import main
 import logging
-from second_window import SecondWindow  # Импортируем класс из отдельного файла
+# from second_window import SecondWindow  # Импортируем класс из отдельного файла
+from rssi_monitor_async import SecondWindow
 from settings_window import SettingsWindow
 from export_dialog import ExportDialog
 from choose_channels import ChannelSelectorDialog  # Новое окно выбора каналов
@@ -25,6 +26,7 @@ from whitelist_window import EditorWindow
 from threading import Lock
 from choose_channels import ChannelSelectorDialog
 # from choose_channels import get_available_channels  # импортируем нужный метод
+import traceback
 
 change_channel_lock = Lock()
 logger = logging.getLogger(__name__)    # Логгер настроен в первом файле, тут его повторно настраивать не нужно
