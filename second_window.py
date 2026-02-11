@@ -409,28 +409,6 @@ class SecondWindow(tk.Toplevel):
         self.after(PLOT_UPDATE_INTERVAL_MS, self.schedule_plot_update)
 
 
-    # def _update_plot(self):
-    #     """Перерисовывает график."""
-    #     if not self.rssi_values:
-    #         return
-
-    #     self.ax.clear()
-    #     self.ax.grid(True, linestyle='--', alpha=0.7)
-    #     self.ax.set_ylim(-100, -20)
-    #     self.ax.xaxis.set_visible(False)
-    #     self.ax.margins(x=0.02)
-
-
-    #     # Преобразуем временные метки в относительные (от последней точки)
-    #     if self.timestamps:
-    #         last_time = self.timestamps[-1]
-    #         x_data = [last_time - t for t in self.timestamps]
-    #         self.ax.plot(x_data, self.rssi_values, color='blue', linewidth=1.5)
-
-    #         self.ax.fill_between(x_data, self.rssi_values, -100, color='skyblue', alpha=0.4)
-
-
-    #     self.canvas.draw()
 
     def _update_plot(self):
         """Перерисовывает график с прокруткой вправо, заливкой сверху и имитацией точек при простое."""
@@ -512,7 +490,7 @@ if __name__ == "__main__":
     window = SecondWindow(
         parent=root,
         mac_address="E0:CC:F8:BB:75:45",
-        manufacturer="Vendor XYZ",
+        manufacturer="Оценщик",
         channel=6
     )
 
