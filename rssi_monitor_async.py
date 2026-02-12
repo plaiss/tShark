@@ -16,22 +16,19 @@ from typing import Optional
 import time
 
 # Конфигурируемые параметры
-MAX_POINTS_ON_GRAPH = 200
+MAX_POINTS_ON_GRAPH = 1000
 EMA_ALPHA = 0.2
 UPDATE_INTERVAL_MS = 50      # Чтение данных (мс)
 PLOT_UPDATE_INTERVAL_MS = 100  # Перерисовка графика (мс)
 TSHARK_TIMEOUT_SEC = 60
 
-
 # Настройка логгера для модуля rssi_monitor_async
 logger = logging.getLogger("rssi_monitor_async")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)  # Устанавливаем уровень детализации логирования
 
-
-# Создаём обработчик для записи в файл rssi_monitor.log
+# Создаем обработчик для записи в файл rssi_monitor.log
 file_handler = logging.FileHandler("LOGS/rssi_monitor.log", encoding="utf-8")
-file_handler.setLevel(logging.INFO)
-
+file_handler.setLevel(logging.DEBUG)
 
 # Форматировщик
 LOG_FORMAT = '%(asctime)s [%(levelname)-8s]: %(message)s (%(filename)s:%(lineno)d)'
@@ -39,19 +36,15 @@ DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
 file_handler.setFormatter(formatter)
 
-
 # Добавляем обработчик к логгеру и отключаем передачу в корневые обработчики
 logger.addHandler(file_handler)
 logger.propagate = False
 
-
-# Если нужно также выводить в консоль (опционально)
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
+# Дополнительно добавляем вывод в консоль
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
-
-
 
 class SecondWindow(tk.Toplevel):
     def __init__(self, parent, mac_address=None, manufacturer=None, channel=None, interface="wlan1"):
@@ -67,12 +60,10 @@ class SecondWindow(tk.Toplevel):
         self.ssid = "N/A"
         self.mac_address = mac_address or "7A:6C:06:3C:F7:DF"
 
-
         # Валидация MAC
         if not re.match(r"^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$", self.mac_address):
             logger.warning(f"Некорректный MAC-адрес. Используем дефолтный: {self.mac_address}")
             self.mac_address = "7A:6C:06:3C:F7:DF"
-
 
         # Проверка tshark и интерфейса
         if not shutil.which("tshark"):
@@ -87,7 +78,6 @@ class SecondWindow(tk.Toplevel):
         # GUI setup
         self._setup_ui(manufacturer, channel)
 
-
         # Асинхронный цикл и задача
         self.loop = asyncio.new_event_loop()
         self.task = None
@@ -95,17 +85,14 @@ class SecondWindow(tk.Toplevel):
         # Запуск асинхронной задачи в отдельном потоке
         threading.Thread(target=self._run_asyncio, daemon=True).start()
 
-
         # ЗАПУСКАЕМ ОБНОВЛЕНИЕ ГРАФИКА В САМОМ КОНЦЕ
         self.after(100, self.schedule_plot_update)
-
 
     def _setup_ui(self, manufacturer, channel):
         # Основной grid
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=2)
         self.grid_columnconfigure(1, weight=5)
-
 
         # Левый контейнер
         left_frame = tk.Frame(self, padx=5, pady=5)
@@ -120,7 +107,6 @@ class SecondWindow(tk.Toplevel):
                 bg="#f0f0f0", width=15
             )
             hdr.grid(row=0, column=col, sticky="ew")
-
 
         rows = [
             ("Адрес устройства", ""),
@@ -153,12 +139,10 @@ class SecondWindow(tk.Toplevel):
             self.labels[key] = value_widget if idx == 0 else value_label
             row_idx += 1
 
-
         # Панель управления
         control_frame = tk.Frame(left_frame, pady=10)
         control_frame.grid(row=len(rows)+1, column=0, columnspan=2, sticky="ew")
         control_frame.columnconfigure(1, weight=2)
-
 
         self.pause_start_button = tk.Button(
             control_frame, text="Пауза", command=self.toggle_pause, font=("Arial", 10), width=10
@@ -168,18 +152,15 @@ class SecondWindow(tk.Toplevel):
         close_button = tk.Button(self, text="Закрыть", command=self.on_closing, font=("Arial", 10))
         close_button.place(relx=0, rely=1, x=10, y=-35, anchor="sw")
 
-
         # Правый контейнер (график)
         right_frame = tk.Frame(self, padx=5, pady=5)
         right_frame.grid(row=0, column=1, sticky="nsew")
         right_frame.grid_rowconfigure(0, weight=1)
         right_frame.grid_columnconfigure(0, weight=1)
 
-
         fig = plt.Figure(figsize=(5, 4), dpi=100)
         self.ax = fig.add_subplot(111)
         self.ax.grid(True, linestyle='--', alpha=0.7)
-        # self.canvas = FigureCanvasTkAg
         self.canvas = FigureCanvasTkAgg(fig, master=right_frame)
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.grid(row=0, column=0, sticky="nsew")
@@ -206,12 +187,10 @@ class SecondWindow(tk.Toplevel):
         self.use_filter_var = tk.BooleanVar(value=True)
         self.alpha = EMA_ALPHA
 
-
     def create_context_menu(self, widget):
         menu = tk.Menu(widget, tearoff=False)
         menu.add_command(label="Копировать", command=lambda: self.copy_mac_address(widget))
         widget.bind("<Button-3>", lambda event: menu.post(event.x_root, event.y_root))
-
 
     def copy_mac_address(self, widget):
         try:
@@ -230,25 +209,23 @@ class SecondWindow(tk.Toplevel):
 
     def on_closing(self):
         logger.info("Закрытие окна мониторинга")
-        self.paused = True  # Сразу останавливаем обработку данных
+        self.paused = True  # Останавливаем сбор данных немедленно
         
-        # Ждём завершения асинхронной задачи (с таймаутом)
+        # Отменяем асинхронную задачу и дожидаемся её завершения
         if self.task and not self.task.done():
             try:
                 self.loop.call_soon_threadsafe(self.task.cancel)
-                # Даём задаче 2 секунды на завершение
-                self.loop.run_until_complete(asyncio.sleep(2))
+                self.loop.run_until_complete(asyncio.sleep(2))  # Дожидаемся завершения задачи
             except:
                 pass
-        
+            
+        # Остановка цикла asyncio
         self._stop_asyncio()
         logger.info("Ожидание завершения асинхронных задач...")
-        self.destroy()  # Только после остановки задач уничтожаем окно
-
+        self.destroy()  # Уничтожаем окно только после завершения задач
 
     def __del__(self):
         self._stop_asyncio()
-
 
     # --- Асинхронная логика ---
 
@@ -278,7 +255,6 @@ class SecondWindow(tk.Toplevel):
         else:
             self._update_status("Не удалось определить роль устройства", "red")
 
-
     async def _run_tshark_discovery(self):
         """Этап 1: Определение роли устройства (AP/STA)."""
         cmd = [
@@ -294,7 +270,7 @@ class SecondWindow(tk.Toplevel):
             process = await asyncio.create_subprocess_exec(
                 *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
-            self._update_status("Определение роли устройства...", "orange")
+            logger.info(f"Запущена команда: {' '.join(cmd)}")
 
             while True:
                 line = await process.stdout.readline()
@@ -313,6 +289,10 @@ class SecondWindow(tk.Toplevel):
                     self.device_type = role
                     self._update_ui_after_check()
                     process.terminate()
+                    try:
+                        await asyncio.wait_for(process.wait(), timeout=2.0)
+                    except asyncio.TimeoutError:
+                        process.kill()
                     return
 
         except Exception as e:
@@ -338,11 +318,9 @@ class SecondWindow(tk.Toplevel):
         self.labels["Тип устройства"]["text"] = self.device_type
         self.status_label.config(text="Готово", fg="green")
 
-
     def _update_status(self, text: str, color: str):
         """Обновляет статусную метку."""
         self.status_label.config(text=text, fg=color)
-
 
     async def _run_tshark_monitor(self):
         """Этап 2: Мониторинг RSSI с фильтром по роли."""
@@ -368,7 +346,7 @@ class SecondWindow(tk.Toplevel):
             logger.info(f"Запущен tshark с фильтром: {filter_expr}")
             self._update_status(f"Мониторинг RSSI ({self.device_type})", "green")
 
-            while not self.paused:  # Проверяем флаг на каждой итерации
+            while not self.paused:  # Проверяем флаг паузы на каждой итерации
                 line = await process.stdout.readline()
                 if not line:
                     logger.warning("tshark завершил работу (stdout пуст)")
@@ -400,14 +378,12 @@ class SecondWindow(tk.Toplevel):
             if self.winfo_exists():  # Только если окно существует
                 self._update_status(f"Ошибка: {e}", "red")
 
-
-
     def _process_rssi(self, pack_num: str, rssi: int):
         """Обрабатывает полученное значение RSSI."""
         current_time = time.time()
         self.last_valid_time = current_time
 
-        # Проверяем, существует ли окно (не уничтожено)
+        # Проверяем существование окна (не разрушилось?)
         if not self.winfo_exists():
             return
 
@@ -419,7 +395,7 @@ class SecondWindow(tk.Toplevel):
         self.rssi_values.append(rssi)
         self.timestamps.append(current_time)
 
-        # Применяем EMA-фильтр, если включён
+        # Применяем EMA-фильтр, если включен
         if self.use_filter_var.get():
             if self.ema_value is None:
                 self.ema_value = rssi
@@ -432,12 +408,10 @@ class SecondWindow(tk.Toplevel):
         # Для графика используем фильтрованное значение
         self.rssi_buffer.append(filtered_rssi)
 
-
     def schedule_plot_update(self):
         """Планирует периодическое обновление графика."""
         self._update_plot()
         self.after(PLOT_UPDATE_INTERVAL_MS, self.schedule_plot_update)
-
 
     def _update_plot(self):
         """Перерисовывает график с прокруткой вправо и заливкой."""
@@ -450,14 +424,11 @@ class SecondWindow(tk.Toplevel):
         self.ax.xaxis.set_visible(False)
         self.ax.margins(x=0.02)
 
-
         last_time = self.timestamps[-1]
         x_data = [last_time - t for t in self.timestamps]
 
-
         # Линия графика
         self.ax.plot(x_data, self.rssi_values, color='blue', linewidth=1.5, zorder=2)
-
 
         # Заливка
         self.ax.fill_between(
@@ -473,12 +444,10 @@ class SecondWindow(tk.Toplevel):
 
         self.canvas.draw()
 
-
 # --- Пример вызова (для тестирования) ---
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()  # Скрываем главное окно
-
 
     # Пример вызова второго окна
     window = SecondWindow(

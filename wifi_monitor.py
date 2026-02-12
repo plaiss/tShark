@@ -245,9 +245,11 @@ class WifiMonitor(tk.Tk):
         self.channel_label.config(text=f"Ch:{current_channel}", background="lightblue")
 
     def on_device_double_click(self, event):
+        logger.info("Двойной клик")
         selected_item = self.tree.focus()
         data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
         if data:
+            logger.info("Данные имеются")
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
     
     def open_second_window(self, *, data=None):
@@ -256,6 +258,7 @@ class WifiMonitor(tk.Tk):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             _stop.set()  # Устанавливаем флаг остановки
             self.tshark_thread = None  # Немедленно удаляем ссылку на поток
+            logger.info("Команды на остановку потока даны")
         
         if hasattr(self, 'scanner_thread'):
             scanner_was_running = True
@@ -267,11 +270,15 @@ class WifiMonitor(tk.Tk):
         channel = data[4]
 
         self.stop_scanning()
+        logger.info("Команды на остановку сканирования каналов даны")
         # self.toggle_scanning()
         self.change_channel(channel)
+        logger.info(f"Команды на смену канала на {channel} ")
         SecondWindow(self, mac_address, manufacturer, channel)
+        
+        logger.info(f"Команды на смену канала на {channel} ")
         if scanner_was_running == True:
-            print("он был запущен, можно перезапускать заново")
+            logger.info("он был запущен, можно перезапускать заново")
 
     def sort_column(self, column_id):
         # print(f"[SORT] Начало сортировки для столбца {column_id}")
