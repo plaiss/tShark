@@ -663,7 +663,7 @@ class WifiMonitor(tk.Tk):
             f"Время: {total_time:.2f} сек, статус: {status}"
         )
 
-    def on_channel_indicator_click(self, event):
+    def on_channel_indicator_click(self, event=None):
         if not self.scanning_active:
             # Получаем доступные каналы из другого модуля
             available_channels = utils.get_available_channels(config.interface)
