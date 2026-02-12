@@ -16,7 +16,7 @@ from typing import Optional
 import time
 
 # Конфигурируемые параметры
-MAX_POINTS_ON_GRAPH = 1000
+MAX_POINTS_ON_GRAPH = 100
 EMA_ALPHA = 0.2
 UPDATE_INTERVAL_MS = 50      # Чтение данных (мс)
 PLOT_UPDATE_INTERVAL_MS = 100  # Перерисовка графика (мс)
@@ -47,7 +47,7 @@ console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
 class SecondWindow(tk.Toplevel):
-    def __init__(self, parent, mac_address=None, manufacturer=None, channel=None, interface="wlan1"):
+    def __init__(self, parent, mac_address=None, manufacturer=None, channel=None, interface="None"):
         super().__init__(parent)
         self.geometry("800x480")
         self.parent = parent
@@ -97,7 +97,7 @@ class SecondWindow(tk.Toplevel):
         asyncio.set_event_loop(loop)
         try:
             task = loop.create_task(self._main_async())
-            loop.run_forever()  # Работаем вечно, пока есть задачи
+            loop.run_until_complete(task)
         finally:
             loop.close()
 
@@ -186,7 +186,8 @@ class SecondWindow(tk.Toplevel):
     async def _run_tshark_monitor(self):
         """Этап 2: Мониторинг RSSI с фильтром по роли."""
         if self.device_type == "Access Point (AP)":
-            filter_expr = f'wlan.bssid == {self.mac_address} or wlan.ra == {self.mac_address}'
+            # filter_expr = f'wlan.bssid == {self.mac_address} or wlan.ra == {self.mac_address}'
+            filter_expr = f'wlan.ta=={self.mac_address}  and wlan.fc.subtype==8 and wlan.fc.type==0'
         elif self.device_type == "Station (STA)":
             filter_expr = f'wlan.ta == {self.mac_address}'
         else:
@@ -429,13 +430,11 @@ class SecondWindow(tk.Toplevel):
         self.paused = not self.paused
         if self.paused:
             self.pause_start_button.config(text="Старт")
-            # При постановке на паузу отменяем текущую задачу
-            if self.task and not self.task.done():
-                self.task.cancel()
         else:
             self.pause_start_button.config(text="Пауза")
-            # При снятии паузы создаем новую задачу
-            self.task = main_loop.create_task(self._run_tshark_monitor())
+            # Создаем новую задачу мониторинга при снятии паузы
+            if self.task and self.task.done():
+                self.task = main_loop.create_task(self._run_tshark_monitor())
 
     def on_closing(self):
         logger.info("Закрытие окна мониторинга")
@@ -445,9 +444,7 @@ class SecondWindow(tk.Toplevel):
         if self.task and not self.task.done():
             try:
                 main_loop.call_soon_threadsafe(self.task.cancel)
-                # Ждем завершения задачи в потоке asyncio
-                future = asyncio.run_coroutine_threadsafe(asyncio.wait_for(self.task, timeout=2.0), main_loop)
-                future.result()  # Блокируем до завершения
+                main_loop.run_until_complete(asyncio.wait_for(self.task, timeout=2.0))
             except asyncio.CancelledError:
                 logger.info("Задача была корректно отменена")
             except asyncio.TimeoutError:
