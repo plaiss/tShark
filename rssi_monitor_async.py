@@ -16,7 +16,7 @@ from typing import Optional
 import time
 
 # Конфигурируемые параметры
-MAX_POINTS_ON_GRAPH = 1000
+MAX_POINTS_ON_GRAPH = 100
 EMA_ALPHA = 0.2
 UPDATE_INTERVAL_MS = 50      # Чтение данных (мс)
 PLOT_UPDATE_INTERVAL_MS = 100  # Перерисовка графика (мс)
@@ -233,7 +233,8 @@ class SecondWindow(tk.Toplevel):
     async def _run_tshark_monitor(self):
         """Этап 2: Мониторинг RSSI с фильтром по роли."""
         if self.device_type == "Access Point (AP)":
-            filter_expr = f'wlan.bssid == {self.mac_address} or wlan.ra == {self.mac_address}'
+            # filter_expr = f'wlan.bssid == {self.mac_address} or wlan.ra == {self.mac_address}'
+            filter_expr = f'wlan.ta=={self.mac_address}  and wlan.fc.subtype==8 and wlan.fc.type==0'
         elif self.device_type == "Station (STA)":
             filter_expr = f'wlan.ta == {self.mac_address}'
         else:
@@ -430,7 +431,7 @@ class SecondWindow(tk.Toplevel):
         self.pause_start_button = tk.Button(
             control_frame, text="Пауза", command=self.toggle_pause, font=("Arial", 10), width=10
         )
-        self.pause_start_button.grid(row=0, column=0, padx=3, pady=5)
+        # self.pause_start_button.grid(row=0, column=0, padx=3, pady=5)
 
         close_button = tk.Button(self, text="Закрыть", command=self.on_closing, font=("Arial", 10))
         close_button.place(relx=0, rely=1, x=10, y=-35, anchor="sw")
