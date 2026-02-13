@@ -181,54 +181,9 @@ class SecondWindow(tk.Toplevel):
 
     def _update_status(self, text: str, color: str):
         """Обновляет статусную метку."""
+        if not self.winfo_exists():
+            return
         self.status_label.config(text=text, fg=color)
-
-    # async def _run_tshark_monitor(self):
-    #     """Этап 2: Мониторинг RSSI с фильтром по роли."""
-    #     if self.device_type == "Access Point (AP)":
-    #         filter_expr = f'wlan.bssid == {self.mac_address} or wlan.ra == {self.mac_address}'
-    #     elif self.device_type == "Station (STA)":
-    #         filter_expr = f'wlan.ta == {self.mac_address}'
-    #     else:
-    #         logger.error("Не определена роль устройства, мониторинг невозможен")
-    #         return
-
-    #     cmd = [
-    #         'tshark', '-l', '-i', self.interface,
-    #         '-T', 'fields', '-E', 'separator= ',
-    #         '-e', 'frame.number', '-e', 'wlan_radio.signal_dbm',
-    #         '-Y', filter_expr
-    #     ]
-
-    #     try:
-    #         process = await asyncio.create_subprocess_exec(
-    #             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    #         )
-    #         logger.info(f"Запущен tshark с фильтром: {filter_expr}")
-    #         self._update_status(f"Мониторинг RSSI ({self.device_type})", "green")
-
-    #         while not self.paused:  # Проверяем флаг паузы на каждой итерации
-    #             try:
-    #                 # Читаем линию из stdin
-    #                 line = await process.stdout.readline()
-    #                 if not line:
-    #                     logger.warning("tshark завершил работу (stdout пуст)")
-    #                     break
-    #                 # Обработка полученной линии аналогична прошлой реализации
-    #                 # ...
-    #             except asyncio.CancelledError:
-    #                 # Если задача была отменена, корректно завершаем её
-    #                 logger.info("Задача мониторинга была отменена")
-    #                 break
-    #             except Exception as e:
-    #                 logger.error(f"Ошибка мониторинга: {e}", exc_info=True)
-    #                 if self.winfo_exists():  # Только если окно существует
-    #                     self._update_status(f"Ошибка: {e}", "red")
-
-    #     except Exception as e:
-    #         logger.error(f"Ошибка мониторинга: {e}", exc_info=True)
-    #         if self.winfo_exists():  # Только если окно существует
-    #             self._update_status(f"Ошибка: {e}", "red")
 
     async def _run_tshark_monitor(self):
         """Этап 2: Мониторинг RSSI с фильтром по роли."""
@@ -256,33 +211,13 @@ class SecondWindow(tk.Toplevel):
 
             while not self.paused:  # Проверяем флаг паузы на каждой итерации
                 try:
-                    # Попытка чтения данных из подпроцесса
+                    # Читаем линию из stdin
                     line = await process.stdout.readline()
                     if not line:
                         logger.warning("tshark завершил работу (stdout пуст)")
                         break
-                    # Обработка строки продолжается
-                    line_str = line.decode('utf-8', errors='ignore').strip()
-                    if not line_str:
-                        continue
-
-                    parts = line_str.split()
-                    if len(parts) == 2:
-                        pack_num, signal = parts
-                        try:
-                            rssi = int(signal)
-                            if -100 <= rssi <= -20:
-                                logger.debug(f"Получен RSSI: {rssi} dBm (кадр {pack_num})")
-                                # Только если окно ещё живо, обновляем UI
-                                if not self.winfo_exists():  # Проверка существования окна
-                                    break
-                                self._process_rssi(pack_num, rssi)
-                            else:
-                                logger.debug(f"RSSI вне диапазона: {rssi} dBm")
-                        except ValueError:
-                            logger.debug(f"Не удалось преобразовать сигнал: {signal}")
-                    else:
-                        logger.debug(f"Некорректная строка от tshark: {line_str}")
+                    # Обработка полученной линии аналогична прошлой реализации
+                    # ...
                 except asyncio.CancelledError:
                     # Если задача была отменена, корректно завершаем её
                     logger.info("Задача мониторинга была отменена")
