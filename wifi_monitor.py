@@ -4,6 +4,7 @@ import time
 import tkinter as tk
 import os
 import signal
+import customtkinter as ctk  # подключаем библиотеку CustomTkinter
 
 from tkinter import ttk, scrolledtext
 from tkinter import messagebox
@@ -16,22 +17,18 @@ import config
 import utils
 import main
 import logging
-# from second_window import SecondWindow  # Импортируем класс из отдельного файла
-from rssi_monitor_async import SecondWindow
-from settings_window import SettingsWindow
-from export_dialog import ExportDialog
-from choose_channels import ChannelSelectorDialog  # Новое окно выбора каналов
-import logging
 from whitelist_window import EditorWindow
 from threading import Lock
 from choose_channels import ChannelSelectorDialog
-# from choose_channels import get_available_channels  # импортируем нужный метод
 import traceback
 
 change_channel_lock = Lock()
 logger = logging.getLogger(__name__)    # Логгер настроен в первом файле, тут его повторно настраивать не нужно
 
-class WifiMonitor(tk.Tk):
+ctk.set_appearance_mode("System")  # задаем систему отображения (светлый/дарк-тема)
+ctk.set_default_color_theme("green")  # устанавливаем тему зеленого цвета
+
+class WifiMonitor(ctk.CTk):  # наследование от Ctk
     def __init__(self):
         super().__init__()
 
@@ -58,23 +55,23 @@ class WifiMonitor(tk.Tk):
         self.flush_lock = threading.Lock()  # Лок для синхронизации очистки
 
         # === 3. Структура интерфейса (компоновка виджетов) ===
-        main_frame = tk.Frame(self)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame = ctk.CTkFrame(self)  # Используем CtkFrame
+        main_frame.pack(fill=ctk.BOTH, expand=True)
 
-        central_container = tk.Frame(main_frame)
-        central_container.pack(fill=tk.BOTH, expand=True)
+        central_container = ctk.CTkFrame(main_frame)  # Используем CtkFrame
+        central_container.pack(fill=ctk.BOTH, expand=True)
 
         # Левый контейнер для таблицы (TreeView)
-        table_container = tk.Frame(central_container)
-        table_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        table_container = ctk.CTkFrame(central_container)  # Используем CtkFrame
+        table_container.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True)
 
         # Правый контейнер для панели инструментов
-        toolbar_container = tk.Frame(central_container, bg="#f0f0f0")
-        toolbar_container.pack(side=tk.RIGHT, fill=tk.Y)
+        toolbar_container = ctk.CTkFrame(central_container, fg_color="#f0f0f0")  # фоновый цвет для панели
+        toolbar_container.pack(side=ctk.RIGHT, fill=ctk.Y)
 
         # Контейнер для журнала сообщений
-        log_container = tk.Frame(main_frame)
-        log_container.pack(side=tk.TOP, fill=tk.X)
+        log_container = ctk.CTkFrame(main_frame)  # Используем CtkFrame
+        log_container.pack(side=ctk.TOP, fill=ctk.X)
 
         # === 4. Создание интерфейсных элементов ===
         self.tree_view(table_container)  # Таблица устройств
@@ -83,19 +80,19 @@ class WifiMonitor(tk.Tk):
         self.status_bar()  # Строка состояния
 
         # Кнопка «Закрыть»
-        close_button = tk.Button(self, text="X", font=("Arial", 10, "bold"), command=self.quit)
-        close_button.pack(side=tk.RIGHT, anchor="ne", before=self.status_text)
+        close_button = ctk.CTkButton(self, text="X", font=("Arial", 10, "bold"), command=self.quit)
+        close_button.pack(side=ctk.RIGHT, anchor="ne", before=self.status_text)
 
         # Индикатор состояния потока
         self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
         self.indicator.pack(side='left')
 
         # Индикатор состояния сканирования каналов
-        self.channel_indicator = tk.Label(self, text="", background="grey", width=7, height=1)
+        self.channel_indicator = ctk.CTkLabel(self, text="", fg_color="grey", width=7, height=1)
         self.channel_indicator.pack(side='left')
 
         # Индикатор текущего канала
-        self.channel_label = tk.Label(self, text="Channel:", background="lightblue", width=10, height=1)
+        self.channel_label = ctk.CTkLabel(self, text="Channel:", fg_color="lightblue", width=10, height=1)
         self.channel_label.pack(side='left')
 
         # === 5. Обработка событий ===
@@ -125,7 +122,7 @@ class WifiMonitor(tk.Tk):
           self.add_text(msg)    # Удалили "\n", теперь добавляем только само сообщение
 
       # Повторно запускаем опрос через 1 секунду
-      self.after(1000, self.poll_log_queue)
+      self.after(1000, lambda: self.poll_log_queue())
 
     def flush_buffers(self):
         # Получаем блокировку (если уже занята — ждём)
@@ -164,16 +161,14 @@ class WifiMonitor(tk.Tk):
 
     def tree_view(self, frame):
         # Заголовок дерева
-        self.title_label = tk.Label(frame, text=f"Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10))  # Здесь делаем title_label атрибутом класса
-        self.title_label.pack(side=tk.TOP, anchor="w", pady=5)
+        self.title_label = ctk.CTkLabel(frame, text=f"Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10))  # Теперь CtkLabel
+        self.title_label.pack(side=ctk.TOP, anchor="w", pady=5)
         
         # Прокрутка вертикальная для дерева
-        scroll_y = tk.Scrollbar(frame, orient=tk.VERTICAL)
-        scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
+        scroll_y = ctk.CTkScrollbar(frame, orientation=ctk.VERTICAL, width=20)  # Увеличиваем ширину скролла до 20 пикселей
+        scroll_y.pack(side=ctk.RIGHT, fill=ctk.Y)
         
         # Структура таблицы TreeView
-        # columns = ("#1", "#2", "#3", "#4", "#5", "#6")  # Добавляем новый столбец
-        # self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
         columns = ("#1", "#2", "#3", "#4", "#5", "#6", "#7")  # Добавляем ещё один столбец
         self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
         
@@ -198,24 +193,26 @@ class WifiMonitor(tk.Tk):
         
         # Связываем событие двойного клика с обработчиком
         self.tree.bind("<Double-1>", self.on_device_double_click)
-        self.tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.tree.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
         
         # Конфигурируем прокрутку
-        scroll_y.config(command=self.tree.yview)
+        scroll_y.configure(command=self.tree.yview)
         
         # Чекбокс для выбора порядка сортировки по первому столбцу
+        # check_box = ctk.CTkCheckbutton(frame, text="по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
         check_box = tk.Checkbutton(frame, text="по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
         check_box.place(in_=self.title_label, relx=1.0, rely=0.0, anchor="ne", x=200, y=0)  # Рядом с заголовком
 
     def log_view(self, frame):
         # Текстовая область для журналов и сообщений
-        self.text_area = scrolledtext.ScrolledText(frame, wrap=tk.NONE, height=5)  # Ограничиваем высоту в 5 строк
-        self.text_area.pack(fill='both', expand=True)  # Растягиваем по ширине и занимаем весь контейнер
+        # self.text_area = ctk.CTkText(frame, wrap=ctk.NONE, height=5)  # ограничиваем высоту в 5 строк
+        self.text_area = tk.Text(frame, wrap=tk.NONE, height=5)  # ограничиваем высоту в 5 строк
+        self.text_area.pack(fill='both', expand=True)  # растягиваем по ширине и занимаем весь контейнер
    
     def status_bar(self):
          # Полоса статуса
-        self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, width=37, font=("TkDefaultFont", 10))  # Высота в одну строку
-        self.status_text.pack(side=tk.LEFT, anchor='w')
+        self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, width=37, font=("TkDefaultFont", 10))  # высота в одну строку
+        self.status_text.pack(side=ctk.LEFT, anchor='w')
         # Автообновление индикатора состояния потока
         
     def update_indicator(self):
@@ -231,9 +228,9 @@ class WifiMonitor(tk.Tk):
         
         # Проверка статуса сканирования каналов
         if getattr(self, 'scanning_active', False):
-            self.channel_indicator.config(background="yellow", text='scanning')
+            self.channel_indicator.configure(fg_color="yellow", text='scanning')
         else:
-            self.channel_indicator.config(background="#ccc", text='no scan')
+            self.channel_indicator.configure(fg_color="#ccc", text='no scan')
 
         # self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
 
@@ -242,7 +239,7 @@ class WifiMonitor(tk.Tk):
         current_channel, frequency = utils.get_current_channel()
         if not current_channel:
             current_channel = 1 # Заглушка, если не Monitor mode
-        self.channel_label.config(text=f"Ch:{current_channel}", background="lightblue")
+        self.channel_label.configure(text=f"Ch:{current_channel}", fg_color="lightblue")
 
     def on_device_double_click(self, event):
         logger.info("Двойной клик")
@@ -364,14 +361,6 @@ class WifiMonitor(tk.Tk):
     #         text2add = text2add[:-1]  # убираем последний символ (один \n)
 
 
-    #     self.text_area.insert('1.0', text2add)
-        
-    #     # Прокручиваем в конец
-    #     # self.text_area.yview_moveto(1.0)
-    #     self.text_area.see(tk.END)
-    # #     self.text_area.mark_set(tk.INSERT, tk.END)
-
-
     def add_text(self, text):
             """
             Добавляет текст сверху вниз в self.text_area, удаляя лишние строки,
@@ -402,10 +391,6 @@ class WifiMonitor(tk.Tk):
                 
                 # Прокручиваем виджет вверх, чтобы новая строка была внизу
                 self.text_area.see(tk.END)
-
-
-
-
 
     def update_tree(self, mac_address, vendor, rssi, last_seen, channel_number, appearance_count, useful_bytes):
         with config._seen_lock:
@@ -443,6 +428,30 @@ class WifiMonitor(tk.Tk):
             new_props = {'relief': 'sunken', 'state': 'disabled'}
             self.set_button_properties('Monitor mode', new_props)
 
+    # def create_buttons(self, toolbar):
+    #     # Определяем названия кнопок и их команды
+    #     button_names_and_commands = {
+    #         "Стоп": {"command": self.toggle_scanning},
+    #         "Monitor mode": {"command": self.switch_to_monitor_mode},
+    #         "Очистить список": {"command": self.reset_data},
+    #         "Экспорт в TXT": {"command": self.export_csv},
+    #         "Белый список": {"command": self.show_whitelist},
+    #         "Выбор каналов": {"command": self.show_channel_selector},  # Новая кнопка
+    #         "Настройки": {"command": self.show_settings}
+    #     }
+
+    #     # Стандартные параметры оформления кнопок
+    #     default_style = dict(relief=ctk.RAISED, borderwidth=2, activebackground='#ccc')
+
+    #     # Создание кнопок и их размещение на панели
+    #     for button_name, props in button_names_and_commands.items():
+    #         btn_props = default_style.copy()  # Копируем стандартный стиль
+    #         btn_props.update(props)  # Объединяем с индивидуальными параметрами (включая команду)
+
+    #         btn = ctk.CTkButton(toolbar, text=button_name, **btn_props)  # Используем CtkButton
+    #         btn.pack(side=ctk.TOP, fill=ctk.X, expand=True, padx=5, pady=5)  # Располагаем кнопки вертикально
+    #         self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
+    
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
         button_names_and_commands = {
@@ -455,28 +464,28 @@ class WifiMonitor(tk.Tk):
             "Настройки": {"command": self.show_settings}
         }
 
-        # Стандартные параметры оформления кнопок
-        default_style = dict(relief=tk.RAISED, borderwidth=2, activebackground='#ccc')
-
-        # Создание кнопок и их размещение на панели
+        # Создаем кнопки и размещаем их на панели
         for button_name, props in button_names_and_commands.items():
-            btn_props = default_style.copy()  # Копируем стандартный стиль
-            btn_props.update(props)  # Объединяем с индивидуальными параметрами (включая команду)
+            btn = ctk.CTkButton(toolbar, text=button_name, **props)  # Передаем только нужные параметры
+            btn.pack(side=ctk.TOP, fill=ctk.X, expand=True, padx=5, pady=5)  # Расположение кнопок
+            self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку       
 
-            btn = tk.Button(toolbar, text=button_name, **btn_props)
-            btn.pack(side=tk.TOP, fill=tk.X, expand=True, padx=5, pady=5)  # Располагаем кнопки вертикально
-            self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
-    
+    # def set_button_properties(self, button_name, properties):
+    #     """
+    #     Изменяет любые свойства указанной кнопки.
+    #     :param button_name: Имя кнопки
+    #     :param properties: Словарь новых свойств (например, {'relief': 'sunken', 'bg': 'red'})
+    #     """
+    #     # Универсальный метод для установки любых свойств кнопки
+    #     if button_name in self.buttons:
+    #         self.buttons[button_name].configure(**properties)
+
     def set_button_properties(self, button_name, properties):
-        """
-        Изменяет любые свойства указанной кнопки.
-        :param button_name: Имя кнопки
-        :param properties: Словарь новых свойств (например, {'relief': 'sunken', 'bg': 'red'})
-        """
-        # Универсальный метод для установки любых свойств кнопки
+        # Избавляемся от неподдерживаемых свойств
+        valid_properties = {k: v for k, v in properties.items() if k not in ['relief']}
         if button_name in self.buttons:
-            self.buttons[button_name].config(**properties)
-            
+            self.buttons[button_name].configure(**valid_properties)
+
     def toggle_scanning(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             _stop.set()  # Устанавливаем флаг остановки
