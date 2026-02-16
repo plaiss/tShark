@@ -5,7 +5,6 @@ import tkinter as tk
 import os
 import signal
 import customtkinter as ctk  # подключаем библиотеку CustomTkinter
-
 from tkinter import ttk, scrolledtext
 from tkinter import messagebox
 from tkinter.messagebox import showinfo
@@ -21,6 +20,7 @@ from whitelist_window import EditorWindow
 from threading import Lock
 from choose_channels import ChannelSelectorDialog
 import traceback
+from export_dialog import ExportDialog  # замените 'export_dialog' на реальное имя модуля
 
 change_channel_lock = Lock()
 logger = logging.getLogger(__name__)    # Логгер настроен в первом файле, тут его повторно настраивать не нужно
@@ -83,27 +83,45 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         close_button = ctk.CTkButton(self, text="X", font=("Arial", 10, "bold"), command=self.quit)
         close_button.pack(side=ctk.RIGHT, anchor="ne", before=self.status_text)
 
-        # Индикатор состояния потока
-        # self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
-        # self.indicator.pack(side='left')
+        # # Индикатор состояния потока
+
         self.indicator = ctk.CTkLabel(
             self,
             text="",
-            fg_color="gray",      # начальный цвет
+            fg_color="gray",
             width=70,
             height=20,
             corner_radius=5
         )
-        self.indicator.pack(side='left', padx=5, pady=5)
-
+        self.indicator.pack(side='left', padx=(10, 5), pady=5)  # Отступ слева 10, справа 5
 
         # Индикатор состояния сканирования каналов
-        self.channel_indicator = ctk.CTkLabel(self, text="", fg_color="grey", width=7, height=1)
-        self.channel_indicator.pack(side='left')
+        # self.channel_indicator = ctk.CTkLabel(self, text="сканинг", fg_color="grey", width=45, height=1)
+        # self.channel_indicator.pack(side='left', padx=5, pady=5)  # Равномерные отступы 5px
+        self.channel_indicator = ctk.CTkLabel(
+            self,
+            text="no scan",
+            fg_color="gray",           # Как у кнопки «Стоп»
+            text_color="black",            # Белый текст (как у кнопки)
+            width=70,                     # Приближено к размеру кнопки
+            height=20,                  # Высота как у кнопки
+            corner_radius=5              # Скругление углов (как у CTkButton)
+        )
+        self.channel_indicator.pack(side='left', padx=10, pady=5)
 
         # Индикатор текущего канала
-        self.channel_label = ctk.CTkLabel(self, text="Channel:", fg_color="lightblue", width=10, height=1)
-        self.channel_label.pack(side='left')
+        # self.channel_label = ctk.CTkLabel(self, text="Channel:", fg_color="lightblue", width=10, height=1)
+        # self.channel_label.pack(side='left', padx=(5, 10), pady=5)  # Отступ слева 5, справа 10
+        self.channel_label = ctk.CTkLabel(
+            self,
+            text="Ch: ",
+            fg_color="lightblue",
+            text_color="black",           # Чёрный текст (контраст)
+            width=35,                   # Под длину текста
+            height=20,
+            corner_radius=5
+        )
+        self.channel_label.pack(side='left', padx=10, pady=5)
 
         # === 5. Обработка событий ===
         self.indicator.bind('<Button-1>', self.on_running_indicator_click)
@@ -119,12 +137,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
         # Периодически проверяем очередь и обновляем интерфейс
         self.poll_log_queue()
-
-    # def poll_log_queue(self):
-    #     while not self.log_queue.empty():
-    #         msg = self.log_queue.get()
-    #         self.add_text(msg + "\n")
-    #     self.after(1000, self.poll_log_queue)
 
     def poll_log_queue(self):
       while not self.log_queue.empty():
@@ -209,8 +221,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         scroll_y.configure(command=self.tree.yview)
         
         # Чекбокс для выбора порядка сортировки по первому столбцу
-        # check_box = ctk.CTkCheckbutton(frame, text="по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
-        # check_box = tk.Checkbutton(frame, text="по последнему октету", variable=self.reverse_check_var, command=lambda: self.sort_column("#1"))
         check_box = ctk.CTkCheckBox(
             frame,
             text="по последнему октету",
@@ -222,7 +232,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
     def log_view(self, frame):
         # Текстовая область для журналов и сообщений
-        # self.text_area = ctk.CTkText(frame, wrap=ctk.NONE, height=5)  # ограничиваем высоту в 5 строк
         self.text_area = tk.Text(frame, wrap=tk.NONE, height=5)  # ограничиваем высоту в 5 строк
         self.text_area.pack(fill='both', expand=True)  # растягиваем по ширине и занимаем весь контейнер
    
@@ -231,25 +240,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, width=37, font=("TkDefaultFont", 10))  # высота в одну строку
         self.status_text.pack(side=ctk.LEFT, anchor='w')
         # Автообновление индикатора состояния потока
-        
-    # def update_indicator(self):
-    #     if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
-    #         # logger.info("TShark thread is alive.DEF update_indicator")
-    #         self.indicator.config(background="red", text='running')
-    #         new_props = {'relief': 'sunken', 'text': 'Стоп'}
-    #         self.set_button_properties('Стоп', new_props)
-    #     else:
-    #         self.indicator.config(background="#ccc", text='stopped')
-    #         new_props = {'relief': 'raised', 'text': 'Пуск'}
-    #         self.set_button_properties('Стоп', new_props)
-        
-    #     # Проверка статуса сканирования каналов
-    #     if getattr(self, 'scanning_active', False):
-    #         self.channel_indicator.configure(fg_color="yellow", text='scanning')
-    #     else:
-    #         self.channel_indicator.configure(fg_color="#ccc", text='no scan')
-
-    #     # self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
 
     def update_indicator(self):
         if (hasattr(self, 'tshark_thread') and 
@@ -287,20 +277,29 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             }
             self.set_button_properties('Стоп', new_props)
 
+    # def update_channel_indicator(self):
+    #     # Получаем текущий канал
+    #     current_channel, frequency = utils.get_current_channel()
+    #     if not current_channel:
+    #         current_channel = 1 # Заглушка, если не Monitor mode
+    #     # self.channel_label.configure(text=f"Ch:{current_channel}", fg_color="lightblue")
+    #     self.channel_label.configure = ctk.CTkLabel(
+    #         self,
+    #         text=f"Ch:{current_channel}",
+    #         fg_color="lightblue",
+    #         text_color="black"  # цвет текста — чёрный
+    #     )
+    #     self.channel_label.pack(side='left')
 
     def update_channel_indicator(self):
-        # Получаем текущий канал
-        current_channel, frequency = utils.get_current_channel()
-        if not current_channel:
-            current_channel = 1 # Заглушка, если не Monitor mode
-        # self.channel_label.configure(text=f"Ch:{current_channel}", fg_color="lightblue")
-        self.channel_label.configure = ctk.CTkLabel(
-            self,
-            text=f"Ch:{current_channel}",
-            fg_color="lightblue",
-            text_color="black"  # цвет текста — чёрный
-        )
-        self.channel_label.pack(side='left')
+        try:
+            current_channel, frequency = utils.get_current_channel()
+            if not current_channel:
+                current_channel = 1
+            self.channel_label.configure(text=f"Ch:{current_channel}")  # Обновляем существующий виджет
+        except Exception as e:
+            logger.error(f"Ошибка получения текущего канала: {e}")
+            self.channel_label.configure(text="Ch:N/A")
 
 
     def on_device_double_click(self, event):
@@ -321,20 +320,17 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         
         if hasattr(self, 'scanner_thread'):
             scanner_was_running = True
-
         selected_item = self.tree.focus()
         data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
         mac_address = data[0]  # Первая колонка — MAC-адрес
         manufacturer = data[1]  # Вторая колонка — Производитель
         channel = data[4]
-
         self.stop_scanning()
         logger.info("Команды на остановку сканирования каналов даны")
         # self.toggle_scanning()
         self.change_channel(channel)
         logger.info(f"Команды на смену канала на {channel} ")
         SecondWindow(self, mac_address, manufacturer, channel)
-        
         logger.info(f"Команды на смену канала на {channel} ")
         if scanner_was_running == True:
             logger.info("он был запущен, можно перезапускать заново")
@@ -399,30 +395,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             self.tree.column('#1', anchor=alignment)
             # print(f"[SORT] Выравнивание: {alignment}")
         
-        # print("[SORT] Сортировка завершена")
-
-    # def add_text(self, text):
-    #     # Добавляем новый текст
-    #     self.text_area.insert(tk.END, text)
-        
-    #     # Получаем весь текст из виджета
-    #     all_text = self.text_area.get('1.0', tk.END)
-        
-    #     # Разбиваем на строки, убираем пустые строки в конце
-    #     lines = [line for line in all_text.splitlines() if line.strip()]
-        
-    #     # Если строк больше 10 — оставляем только последние 10
-    #     if len(lines) > 1000:
-    #         lines = lines[-10:]
-        
-    #     # Очищаем виджет и вставляем обрезанный текст
-    #     self.text_area.delete('1.0', tk.END)
-    #     text2add = '\n'.join(lines) + '\n'
-        
-    #     if text2add.endswith('\n\n'):
-    #         text2add = text2add[:-1]  # убираем последний символ (один \n)
-
-
     def add_text(self, text):
             """
             Добавляет текст сверху вниз в self.text_area, удаляя лишние строки,
@@ -489,30 +461,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             # self.status_text.tag_remove("highlight", "1.0", tk.END)  # удалить тег со всего текста
             new_props = {'relief': 'sunken', 'state': 'disabled'}
             self.set_button_properties('Monitor mode', new_props)
-
-    # def create_buttons(self, toolbar):
-    #     # Определяем названия кнопок и их команды
-    #     button_names_and_commands = {
-    #         "Стоп": {"command": self.toggle_scanning},
-    #         "Monitor mode": {"command": self.switch_to_monitor_mode},
-    #         "Очистить список": {"command": self.reset_data},
-    #         "Экспорт в TXT": {"command": self.export_csv},
-    #         "Белый список": {"command": self.show_whitelist},
-    #         "Выбор каналов": {"command": self.show_channel_selector},  # Новая кнопка
-    #         "Настройки": {"command": self.show_settings}
-    #     }
-
-    #     # Стандартные параметры оформления кнопок
-    #     default_style = dict(relief=ctk.RAISED, borderwidth=2, activebackground='#ccc')
-
-    #     # Создание кнопок и их размещение на панели
-    #     for button_name, props in button_names_and_commands.items():
-    #         btn_props = default_style.copy()  # Копируем стандартный стиль
-    #         btn_props.update(props)  # Объединяем с индивидуальными параметрами (включая команду)
-
-    #         btn = ctk.CTkButton(toolbar, text=button_name, **btn_props)  # Используем CtkButton
-    #         btn.pack(side=ctk.TOP, fill=ctk.X, expand=True, padx=5, pady=5)  # Располагаем кнопки вертикально
-    #         self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку
     
     def create_buttons(self, toolbar):
         # Определяем названия кнопок и их команды
@@ -532,21 +480,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             btn.pack(side=ctk.TOP, fill=ctk.X, expand=True, padx=5, pady=5)  # Расположение кнопок
             self.buttons[button_name] = btn  # Сохраняем ссылку на кнопку       
 
-    # def set_button_properties(self, button_name, properties):
-    #     """
-    #     Изменяет любые свойства указанной кнопки.
-    #     :param button_name: Имя кнопки
-    #     :param properties: Словарь новых свойств (например, {'relief': 'sunken', 'bg': 'red'})
-    #     """
-    #     # Универсальный метод для установки любых свойств кнопки
-    #     if button_name in self.buttons:
-    #         self.buttons[button_name].configure(**properties)
-
-    # def set_button_properties(self, button_name, properties):
-    #     # Избавляемся от неподдерживаемых свойств
-    #     valid_properties = {k: v for k, v in properties.items() if k not in ['relief']}
-    #     if button_name in self.buttons:
-    #         self.buttons[button_name].configure(**valid_properties)
     def set_button_properties(self, button_name, properties):
         if button_name in self.buttons:
             # Фильтруем только поддерживаемые параметры для ctk.CTkButton
@@ -561,7 +494,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             _stop.set()  # Устанавливаем флаг остановки
             # Не удаляем ссылку на поток, а позволяем ему закончить естественно
-            # self.tshark_thread = None  # Эту строку нужно убрать
             self.set_button_properties('Стоп', {'text': 'Пуск'})  # Меняем текст на "Пуск"
         else:
             _stop.clear()  # Снимаем флаг остановки
@@ -609,7 +541,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         """Экспорт данных в CSV-файл."""
         try:
             # Прямо вызываем класс ExportDialog для начала экспорта
-            ExportDialog(self.master, self.tree)
+            ExportDialog(self, self.tree)
 
         except Exception as e:
             print(f"Ошибка при открытии окна экспорта: {e}")
@@ -635,113 +567,95 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         settings_window = SettingsWindow(self.master)
         settings_window.grab_set() # Фокусируется на окне настроек
 
+    # def show_channel_selector(self):
+    #     self.stop_scanning()
+    #     dialog = ChannelSelectorDialog(self, config.interface, channels=getattr(self, 'prev_channels', None), delay_time=getattr(self, 'prev_delay_time', None))
+
+    #     if dialog.result:
+    #         selected_channels, delay_time = dialog.result
+    #         self.prev_channels = selected_channels
+    #         self.prev_delay_time = delay_time
+    #         if selected_channels:
+    #             self.scan_selected_channels(selected_channels, delay_time)
+    #         else:
+    #             # Если выбрали пустой список каналов, то остановим сканирование
+    #             self.stop_scanning()
+
+
+        
+    #     # Циклическое сканирование по нескольким каналам
+    #     def run_scanner():
+    #         while self.scanning_active:
+    #             for channel in channels:
+    #                 if self.scanning_active == False:
+    #                     break
+    #                 # logger.info("Before changing channel")
+    #                 self.change_channel(channel)
+    #                 # logger.info("Before changing channel")
+    #                 time.sleep(delay_time)
+
+    #     self.scanner_thread = threading.Thread(target=run_scanner, daemon=True)
+    #     self.scanning_active = True  # Включаем сканирование
+    #     self.scanner_thread.start()
+
     def show_channel_selector(self):
         self.stop_scanning()
-        dialog = ChannelSelectorDialog(self, config.interface, channels=getattr(self, 'prev_channels', None), delay_time=getattr(self, 'prev_delay_time', None))
+        dialog = ChannelSelectorDialog(
+            self, 
+            config.interface,
+            channels=getattr(self, 'prev_channels', None),
+            delay_time=getattr(self, 'prev_delay_time', None)
+        )
 
         if dialog.result:
             selected_channels, delay_time = dialog.result
             self.prev_channels = selected_channels
             self.prev_delay_time = delay_time
+
             if selected_channels:
-                self.scan_selected_channels(selected_channels, delay_time)
+                # Передаём selected_channels в run_scanner через замыкание
+                def run_scanner():
+                    while self.scanning_active:
+                        for channel in selected_channels:  # Используем selected_channels из внешнего контекста
+                            if not self.scanning_active:
+                                break
+                            self.change_channel(channel)
+                            time.sleep(delay_time)
+
+                self.scanner_thread = threading.Thread(target=run_scanner, daemon=True)
+                self.scanning_active = True
+                self.scanner_thread.start()
             else:
-                # Если выбрали пустой список каналов, то остановим сканирование
                 self.stop_scanning()
 
-    def scan_selected_channels(self, channels, delay_time=0.25):
-        if len(channels) == 1:
-            # Единственный канал — фиксируем на нём
-            self.stop_scanning()
-            self.change_channel(channels[0])
-            return
-        
-        # Циклическое сканирование по нескольким каналам
-        def run_scanner():
-            while self.scanning_active:
-                for channel in channels:
-                    if self.scanning_active == False:
-                        break
-                    # logger.info("Before changing channel")
-                    self.change_channel(channel)
-                    # logger.info("Before changing channel")
-                    time.sleep(delay_time)
-
-        self.scanner_thread = threading.Thread(target=run_scanner, daemon=True)
-        self.scanning_active = True  # Включаем сканирование
-        self.scanner_thread.start()
 
 
     def change_channel(self, channel):
-        """
-        Безопасный метод смены канала сети Wi-Fi.
-        
-        :param channel: Номер канала для установки
-        """
         start_time = time.time()
-        process = None
-        acquired_lock = False
-
         try:
-            # logger.info(f"[CHANNEL_CHANGE] Начало смены канала на {channel}. Время: {start_time:.2f}")
-
-            # Простое использование блокировки без сложного контроля
-            change_channel_lock.acquire()
-            logger.debug(f"[CHANNEL_CHANGE] Лок получен для канала {channel}. Время: {time.time():.2f}")
-
-            # Формирование команды
-            command = ["sudo", "iw", "dev", config.interface, "set", "channel", str(channel)]
-            logger.debug(f"[CHANNEL_CHANGE] Выполняется команда: {' '.join(command)}")
-
-            # Выполнение команды с параметрами
-            try:
+            with change_channel_lock:  # Используем контекстный менеджер
+                command = ["sudo", "iw", "dev", config.interface, "set", "channel", str(channel)]
                 process = subprocess.run(
                     command,
-                    input=None,                  # Без ввода пароля
-                    encoding="utf-8",            # Используем старую схему обработки текста
                     capture_output=True,
-                    timeout=60                   # Большой таймаут для предотвращения преждевременного выхода
+                    text=True,  # Вместо encoding="utf-8"
+                    timeout=60
                 )
-
-                # Анализ результата
                 if process.returncode == 0:
-                    # logger.info(
-                    #     f"[CHANNEL_CHANGE] Успешно сменил канал на {channel} "
-                    #     f"(время: {time.time() - start_time:.2f} сек)\n"
-                    #     f"stdout: {process.stdout}, stderr: {process.stderr}"
-                    # )
                     self.update_channel_indicator()
                 else:
-                    error_msg = (
-                        f"Ошибка при смене канала {channel}: "
-                        f"код={process.returncode}, stdout={process.stdout}, stderr={process.stderr.strip()}"
+                    logger.error(
+                        f"Ошибка смены канала {channel}: "
+                        f"stdout={process.stdout}, stderr={process.stderr}"
                     )
-                    logger.error(f"[CHANNEL_CHANGE] {error_msg}")
-
-            except subprocess.TimeoutExpired:
-                logger.critical(
-                    f"[CHANNEL_CHANGE] Таймаут при смене канала {channel}. "
-                    f"Команда: {' '.join(command)}, stdout: {process.stdout}, stderr: {process.stderr}"
-                )
-            except Exception as e:
-                logger.critical(
-                    f"[CHANNEL_CHANGE] Неожиданная ошибка при выполнении команды: {e}\n"
-                    f"Команда: {' '.join(command)}\n"
-                    f"Traceback: {traceback.format_exc()}"
-                )
-
+        except subprocess.TimeoutExpired:
+            logger.critical(f"Таймаут при смене канала {channel}")
+        except Exception as e:
+            logger.critical(f"Неожиданная ошибка: {e}\n{traceback.format_exc()}")
         finally:
-            # Всегда освобождаем блокировку
-            if change_channel_lock.locked():
-                change_channel_lock.release()
+            total_time = time.time() - start_time
+            logger.debug(f"Смена канала {channel} заняла {total_time:.2f} сек")
 
-        # Остальная логика обработки завершения
-        total_time = time.time() - start_time
-        status = ("успешно" if process and process.returncode == 0 else "ошибка")
-        logger.debug(
-            f"[CHANNEL_CHANGE] Завершение смены канала {channel}. "
-            f"Время: {total_time:.2f} сек, статус: {status}"
-        )
 
     def on_channel_indicator_click(self, event=None):
         if not self.scanning_active:
@@ -754,6 +668,13 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         else:
             self.prev_channels = []
             self.stop_scanning()
+    
+    def scan_selected_channels(self, channels, delay_time=0.25):
+        if len(channels) == 1:
+            # Единственный канал — фиксируем на нём
+            self.stop_scanning()
+            self.change_channel(channels[0])
+            return
 
     def stop_scanning(self):
         # Отключаем флаг активности сканирования
@@ -761,8 +682,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         # Ждем завершения потока (если надо, можете добавить таймаут ожидания)
         if hasattr(self, 'scanner_thread'):
             self.scanner_thread.join(timeout=1.0)  # Дожидаемся завершения потока
-            # del self.scanner_thread  # Освобождаем память
-
         self.add_text("Процесс сканирования каналов остановлен." + "\n")
 
             
@@ -780,9 +699,22 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             self.start_tshark()
             new_props = {'relief': 'sunken'}  # Сделаем кнопку утопленной
             self.set_button_properties('Стоп', new_props)
-    # def update_status_with_packet_count(self):
-    #     status_msg = f"Всего пакетов: {config.total_packet_count} | Найдено устройств: {len(config._last_seen)}"
-    #     self.status_text.replace(1.0, tk.END, status_msg)
+
+    def update_scanning_indicator(self):
+        """Обновляет индикатор сканирования: цвет и текст в зависимости от состояния."""
+        if self.scanning_active:
+            self.channel_indicator.configure(
+                text="scanning",
+                fg_color="yellow",
+                text_color="black"
+            )
+        else:
+            self.channel_indicator.configure(
+                text="no scan",
+                fg_color="gray",
+                text_color="white"
+            )
+
 
 if __name__ == "__main__":
     app = WifiMonitor()
