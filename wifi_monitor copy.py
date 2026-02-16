@@ -84,18 +84,8 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         close_button.pack(side=ctk.RIGHT, anchor="ne", before=self.status_text)
 
         # Индикатор состояния потока
-        # self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
-        # self.indicator.pack(side='left')
-        self.indicator = ctk.CTkLabel(
-            self,
-            text="",
-            fg_color="gray",      # начальный цвет
-            width=70,
-            height=20,
-            corner_radius=5
-        )
-        self.indicator.pack(side='left', padx=5, pady=5)
-
+        self.indicator = tk.Label(self, text="", background="black", width=7, height=1)
+        self.indicator.pack(side='left')
 
         # Индикатор состояния сканирования каналов
         self.channel_indicator = ctk.CTkLabel(self, text="", fg_color="grey", width=7, height=1)
@@ -232,61 +222,24 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         self.status_text.pack(side=ctk.LEFT, anchor='w')
         # Автообновление индикатора состояния потока
         
-    # def update_indicator(self):
-    #     if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
-    #         # logger.info("TShark thread is alive.DEF update_indicator")
-    #         self.indicator.config(background="red", text='running')
-    #         new_props = {'relief': 'sunken', 'text': 'Стоп'}
-    #         self.set_button_properties('Стоп', new_props)
-    #     else:
-    #         self.indicator.config(background="#ccc", text='stopped')
-    #         new_props = {'relief': 'raised', 'text': 'Пуск'}
-    #         self.set_button_properties('Стоп', new_props)
-        
-    #     # Проверка статуса сканирования каналов
-    #     if getattr(self, 'scanning_active', False):
-    #         self.channel_indicator.configure(fg_color="yellow", text='scanning')
-    #     else:
-    #         self.channel_indicator.configure(fg_color="#ccc", text='no scan')
-
-    #     # self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
-
     def update_indicator(self):
-        if (hasattr(self, 'tshark_thread') and 
-                isinstance(self.tshark_thread, threading.Thread) and
-                self.tshark_thread.is_alive()):
-            
-            # Индикатор статуса (ctk.CTkLabel вместо tk.Label)
-            self.indicator.configure(
-                fg_color="red",      # цвет фона (аналог background)
-                text="running"
-            )
-            
-            # Обновляем кнопку "Стоп" (ctk.CTkButton)
-            new_props = {
-                'text': 'Стоп',
-                'fg_color': 'darkred',     # цвет кнопки при активном состоянии
-                'hover_color': 'red',   # цвет при наведении
-                'text_color': 'white'    # цвет текста
-            }
+        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+            # logger.info("TShark thread is alive.DEF update_indicator")
+            self.indicator.config(background="red", text='running')
+            new_props = {'relief': 'sunken', 'text': 'Стоп'}
             self.set_button_properties('Стоп', new_props)
-            
         else:
-            self.indicator.configure(
-                fg_color="#ccc",     # серый фон (остановлено)
-                text="stopped",
-                text_color="black" 
-            )
-            
-            # Обновляем кнопку "Стоп" (возвращаем к состоянию "Пуск")
-            new_props = {
-                'text': 'Пуск',
-                'fg_color': 'green',      # цвет кнопки в режиме "Пуск"
-                'hover_color': 'darkgreen',
-                'text_color': 'white'
-            }
+            self.indicator.config(background="#ccc", text='stopped')
+            new_props = {'relief': 'raised', 'text': 'Пуск'}
             self.set_button_properties('Стоп', new_props)
+        
+        # Проверка статуса сканирования каналов
+        if getattr(self, 'scanning_active', False):
+            self.channel_indicator.configure(fg_color="yellow", text='scanning')
+        else:
+            self.channel_indicator.configure(fg_color="#ccc", text='no scan')
 
+        # self.after(1000, self.update_indicator)  # Обновляем индикатор каждые 1000 мс
 
     def update_channel_indicator(self):
         # Получаем текущий канал
@@ -542,20 +495,11 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
     #     if button_name in self.buttons:
     #         self.buttons[button_name].configure(**properties)
 
-    # def set_button_properties(self, button_name, properties):
-    #     # Избавляемся от неподдерживаемых свойств
-    #     valid_properties = {k: v for k, v in properties.items() if k not in ['relief']}
-    #     if button_name in self.buttons:
-    #         self.buttons[button_name].configure(**valid_properties)
     def set_button_properties(self, button_name, properties):
+        # Избавляемся от неподдерживаемых свойств
+        valid_properties = {k: v for k, v in properties.items() if k not in ['relief']}
         if button_name in self.buttons:
-            # Фильтруем только поддерживаемые параметры для ctk.CTkButton
-            valid_props = {
-                k: v for k, v in properties.items()
-                if k in ['text', 'fg_color', 'hover_color', 'text_color', 'state', 'width']
-            }
-            self.buttons[button_name].configure(**valid_props)
-
+            self.buttons[button_name].configure(**valid_properties)
 
     def toggle_scanning(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
