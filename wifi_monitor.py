@@ -263,7 +263,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             
         else:
             self.indicator.configure(
-                fg_color="#ccc",     # серый фон (остановлено)
+                fg_color="gray",     # серый фон (остановлено)
                 text="stopped",
                 text_color="black" 
             )
@@ -276,20 +276,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
                 'text_color': 'white'
             }
             self.set_button_properties('Стоп', new_props)
-
-    # def update_channel_indicator(self):
-    #     # Получаем текущий канал
-    #     current_channel, frequency = utils.get_current_channel()
-    #     if not current_channel:
-    #         current_channel = 1 # Заглушка, если не Monitor mode
-    #     # self.channel_label.configure(text=f"Ch:{current_channel}", fg_color="lightblue")
-    #     self.channel_label.configure = ctk.CTkLabel(
-    #         self,
-    #         text=f"Ch:{current_channel}",
-    #         fg_color="lightblue",
-    #         text_color="black"  # цвет текста — чёрный
-    #     )
-    #     self.channel_label.pack(side='left')
 
     def update_channel_indicator(self):
         try:
@@ -489,16 +475,17 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             }
             self.buttons[button_name].configure(**valid_props)
 
-
     def toggle_scanning(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             _stop.set()  # Устанавливаем флаг остановки
             # Не удаляем ссылку на поток, а позволяем ему закончить естественно
+            # self.tshark_thread = None  # Эту строку нужно убрать
             self.set_button_properties('Стоп', {'text': 'Пуск'})  # Меняем текст на "Пуск"
         else:
             _stop.clear()  # Снимаем флаг остановки
             self.start_tshark()
             self.set_button_properties('Стоп', {'text': 'Стоп'})  # Меняем текст на "Стоп"
+    
     
     def start_tshark(self):
         logger.info("Начинается попытка запуска tshark")
@@ -567,41 +554,12 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         settings_window = SettingsWindow(self.master)
         settings_window.grab_set() # Фокусируется на окне настроек
 
-    # def show_channel_selector(self):
-    #     self.stop_scanning()
-    #     dialog = ChannelSelectorDialog(self, config.interface, channels=getattr(self, 'prev_channels', None), delay_time=getattr(self, 'prev_delay_time', None))
-
-    #     if dialog.result:
-    #         selected_channels, delay_time = dialog.result
-    #         self.prev_channels = selected_channels
-    #         self.prev_delay_time = delay_time
-    #         if selected_channels:
-    #             self.scan_selected_channels(selected_channels, delay_time)
-    #         else:
-    #             # Если выбрали пустой список каналов, то остановим сканирование
-    #             self.stop_scanning()
-
-
-        
-    #     # Циклическое сканирование по нескольким каналам
-    #     def run_scanner():
-    #         while self.scanning_active:
-    #             for channel in channels:
-    #                 if self.scanning_active == False:
-    #                     break
-    #                 # logger.info("Before changing channel")
-    #                 self.change_channel(channel)
-    #                 # logger.info("Before changing channel")
-    #                 time.sleep(delay_time)
-
-    #     self.scanner_thread = threading.Thread(target=run_scanner, daemon=True)
-    #     self.scanning_active = True  # Включаем сканирование
-    #     self.scanner_thread.start()
-
     def show_channel_selector(self):
-        self.stop_scanning()
+        """Открывает диалог выбора каналов для сканирования"""
+        self.stop_scanning()  # Останавливаем текущее сканирование перед выбором новых каналов
+
         dialog = ChannelSelectorDialog(
-            self, 
+            self,
             config.interface,
             channels=getattr(self, 'prev_channels', None),
             delay_time=getattr(self, 'prev_delay_time', None)
@@ -613,25 +571,64 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             self.prev_delay_time = delay_time
 
             if selected_channels:
-                # Передаём selected_channels в run_scanner через замыкание
-                def run_scanner():
-                    while self.scanning_active:
-                        for channel in selected_channels:  # Используем selected_channels из внешнего контекста
-                            if not self.scanning_active:
-                                break
-                            self.change_channel(channel)
-                            time.sleep(delay_time)
-
-                self.scanner_thread = threading.Thread(target=run_scanner, daemon=True)
-                self.scanning_active = True
-                self.scanner_thread.start()
+                self.scan_selected_channels(selected_channels, delay_time)
             else:
-                self.stop_scanning()
+                self.add_text("Сканирование не запущено: не выбраны каналы.\n")
+   
+    def on_channel_indicator_click(self, event=None):
+        if not self.scanning_active:
+            # Получаем доступные каналы из другого модуля
+            available_channels = utils.get_available_channels(config.interface)
+            if available_channels:
+                self.prev_channels = available_channels
+                # Начинаем сканирование по всем доступным каналам с минимальным временем задержки
+                self.scan_selected_channels(list(available_channels), delay_time=0.25)
+        else:
+            self.prev_channels = []
+            self.stop_scanning()
 
 
 
+
+
+    
+    def scan_selected_channels(self, channels, delay_time=0.25):
+        """Запускает сканирование по выбранным каналам"""
+        if not channels:
+            self.add_text("Нет каналов для сканирования.\n")
+            return
+
+        if len(channels) == 1:
+            # Фиксированный канал — просто переключаемся на него
+            self.change_channel(channels[0])
+            self.scanning_active = True
+            self.add_text(f"Фиксированный канал: {channels[0]}\n")
+        else:
+            # Циклическое сканирование по нескольким каналам
+            def run_scanner():
+                while self.scanning_active:
+                    for channel in channels:
+                        start_time = time.time()
+                        if not self.scanning_active:
+                            break
+                        self.change_channel(channel)
+                        time.sleep(delay_time)
+                        total_time = time.time() - start_time
+                        logger.debug(f"Смена канала {channel} заняла {total_time:.2f} сек")
+
+            # Останавливаем предыдущее сканирование, если оно было
+            self.stop_scanning()
+
+            self.scanner_thread = threading.Thread(target=run_scanner, daemon=True)
+            self.scanning_active = True
+            self.scanner_thread.start()
+            self.add_text(f"Запуск циклического сканирования по каналам: {channels}\n")
+            logger.info(f"Запуск циклического сканирования по каналам: {channels}")
+
+        self.update_scanning_indicator()
+    
     def change_channel(self, channel):
-        start_time = time.time()
+        
         try:
             with change_channel_lock:  # Используем контекстный менеджер
                 command = ["sudo", "iw", "dev", config.interface, "set", "channel", str(channel)]
@@ -653,36 +650,19 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         except Exception as e:
             logger.critical(f"Неожиданная ошибка: {e}\n{traceback.format_exc()}")
         finally:
-            total_time = time.time() - start_time
-            logger.debug(f"Смена канала {channel} заняла {total_time:.2f} сек")
-
-
-    def on_channel_indicator_click(self, event=None):
-        if not self.scanning_active:
-            # Получаем доступные каналы из другого модуля
-            available_channels = utils.get_available_channels(config.interface)
-            if available_channels:
-                self.prev_channels = available_channels
-                # Начинаем сканирование по всем доступным каналам с минимальным временем задержки
-                self.scan_selected_channels(list(available_channels), delay_time=0.25)
-        else:
-            self.prev_channels = []
-            self.stop_scanning()
-    
-    def scan_selected_channels(self, channels, delay_time=0.25):
-        if len(channels) == 1:
-            # Единственный канал — фиксируем на нём
-            self.stop_scanning()
-            self.change_channel(channels[0])
-            return
+            logger.debug(f"change_channel закончен")
 
     def stop_scanning(self):
-        # Отключаем флаг активности сканирования
+        """Останавливает сканирование каналов"""
         self.scanning_active = False
-        # Ждем завершения потока (если надо, можете добавить таймаут ожидания)
-        if hasattr(self, 'scanner_thread'):
-            self.scanner_thread.join(timeout=1.0)  # Дожидаемся завершения потока
-        self.add_text("Процесс сканирования каналов остановлен." + "\n")
+
+        # Ждём завершения потока сканирования
+        if hasattr(self, 'scanner_thread') and self.scanner_thread.is_alive():
+            self.scanner_thread.join(timeout=1.0)
+
+        # Обновляем интерфейс
+        self.add_text("Процесс сканирования каналов остановлен.\n")
+        self.update_scanning_indicator()
 
             
     def on_running_indicator_click(self, event):
@@ -701,7 +681,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             self.set_button_properties('Стоп', new_props)
 
     def update_scanning_indicator(self):
-        """Обновляет индикатор сканирования: цвет и текст в зависимости от состояния."""
+        """Обновляет индикатор сканирования: цвет и текст в зависимости от состояния"""
         if self.scanning_active:
             self.channel_indicator.configure(
                 text="scanning",
@@ -712,7 +692,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             self.channel_indicator.configure(
                 text="no scan",
                 fg_color="gray",
-                text_color="white"
+                text_color="black"
             )
 
 

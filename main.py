@@ -29,8 +29,7 @@ file_handler = logging.handlers.RotatingFileHandler(
     backupCount=5,               # Количество резервных копий старых файлов
     encoding='utf-8'
 )
-# logging.basicConfig(level=logging.INFO, handlers=[file_handler])
-logging.basicConfig(level=logging.INFO, handlers=[file_handler], format=LOG_FORMAT, datefmt=DATE_FORMAT)
+logging.basicConfig(level=logging.DEBUG, handlers=[file_handler], format=LOG_FORMAT, datefmt=DATE_FORMAT)
 logger = logging.getLogger(__name__)
 formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
 file_handler.setFormatter(formatter)
@@ -201,7 +200,7 @@ def tshark_worker(root, cmd):
                     break
                 _packets_received += 1
                 config.total_packet_count += 1  # Общий счётчик всех пакетов
-                logger.debug(f"Принято {_packets_received} пакетов (всего: {config.total_packet_count}).")
+                # logger.debug(f"Принято {_packets_received} пакетов (всего: {config.total_packet_count}).")
 
                 # Логирование каждые 5000 пакетов
                 if (_packets_received % 5000 == 0):
