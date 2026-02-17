@@ -86,10 +86,11 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         # === 4. Создание интерфейсных элементов ===
         # self.tree_view(table_container)  # Таблица устройств
         # self.tree_view(self.central_container)
+        self.status_bar()  # Строка состояния
         self.tree_view(self.table_container) 
         self.create_buttons(toolbar_container)  # Кнопки панели инструментов
         self.log_view(log_container)  # Журнал сообщений
-        self.status_bar()  # Строка состояния
+        
 
         # Кнопка «Закрыть»
         close_button = ctk.CTkButton(self, text="X", font=("Arial", 10, "bold"), command=self.quit)
@@ -255,11 +256,51 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
         check_box.place(in_=self.title_label, relx=1.0, rely=0.0, anchor="ne", x=200, y=0)  # Рядом с заголовком
 
-    def log_view(self, frame):
-        # Текстовая область для журналов и сообщений
-        self.text_area = tk.Text(frame, wrap=tk.NONE, height=5)  # ограничиваем высоту в 5 строк
-        self.text_area.pack(fill='both', expand=True)  # растягиваем по ширине и занимаем весь контейнер
+    # def log_view(self, frame):
+    #     # Текстовая область для журналов и сообщений
+    #     self.text_area = tk.Text(frame, wrap=tk.NONE, height=5)  # ограничиваем высоту в 5 строк
+    #     self.text_area.pack(fill='both', expand=True)  # растягиваем по ширине и занимаем весь контейнер
    
+    def log_view(self, frame):
+        # Контейнер с явной высотой (5 строк × средняя высота строки)
+        log_height = 5 * 16  # 5 строк × ~16px на строку (подберите под ваш шрифт)
+        
+        log_container = ctk.CTkFrame(frame, fg_color="transparent", height=log_height)
+        log_container.pack(fill=ctk.X, padx=0, pady=0)
+        log_container.propagate(False)  # Запрещаем контейнеру менять размер
+
+        # Текстовая область
+        self.text_area = tk.Text(
+            log_container,
+            wrap=tk.NONE,
+            height=5,
+            font=("TkDefaultFont", 10),
+            bg="#2c2c2c",
+            fg="white",
+            insertbackground="white",
+            highlightthickness=0,
+            bd=0,
+            padx=2,
+            pady=2
+        )
+
+        # Скроллбар
+        scrollbar = ctk.CTkScrollbar(
+            log_container,
+            orientation=ctk.VERTICAL,
+            width=20,
+            command=self.text_area.yview
+        )
+
+        # Размещение
+        self.text_area.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True, padx=0, pady=0)
+        scrollbar.pack(side=ctk.RIGHT, fill=ctk.Y, padx=0, pady=0)
+
+        # Связывание
+        self.text_area.configure(yscrollcommand=scrollbar.set)
+
+
+
     def status_bar(self):
          # Полоса статуса
         self.status_text = tk.Text(self, bd=0, relief=tk.SUNKEN, height=1, width=37, font=("TkDefaultFont", 10))  # высота в одну строку
