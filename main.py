@@ -327,7 +327,7 @@ def main():
         tshark_thread.start()
         logger.info("Создание нового потока tshar из main.py, строка 250 завершено")
         root.tshark_thread = tshark_thread  # сохраняем ссылку на поток в экземпляр App
-        # root.on_channel_indicator_click() #автозапуск сканирования всех доступных каналов
+        root.on_channel_indicator_click() #автозапуск сканирования всех доступных каналов
     root.mainloop()
     
 

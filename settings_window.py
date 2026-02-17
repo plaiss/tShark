@@ -19,12 +19,12 @@ class SettingsWindow(tk.Toplevel):
         self.resizable(True, True)  # Разрешаем изменение размеров окна
         
         # Метка с указанием текущего интерфейса
-        current_interface_label = tk.Label(self, text=f"Current Network Interface: {interface}")
+        current_interface_label = tk.Label(self, text=f"Current Network Interface: {config.interface}")
         current_interface_label.pack(pady=(20, 10))
         
         # Получаем информацию о Wi-Fi канале
         try:
-            wifi_info = os.popen(f"iw dev {interface} info").read()
+            wifi_info = os.popen(f"iw dev {config.interface} info").read()
             channel_num, frequency = utils.parse_wifi_info(wifi_info)
             
             # Лейбл с информацией о Wi-Fi канале
@@ -43,7 +43,7 @@ class SettingsWindow(tk.Toplevel):
         
         # Список доступных интерфейсов (пример)
         available_interfaces = ["eth0", "wlan0", "wlan1"] # нужно будет заменить на IWLIST
-        self.var_interface = tk.StringVar(value=interface)
+        self.var_interface = tk.StringVar(value=config.interface)
         
         # Выпадающий список для выбора интерфейса
         dropdown = tk.OptionMenu(self, self.var_interface, *available_interfaces)

@@ -21,6 +21,8 @@ from threading import Lock
 from choose_channels import ChannelSelectorDialog
 import traceback
 from export_dialog import ExportDialog  # замените 'export_dialog' на реальное имя модуля
+from rssi_monitor_async import SecondWindow
+from settings_window import SettingsWindow
 
 change_channel_lock = Lock()
 logger = logging.getLogger(__name__)    # Логгер настроен в первом файле, тут его повторно настраивать не нужно
@@ -479,7 +481,8 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
             _stop.set()  # Устанавливаем флаг остановки
             # Не удаляем ссылку на поток, а позволяем ему закончить естественно
-            # self.tshark_thread = None  # Эту строку нужно убрать
+            self.tshark_thread.join(timeout=1.0)  # Ждём завершения потока
+            self.tshark_thread = None
             self.set_button_properties('Стоп', {'text': 'Пуск'})  # Меняем текст на "Пуск"
         else:
             _stop.clear()  # Снимаем флаг остановки
@@ -552,7 +555,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
     def show_settings(self):
         # Затем открываем окно настроек
         settings_window = SettingsWindow(self.master)
-        settings_window.grab_set() # Фокусируется на окне настроек
+        # settings_window.grab_set() # Фокусируется на окне настроек
 
     def show_channel_selector(self):
         """Открывает диалог выбора каналов для сканирования"""
