@@ -284,7 +284,7 @@ def get_available_channels(interface):
             match = re.search(r"Channel\s+(\d+)\s*:", line)
             if match:
                 channels.add(int(match.group(1)))
-        return channels
+        return sorted(channels)
 
     except subprocess.CalledProcessError as e:
         print(f"Ошибка при выполнении iwlist: {e}")
