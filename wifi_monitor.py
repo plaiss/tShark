@@ -44,7 +44,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
         # === 1. Инициализация и базовые настройки окна ===
         self.title("WiFi Monitor")
-        # self.attributes('-fullscreen', True)
+        self.attributes('-fullscreen', True)
         self.minsize(width=800, height=480)
         self.center_window()
 
@@ -316,13 +316,13 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         separator = ctk.CTkFrame(
             frame,                    # родитель — тот же frame, что и у tree
             fg_color="#333333",      # тёмный цвет линии
-            height=2,               # толщина линии: 2 пикселя
+            height=0,               # толщина линии: 2 пикселя
             corner_radius=0          # острые края, без скругления
         )
         separator.pack(
             fill=ctk.X,           # растягивается по горизонтали
             padx=0,             # без горизонтальных отступов
-            pady=(8, 8)         # отступы сверху и снизу от разделителя (можно менять)
+            pady=(1, 2)         # отступы сверху и снизу от разделителя (можно менять)
         )
         # === Конец разделителя ===
 
