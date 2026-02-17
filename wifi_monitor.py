@@ -33,10 +33,18 @@ ctk.set_default_color_theme("green")  # устанавливаем тему зе
 class WifiMonitor(ctk.CTk):  # наследование от Ctk
     def __init__(self):
         super().__init__()
+                # === 1. Глобальное увеличение шрифта ===
+        from tkinter.font import nametofont
+        nametofont("TkDefaultFont").configure(size=11)
+        nametofont("TkTextFont").configure(size=11)
+        nametofont("TkHeadingFont").configure(size=10)
+        nametofont("TkCaptionFont").configure(size=12)
+        nametofont("TkMenuFont").configure(size=11)
+        nametofont("TkSmallCaptionFont").configure(size=10)
 
         # === 1. Инициализация и базовые настройки окна ===
         self.title("WiFi Monitor")
-        self.attributes('-fullscreen', True)
+        # self.attributes('-fullscreen', True)
         self.minsize(width=800, height=480)
         self.center_window()
 
@@ -77,8 +85,8 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
         # === 4. Создание интерфейсных элементов ===
         # self.tree_view(table_container)  # Таблица устройств
-        self.tree_view(self.central_container)
-        self.init_smooth_scrollbar()
+        # self.tree_view(self.central_container)
+        self.tree_view(self.table_container) 
         self.create_buttons(toolbar_container)  # Кнопки панели инструментов
         self.log_view(log_container)  # Журнал сообщений
         self.status_bar()  # Строка состояния
@@ -214,7 +222,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         self.tree.column('#1', width=150, minwidth=90, stretch=False)
         self.tree.column('#2', width=150, minwidth=90, stretch=False, anchor='center')
         self.tree.column('#3', width=40, minwidth=10, stretch=False, anchor='center')
-        self.tree.column('#4', width=100, minwidth=90, stretch=False, anchor='center')
+        self.tree.column('#4', width=105, minwidth=90, stretch=False, anchor='center')
         self.tree.column('#5', width=50, minwidth=10, stretch=False, anchor='center')
         self.tree.column('#6', width=60, minwidth=10, stretch=False, anchor='center')
         self.tree.column('#7', width=80, minwidth=50, stretch=False, anchor='center')  # Ширина нового столбца
@@ -224,8 +232,18 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         self.tree.bind("<Double-1>", self.on_device_double_click)
         self.tree.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
         
+        # Размещаем Treeview с привязкой к левому краю
+        self.tree.pack(
+            side=ctk.TOP,
+            fill=ctk.BOTH,
+            expand=True,
+            padx=(0, 0),      # Отступы слева и справа (0 слева = прилегает к краю)
+            pady=(0, 0)       # Отступы сверху и снизу
+        )
+
         # Конфигурируем прокрутку
-        scroll_y.configure(command=self.tree.yview)
+        scroll_y.configure(command=self.smooth_tree_scroll)
+
         
         # Чекбокс для выбора порядка сортировки по первому столбцу
         check_box = ctk.CTkCheckBox(
@@ -702,15 +720,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
                 fg_color="gray",
                 text_color="black"
             )
-    def init_smooth_scrollbar(self):
-        # Заменяем стандартный скроллбар на плавный
-        scrollbar = ctk.CTkScrollbar(
-            self.table_container,
-            orientation="vertical",
-            command=self.smooth_tree_scroll
-        )
-        scrollbar.pack(side="right", fill="y")
-        self.tree.configure(yscrollcommand=scrollbar.set)
+
 
     def smooth_tree_scroll(self, action, value):
         steps = 25
