@@ -76,7 +76,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         self.table_container.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True)
 
         # Правый контейнер для панели инструментов
-        toolbar_container = ctk.CTkFrame(self.central_container, fg_color="#f0f0f0")  # фоновый цвет для панели
+        toolbar_container = ctk.CTkFrame(self.central_container)  # фоновый цвет для панели
         toolbar_container.pack(side=ctk.RIGHT, fill=ctk.Y)
 
         # Контейнер для журнала сообщений
@@ -93,8 +93,8 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         
 
         # Кнопка «Закрыть»
-        close_button = ctk.CTkButton(self, text="X", font=("Arial", 10, "bold"), command=self.quit)
-        close_button.pack(side=ctk.RIGHT, anchor="ne", before=self.status_text)
+        close_button = ctk.CTkButton(self, text="X", font=("Arial", 10, "bold"), command=self.quit, corner_radius=10, width=30, height=20 )
+        close_button.pack(side=ctk.RIGHT, anchor="e", before=self.status_text)
 
         # # Индикатор состояния потока
 
@@ -150,6 +150,10 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
         # Периодически проверяем очередь и обновляем интерфейс
         self.poll_log_queue()
+
+        self.press_start_time = 0        # Время начала нажатия
+        self.long_press_threshold = 800  # Порог длительного нажатия (мс)
+        self.long_press_active = False    # Флаг: выполняется ли long press
 
 
 
@@ -230,7 +234,10 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         
         
         # Связываем событие двойного клика с обработчиком
-        self.tree.bind("<Double-1>", self.on_device_double_click)
+        self.tree.bind("<Double-1>", self.on_device_double_click)      # Двойной клик
+        self.tree.bind("<Button-1>", self.on_mouse_down)               # Нажатие (старт long press)
+        self.tree.bind("<ButtonRelease-1>", self.on_mouse_up)          # Отпускание (конец long press)
+
         self.tree.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
         
         # Размещаем Treeview с привязкой к левому краю
@@ -263,7 +270,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
    
     def log_view(self, frame):
         # Контейнер с явной высотой (5 строк × средняя высота строки)
-        log_height = 5 * 16  # 5 строк × ~16px на строку (подберите под ваш шрифт)
+        log_height = 5 * 16 -5  # 5 строк × ~16px на строку (подберите под ваш шрифт)
         
         log_container = ctk.CTkFrame(frame, fg_color="transparent", height=log_height)
         log_container.pack(fill=ctk.X, padx=0, pady=0)
@@ -275,13 +282,13 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             wrap=tk.NONE,
             height=5,
             font=("TkDefaultFont", 10),
-            bg="#2c2c2c",
-            fg="white",
+            # bg="#2c2c2c",
+            # fg="white",
             insertbackground="white",
             highlightthickness=0,
             bd=0,
             padx=2,
-            pady=2
+            pady=3
         )
 
         # Скроллбар
@@ -782,6 +789,38 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
                 self.tree.yview_moveto(new_pos)
                 self.after(delay)
                 self.update_idletasks()
+
+    def on_mouse_down(self, event):
+        """При нажатии кнопки — запускаем таймер"""
+        self.press_start_time = event.time  # Запоминаем время нажатия
+        self.long_press_active = True
+
+        # Запускаем проверку через порог (в мс)
+        self.after(self.long_press_threshold, self.check_long_press, event)
+
+    def on_mouse_up(self, event):
+        """При отпускании — отменяем long press, если не сработало"""
+        self.long_press_active = False
+
+        # Если пользователь просто кликнул (быстро), можно обработать как обычный клик
+        # (опционально)
+        # self.on_single_click(event)
+
+    def check_long_press(self, event):
+        """Проверяем, прошло ли достаточно времени для long press"""
+        if self.long_press_active:
+            # Считаем, что это длительное нажатие
+            self.handle_long_press(event)
+            self.long_press_active = False  # Сбрасываем флаг
+
+    def handle_long_press(self, event):
+        """Действие при длительном нажатии (аналог двойного клика)"""
+        # Получаем выбранный элемент (как в double-click)
+        selected_item = self.tree.identify_row(event.y)
+        if selected_item:
+            data = self.tree.item(selected_item)["values"]
+            if data:
+                self.open_second_window(data=data)  # Ваш метод обработки
 
 
 
