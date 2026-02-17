@@ -60,15 +60,15 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         main_frame = ctk.CTkFrame(self)  # Используем CtkFrame
         main_frame.pack(fill=ctk.BOTH, expand=True)
 
-        central_container = ctk.CTkFrame(main_frame)  # Используем CtkFrame
-        central_container.pack(fill=ctk.BOTH, expand=True)
+        self.central_container = ctk.CTkFrame(main_frame)  # Используем CtkFrame
+        self.central_container.pack(fill=ctk.BOTH, expand=True)
 
         # Левый контейнер для таблицы (TreeView)
-        table_container = ctk.CTkFrame(central_container)  # Используем CtkFrame
-        table_container.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True)
+        self.table_container = ctk.CTkFrame(self.central_container)  # Используем CtkFrame
+        self.table_container.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True)
 
         # Правый контейнер для панели инструментов
-        toolbar_container = ctk.CTkFrame(central_container, fg_color="#f0f0f0")  # фоновый цвет для панели
+        toolbar_container = ctk.CTkFrame(self.central_container, fg_color="#f0f0f0")  # фоновый цвет для панели
         toolbar_container.pack(side=ctk.RIGHT, fill=ctk.Y)
 
         # Контейнер для журнала сообщений
@@ -76,7 +76,9 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         log_container.pack(side=ctk.TOP, fill=ctk.X)
 
         # === 4. Создание интерфейсных элементов ===
-        self.tree_view(table_container)  # Таблица устройств
+        # self.tree_view(table_container)  # Таблица устройств
+        self.tree_view(self.central_container)
+        self.init_smooth_scrollbar()
         self.create_buttons(toolbar_container)  # Кнопки панели инструментов
         self.log_view(log_container)  # Журнал сообщений
         self.status_bar()  # Строка состояния
@@ -139,6 +141,9 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
         # Периодически проверяем очередь и обновляем интерфейс
         self.poll_log_queue()
+
+
+
 
     def poll_log_queue(self):
       while not self.log_queue.empty():
@@ -697,6 +702,38 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
                 fg_color="gray",
                 text_color="black"
             )
+    def init_smooth_scrollbar(self):
+        # Заменяем стандартный скроллбар на плавный
+        scrollbar = ctk.CTkScrollbar(
+            self.table_container,
+            orientation="vertical",
+            command=self.smooth_tree_scroll
+        )
+        scrollbar.pack(side="right", fill="y")
+        self.tree.configure(yscrollcommand=scrollbar.set)
+
+    def smooth_tree_scroll(self, action, value):
+        steps = 25
+        delay = 12
+        value = float(value)
+        
+        if action == "scroll":
+            step_size = value / steps
+            for i in range(steps):
+                self.tree.yview_scroll(step_size, "units")
+                self.after(delay)
+                self.update_idletasks()
+        elif action == "moveto":
+            current = self.tree.yview()[0]
+            step = (value - current) / steps
+            for i in range(steps):
+                new_pos = current + step * (i + 1)
+                self.tree.yview_moveto(new_pos)
+                self.after(delay)
+                self.update_idletasks()
+
+
+
 
 
 if __name__ == "__main__":
