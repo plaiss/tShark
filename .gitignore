@@ -3,6 +3,7 @@ old/
 .venv/
 __pycache__/
 .vscode/
+.idea/
 LOGS/
 
 # Файлы
