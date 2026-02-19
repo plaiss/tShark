@@ -1,8 +1,9 @@
 old/
 .venv/
 __pycache__/
+*.pyc
 .vscode/
-app.log
+LOGS/
 profile.bin
 whitelist.txt
 database.db

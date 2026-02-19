@@ -95,18 +95,7 @@ def cleanup_resources():
     config._last_seen.clear()
     # дополнительная чистка, если требуется
 
-# def kill_tshark_process(proc):
-#     """
-#     Завершает активный процесс tshark.
-#     """
-#     try:
-#         proc.terminate()
-#         proc.wait(timeout=1) # сокращаем тайм-аут до 1 секунды
-#     except subprocess.TimeoutExpired:
-#         logger.warning("Timeout истек при попытке завершения tshark. Осуществляется принудительная остановка.")
-#         proc.kill() # принудительно останавливаем процесс
-#     except Exception as e:
-#         logger.error(f"Ошибка при закрытии tshark: {e}")
+
 
 def kill_tshark_process(proc):
     logger.info(f"[KILL_TSHARK] Попытка завершения процесса PID={proc.pid}")
@@ -122,6 +111,9 @@ def kill_tshark_process(proc):
         logger.info("[KILL_TSHARK] Процесс успешно завершён.")
     except subprocess.TimeoutExpired:
         logger.warning("[KILL_TSHARK] Таймаут ожидания. Принудительное завершение.")
+        if proc.poll() is not None:  # уже завершился
+            logger.info("[KILL_TSHARK] Процесс завершился после таймаута.")
+            return
         try:
             process = psutil.Process(proc.pid)
             process.kill()
@@ -200,7 +192,7 @@ def tshark_worker(root, cmd):
                     break
                 _packets_received += 1
                 config.total_packet_count += 1  # Общий счётчик всех пакетов
-                # logger.debug(f"Принято {_packets_received} пакетов (всего: {config.total_packet_count}).")
+                logger.debug(f"Принято {_packets_received} пакетов (всего: {config.total_packet_count}).")
 
                 # Логирование каждые 5000 пакетов
                 if (_packets_received % 5000 == 0):

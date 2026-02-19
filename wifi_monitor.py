@@ -159,12 +159,12 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
 
     def poll_log_queue(self):
-      while not self.log_queue.empty():
-          msg = self.log_queue.get()
-          self.add_text(msg)    # Удалили "\n", теперь добавляем только само сообщение
-
-      # Повторно запускаем опрос через 1 секунду
-      self.after(1000, lambda: self.poll_log_queue())
+        while not self.log_queue.empty():
+            msg = self.log_queue.get()
+            self.add_text(msg)    # Удалили "\n", теперь добавляем только само сообщение
+            logger.debug(f"Добавлен текст: {msg}")
+        logger.debug("poll_log_queue закончил работу")
+        self.after(1000, lambda: self.poll_log_queue())
 
     def flush_buffers(self):
         # Получаем блокировку (если уже занята — ждём)
