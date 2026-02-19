@@ -158,6 +158,7 @@ def restart_tshark_if_needed(proc):
 
 def tshark_worker(root, cmd):
     global _packets_received, _is_worker_running
+    logger.debug(f"Активные потоки перед запуском: {threading.enumerate()}")
     if _is_worker_running:
         logger.warning("Поток tshark_worker уже запущен. Повторный запуск игнорируется.")
         return
@@ -193,6 +194,8 @@ def tshark_worker(root, cmd):
                 _packets_received += 1
                 config.total_packet_count += 1  # Общий счётчик всех пакетов
                 logger.debug(f"Принято {_packets_received} пакетов (всего: {config.total_packet_count}).")
+                if _packets_received % 10000 == 0:
+                    root.monitor_resources()
 
                 # Логирование каждые 5000 пакетов
                 if (_packets_received % 5000 == 0):
@@ -255,6 +258,10 @@ def tshark_worker(root, cmd):
     finally:
         # Флаг для отслеживания состояния завершения
         cleanup_completed = False
+        logger.info("[FINALLY] Начало процедуры завершения рабочего потока...")
+        logger.info(f"[FINALLY] Текущее состояние процесса: poll() = {proc.poll()}")
+        logger.info(f"[FINALLY] Флаг остановки установлен: {config._stop.is_set()}")
+
         
         try:
             # 1. Проверяем, существует ли процесс и ещё работает
@@ -266,7 +273,7 @@ def tshark_worker(root, cmd):
                 
                 # 3. Ждём завершения с таймаутом (5 сек)
                 try:
-                    proc.wait(timeout=70)
+                    proc.wait(timeout=10)
                     logger.info(f"[FINALLY] Процесс PID={proc.pid} успешно завершён.")
                 except subprocess.TimeoutExpired:
                     logger.warning(f"[FINALLY] Таймаут ожидания PID={proc.pid}. Принудительное завершение.")
@@ -299,6 +306,7 @@ def tshark_worker(root, cmd):
                 logger.error(f"[FINALLY] Ошибка при очистке буферов: {e}")
             
             # 7. Снимаем флаг активности
+            logger.debug(f"Активные потоки после завершения: {threading.enumerate()}")
             _is_worker_running = False
             logger.info("[FINALLY] Рабочий поток остановлен. Флаг _is_worker_running = False")
 

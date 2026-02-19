@@ -1,3 +1,4 @@
+import psutil
 import subprocess
 import threading
 import time
@@ -192,7 +193,13 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             self.update_indicator()
             self.after(5000, lambda: self.flush_buffers())
 
-        # Централизация окна
+        self.after(30000, lambda: self.monitor_resources())
+
+    def monitor_resources(self, _=None):
+        cpu_percent = psutil.cpu_percent()
+        memory = psutil.virtual_memory()
+        logger.info(f"Ресурсы системы: CPU={cpu_percent}%, RAM={memory.percent}%")
+        return cpu_percent, memory.percent
 
     def center_window(self):
         screen_width = self.winfo_screenwidth()
@@ -625,9 +632,12 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
     def toggle_scanning(self):
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+            logger.info("Получен запрос на остановку сканирования (кнопка 'Стоп')")
+            logger.info(f"Состояние потока перед остановкой: is_alive() = {self.tshark_thread.is_alive() if self.tshark_thread else None}")
             _stop.set()  # Устанавливаем флаг остановки
             # Не удаляем ссылку на поток, а позволяем ему закончить естественно
-            self.tshark_thread.join(timeout=1.0)  # Ждём завершения потока
+            logger.debug(f"Активные потоки при остановке: {threading.enumerate()}")
+            self.tshark_thread.join(timeout=5.0)  # Ждём завершения потока
             self.tshark_thread = None
             self.set_button_properties('Стоп', {'text': 'Пуск'})  # Меняем текст на "Пуск"
         else:
@@ -787,7 +797,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
                     command,
                     capture_output=True,
                     text=True,  # Вместо encoding="utf-8"
-                    timeout=60
+                    timeout=30
                 )
                 if process.returncode == 0:
                     self.update_channel_indicator()

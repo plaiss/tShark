@@ -1,10 +1,31 @@
+# Папки
 old/
 .venv/
 __pycache__/
-*.pyc
 .vscode/
 LOGS/
+
+# Файлы
 profile.bin
 whitelist.txt
 database.db
-*.txt
+
+# Python-специфичные
+*.egg-info/
+.pytest_cache/
+.coverage
+.mypy_cache/
+
+# ОС-специфичные
+.DS_Store
+.AppleDouble/
+.Spotlight-V100/
+Thumbs.db
+
+# Логи и временные файлы (уточните по необходимости)
+*.log
+*.tmp
+
+# Пример: игнорировать только определённые .txt-файлы
+# temp*.txt
+# logs/*.txt
