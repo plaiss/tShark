@@ -657,11 +657,11 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
     def clean_buffers(self, controlled=False):
         if controlled:
-            # Здесь можно добавить управляемую очистку (если нужно)
+            logger.info("clean_buffers: controlled")
             pass
         else:
             # Оставляем только очистку лога
-              print ('здесь могла бы быть ваша реклама')
+              logger.info("clean_buffers: not controlled")
               pass
 
     def switch_to_monitor_mode(self):
