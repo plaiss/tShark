@@ -155,6 +155,8 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         self.long_press_threshold = 800  # Порог длительного нажатия (мс)
         self.long_press_active = False    # Флаг: выполняется ли long press
 
+        self.switch_to_monitor_mode()
+
 
 
 
