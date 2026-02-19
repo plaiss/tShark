@@ -713,9 +713,11 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             channels=getattr(self, 'prev_channels', None),
             delay_time=getattr(self, 'prev_delay_time', None)
         )
-
-        if dialog.result:
-            selected_channels, delay_time = dialog.result
+        # Ждём закрытия диалога
+        dialog.wait_window()
+        
+        if dialog.get_result():
+            selected_channels, delay_time = dialog.get_result()
             self.prev_channels = selected_channels
             self.prev_delay_time = delay_time
 
