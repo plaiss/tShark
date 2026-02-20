@@ -14,10 +14,11 @@ import signal
 import sys
 from typing import Optional
 import time
+import string
 
 # Конфигурируемые параметры
 MAX_POINTS_ON_GRAPH = 100
-EMA_ALPHA = 0.2
+EMA_ALPHA = 0.4
 UPDATE_INTERVAL_MS = 50       # Чтение данных (мс)
 PLOT_UPDATE_INTERVAL_MS = 100  # Перерисовка графика (мс)
 TSHARK_TIMEOUT_SEC = 60
@@ -39,6 +40,18 @@ file_handler.setFormatter(formatter)
 # Добавляем обработчик к логгеру и отключаем передачу в корневые обработчики
 logger.addHandler(file_handler)
 logger.propagate = False
+
+def decode_ssid(hex_string):
+    """
+    Функция декодирует hex-представление SSID в обычный текст.
+    :param hex_string: строка, представляющая SSID в шестнадцатеричной форме
+    :return: текстовая форма SSID
+    """
+    # Преобразование hex-вида в байтовый массив
+    byte_array = bytes.fromhex(hex_string)
+    # Декодирование байтового массива в UTF-8 текст
+    decoded_text = byte_array.decode('utf-8', errors='replace')
+    return decoded_text
 
 # class Tooltip:
 #     def __init__(self, widget, text):
@@ -238,6 +251,7 @@ class SecondWindow(ctk.CTkToplevel):
         """Обновляет статусную метку."""
         self.status_label.configure(text=text, text_color=color)
 
+
     async def _run_tshark_monitor(self):
         """Этап 2: Мониторинг RSSI с фильтром по роли."""
         if self.device_type == "Access Point (AP)":
@@ -276,15 +290,23 @@ class SecondWindow(ctk.CTkToplevel):
 
                     parts = line_str.split()
                     if len(parts) >= 3:
-                        pack_num, signal, ssid = parts[:3]
+                        pack_num, signal, raw_ssid = parts[:3]
                         try:
                             rssi = int(signal)
                             if -100 <= rssi <= -20:
-                                logger.debug(f"Получен RSSI: {rssi} dBm (кадр {pack_num}, SSID: {ssid})")
-                                # Только если окно ещё живо, обновляем UI
-                                if not self.winfo_exists():  # Проверка существования окна
-                                    break
+                                logger.debug(f"Получен RSSI: {rssi} dBm (кадр {pack_num}, SSID: {raw_ssid})")
+                                
+                                # Проверяем и декодируем SSID, если он зашифрован
+                                if all(c in string.hexdigits for c in raw_ssid):
+                                    # Если SSID представлен в HEX-кодировке
+                                    ssid = decode_ssid(raw_ssid)
+                                else:
+                                    # Иначе оставляем как есть
+                                    ssid = raw_ssid
+                                    
+                                # Обновляем интерфейс
                                 self._process_rssi(pack_num, rssi, ssid)
+                            
                             else:
                                 logger.debug(f"RSSI вне диапазона: {rssi} dBm")
                         except ValueError:
@@ -313,6 +335,120 @@ class SecondWindow(ctk.CTkToplevel):
             if self.winfo_exists():  # Только если окно существует
                 self._update_status(f"Ошибка: {e}", "red")
 
+    def decode_ssid(hex_string):
+        """
+        Функция декодирует hex-представление SSID в обычный текст.
+        :param hex_string: строка, представляющая SSID в шестнадцатеричной форме
+        :return: текстовая форма SSID
+        """
+        # Преобразование hex-вида в байтовый массив
+        byte_array = bytes.fromhex(hex_string)
+        # Декодирование байтового массива в UTF-8 текст
+        decoded_text = byte_array.decode('utf-8', errors='replace')
+        return decoded_text
+
+
+    # async def _run_tshark_monitor(self):
+    #     # Остальной ваш код остается прежним...
+
+    #     while not self.paused:
+    #         # Читаем данные из tshark
+    #         line = await process.stdout.readline()
+    #         if not line:
+    #             break
+    #         line_str = line.decode('utf-8', errors='ignore').strip()
+    #         if not line_str:
+    #             continue
+
+    #         parts = line_str.split()
+    #         if len(parts) >= 3:
+    #             pack_num, signal, raw_ssid = parts[:3]
+    #             try:
+    #                 rssi = int(signal)
+    #                 if -100 <= rssi <= -20:
+    #                     # Проверяем и декодируем SSID, если он зашифрован
+    #                     if all(c in string.hexdigits for c in raw_ssid):
+    #                         # Если SSID представлен в HEX-кодировке
+    #                         ssid = decode_ssid(raw_ssid)
+    #                     else:
+    #                         # Иначе оставляем как есть
+    #                         ssid = raw_ssid
+
+    #                     # Обновляем интерфейс
+    #                     self._process_rssi(pack_num, rssi, ssid)
+    #                 else:
+    #                     logger.debug(f"RSSI вне диапазона: {rssi} dBm")
+    #             except ValueError:
+    #                 logger.debug(f"Не удалось преобразовать сигнал: {signal}")
+    #         else:
+    #             logger.debug(f"Некорректная строка от tshark: {line_str}")
+
+    # def _process_rssi(self, pack_num: str, rssi: int, ssid: str):
+    #     """Обрабатывает полученное значение RSSI."""
+    #     current_time = time.time()
+    #     self.last_valid_time = current_time
+
+    #     # Проверяем существование окна (не разрушено?)
+    #     if not self.winfo_exists():
+    #         return
+
+    #     # Обновляем метки UI
+    #     self.labels["Текущий кадр"].configure(pack_num)
+    #     self.labels["RSSI"].configure(f"{rssi} dBm")
+    #     if ssid.strip():
+    #         self.labels["SSID"].configure(ssid)
+
+    #     # Добавляем в буферы
+    #     self.rssi_values.append(rssi)
+    #     self.timestamps.append(current_time)
+
+    #     # Применяем EMA-фильтр, если включен
+    #     if self.use_filter_var.get():
+    #         if self.ema_value is None:
+    #             self.ema_value = rssi
+    #         else:
+    #             self.ema_value = self.alpha * rssi + (1 - self.alpha) * self.ema_value
+    #         filtered_rssi = round(self.ema_value)
+    #     else:
+    #         filtered_rssi = rssi
+
+    #     # Для графика используем фильтрованное значение
+    #     self.rssi_buffer.append(filtered_rssi)
+
+    # def _process_rssi(self, pack_num: str, rssi: int, ssid: str):
+    #     """Обрабатывает полученное значение RSSI."""
+    #     current_time = time.time()
+    #     self.last_valid_time = current_time
+
+    #     # Проверяем существование окна (не разрушено?)
+    #     if not self.winfo_exists():
+    #         return
+
+    #     # Обновляем метки UI
+    #     self.labels["Текущий кадр"].configure(text=pack_num)
+    #     self.labels["RSSI"].configure(text=f"{rssi} dBm")
+
+    #     # Обновляем SSID ТОЛЬКО ЕСЛИ устройство является точкой доступа (AP)
+    #     if self.device_type == "Access Point (AP)" and ssid.strip():
+    #         self.labels["SSID"].configure(text=ssid)
+
+    #     # Добавляем в буферы
+    #     self.rssi_values.append(rssi)
+    #     self.timestamps.append(current_time)
+
+    #     # Применяем EMA-фильтр, если включен
+    #     if self.use_filter_var.get():
+    #         if self.ema_value is None:
+    #             self.ema_value = rssi
+    #         else:
+    #             self.ema_value = self.alpha * rssi + (1 - self.alpha) * self.ema_value
+    #         filtered_rssi = round(self.ema_value)
+    #     else:
+    #         filtered_rssi = rssi
+
+    #     # Для графика используем фильтрованное значение
+    #     self.rssi_buffer.append(filtered_rssi)
+
     def _process_rssi(self, pack_num: str, rssi: int, ssid: str):
         """Обрабатывает полученное значение RSSI."""
         current_time = time.time()
@@ -322,11 +458,16 @@ class SecondWindow(ctk.CTkToplevel):
         if not self.winfo_exists():
             return
 
-        # Обновляем метки UI
-        self.labels["Текущий кадр"].configure(pack_num)
-        self.labels["RSSI"].configure(f"{rssi} dBm")
-        if ssid.strip():
-            self.labels["SSID"].configure(ssid)
+        # Обновляем метки UI, предварительно проверив их доступность
+        if self.labels["Текущий кадр"].winfo_exists():
+            self.labels["Текущий кадр"].configure(text=pack_num)
+
+        if self.labels["RSSI"].winfo_exists():
+            self.labels["RSSI"].configure(text=f"{rssi} dBm")
+
+        # Обновляем SSID ТОЛЬКО ЕСЛИ устройство является точкой доступа (AP)
+        if self.device_type == "Access Point (AP)" and ssid.strip() and self.labels["SSID"].winfo_exists():
+            self.labels["SSID"].configure(text=ssid)
 
         # Добавляем в буферы
         self.rssi_values.append(rssi)
@@ -441,11 +582,11 @@ class SecondWindow(ctk.CTkToplevel):
         control_frame.columnconfigure(1, weight=2)
 
         self.pause_start_button = CTkButton(control_frame, text="Пауза", command=self.toggle_pause, font=ctk.CTkFont(size=10))
-        self.pause_start_button.grid(row=0, column=0, padx=3, pady=5)
+        # self.pause_start_button.grid(row=0, column=0, padx=3, pady=5)
 
         # Инициализируем переменную переключателя раньше, чем сам переключатель
         self.use_filter_var = ctk.IntVar(value=1)
-        self.use_filter_switch = CTkSwitch(control_frame, text="Фильтр EMA", variable=self.use_filter_var, onvalue=True, offvalue=False, command=self.toggle_filter)
+        self.use_filter_switch = CTkSwitch(control_frame, text="Фильтр EMA", variable=self.use_filter_var, onvalue=True, offvalue=False)
         self.use_filter_switch.grid(row=0, column=1, padx=3, pady=5)
 
         # close_button = CTkButton(self, text="Закрыть", command=self.on_closing, font=ctk.CTkFont(size=10))
@@ -504,8 +645,6 @@ class SecondWindow(ctk.CTkToplevel):
             # При снятии паузы создаем новую задачу
             self.task = main_loop.create_task(self._run_tshark_monitor())
 
-    def toggle_filter(self):
-        self.use_filter_var.set(not self.use_filter_var.get())
     
     def on_closing(self):
         logger.info("Закрытие окна мониторинга")
