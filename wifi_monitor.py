@@ -210,67 +210,6 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
         y = (screen_height - window_height) // 2
         self.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
-    # def tree_view(self, frame):
-    #     # Заголовок дерева
-    #     self.title_label = ctk.CTkLabel(frame, text=f"Обнаруженные уникальные MAC-адреса", font=("TkDefaultFont", 10))  # Теперь CtkLabel
-    #     self.title_label.pack(side=ctk.TOP, anchor="w", pady=5)
-        
-    #     # Прокрутка вертикальная для дерева
-    #     scroll_y = ctk.CTkScrollbar(frame, orientation=ctk.VERTICAL, width=40)  # Увеличиваем ширину скролла до 20 пикселей
-    #     scroll_y.pack(side=ctk.RIGHT, fill=ctk.Y)
-        
-    #     # Структура таблицы TreeView
-    #     columns = ("#1", "#2", "#3", "#4", "#5", "#6", "#7")  # Добавляем ещё один столбец
-    #     self.tree = ttk.Treeview(frame, columns=columns, show='headings', yscrollcommand=scroll_y.set)
-        
-    #     # Названия столбцов
-    #     self.tree.heading('#1', text='MAC Address', anchor='center', command=lambda: self.sort_column("#1"))
-    #     self.tree.heading('#2', text='Вендор', anchor='center', command=lambda: self.sort_column("#2"))
-    #     self.tree.heading('#3', text='RSSI', anchor='center', command=lambda: self.sort_column("#3"))
-    #     self.tree.heading('#4', text='Время', anchor='n', command=lambda: self.sort_column("#4"))
-    #     self.tree.heading('#5', text='Канал', anchor='center', command=lambda: self.sort_column("#5"))  # Привязываем сортировку
-    #     self.tree.heading('#6', text='Кол-во', anchor='center', command=lambda: self.sort_column("#6"))
-    #     self.tree.heading('#7', text='Траффик', anchor='center', command=lambda: self.sort_column("#7"))  # Название нового столбца
-        
-    #     # Размеры столбцов
-    #     self.tree.column('#1', width=150, minwidth=90, stretch=False)
-    #     self.tree.column('#2', width=150, minwidth=90, stretch=False, anchor='center')
-    #     self.tree.column('#3', width=40, minwidth=10, stretch=False, anchor='center')
-    #     self.tree.column('#4', width=105, minwidth=90, stretch=False, anchor='center')
-    #     self.tree.column('#5', width=50, minwidth=10, stretch=False, anchor='center')
-    #     self.tree.column('#6', width=60, minwidth=10, stretch=False, anchor='center')
-    #     self.tree.column('#7', width=80, minwidth=50, stretch=False, anchor='center')  # Ширина нового столбца
-        
-        
-    #     # Связываем событие двойного клика с обработчиком
-    #     self.tree.bind("<Double-1>", self.on_device_double_click)      # Двойной клик
-    #     self.tree.bind("<Button-1>", self.on_mouse_down)               # Нажатие (старт long press)
-    #     self.tree.bind("<ButtonRelease-1>", self.on_mouse_up)          # Отпускание (конец long press)
-
-    #     self.tree.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
-        
-    #     # Размещаем Treeview с привязкой к левому краю
-    #     self.tree.pack(
-    #         side=ctk.TOP,
-    #         fill=ctk.BOTH,
-    #         expand=True,
-    #         padx=(0, 0),      # Отступы слева и справа (0 слева = прилегает к краю)
-    #         pady=(0, 0)       # Отступы сверху и снизу
-    #     )
-
-    #     # Конфигурируем прокрутку
-    #     scroll_y.configure(command=self.smooth_tree_scroll)
-
-        
-    #     # Чекбокс для выбора порядка сортировки по первому столбцу
-    #     check_box = ctk.CTkCheckBox(
-    #         frame,
-    #         text="по последнему октету",
-    #         variable=self.reverse_check_var,
-    #         command=lambda: self.sort_column("#1")
-    #     )
-
-    #     check_box.place(in_=self.title_label, relx=1.0, rely=0.0, anchor="ne", x=200, y=0)  # Рядом с заголовком
 
     def tree_view(self, frame):
         # Заголовок дерева
