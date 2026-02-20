@@ -244,7 +244,7 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
 
         # Связываем события
-        self.tree.bind("<Double-1>", self.on_device_double_click)
+        # self.tree.bind("<Double-1>", self.on_device_double_click)
         self.tree.bind("<Button-1>", self.on_mouse_down)
         self.tree.bind("<ButtonRelease-1>", self.on_mouse_up)
 

@@ -53,30 +53,6 @@ def decode_ssid(hex_string):
     decoded_text = byte_array.decode('utf-8', errors='replace')
     return decoded_text
 
-# class Tooltip:
-#     def __init__(self, widget, text):
-#         self.widget = widget
-#         self.text = text
-#         self.tip_window = None
-
-#     def show_tooltip(self):
-#         if self.tip_window:
-#             return
-#         x, y, cx, cy = self.widget.bbox("insert")
-#         x = x + self.widget.winfo_rootx() + 25
-#         y = y + cy + self.widget.winfo_rooty() + 25
-#         self.tip_window = tw = ctk.CTkToplevel(self.widget)
-#         tw.wm_overrideredirect(True)
-#         tw.wm_geometry("+%d+%d" % (x, y))
-#         label = ctk.CTkLabel(tw, text=self.text, justify="left", font=ctk.CTkFont(size=10))
-#         label.pack(ipadx=1)
-
-#     def hide_tooltip(self):
-#         tw = self.tip_window
-#         self.tip_window = None
-#         if tw:
-#             tw.destroy()
-
 class Tooltip:
     def __init__(self, widget, text):
         self.widget = widget
@@ -114,6 +90,7 @@ class Tooltip:
 class SecondWindow(ctk.CTkToplevel):
     def __init__(self, parent, mac_address=None, manufacturer=None, channel=None, interface="wlan1"):
         super().__init__(parent)
+        self.attributes('-fullscreen', True)
         self.geometry("800x480")
         self.parent = parent
         self.title("Мониторинг RSSI")
