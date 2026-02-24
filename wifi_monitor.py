@@ -161,39 +161,118 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
 
 
+    # def poll_log_queue(self):
+    #     while not self.log_queue.empty():
+    #         msg = self.log_queue.get()
+    #         self.add_text(msg)    # Удалили "\n", теперь добавляем только само сообщение
+    #         logger.debug(f"Добавлен текст: {msg}")
+    #     logger.debug("poll_log_queue закончил работу")
+    #     self.after(1000, lambda: self.poll_log_queue())
+
     def poll_log_queue(self):
-        while not self.log_queue.empty():
-            msg = self.log_queue.get()
-            self.add_text(msg)    # Удалили "\n", теперь добавляем только само сообщение
-            logger.debug(f"Добавлен текст: {msg}")
-        logger.debug("poll_log_queue закончил работу")
-        self.after(1000, lambda: self.poll_log_queue())
+        max_messages_per_poll = 100  # Увеличиваем лимит
+        processed = 0
+
+        while not self.log_queue.empty() and processed < max_messages_per_poll:
+            try:
+                msg = self.log_queue.get_nowait()
+                self.add_text(msg)
+                processed += 1
+            except queue.Empty:
+                break
+            except Exception as e:
+                logger.error(f"Ошибка обработки лога: {e}")
+
+        logger.debug(f"poll_log_queue обработал {processed} сообщений")
+
+        # Уменьшаем частоту проверок при низкой нагрузке
+        if processed < 10:
+            self.after(1000, self.poll_log_queue)  # 1 с
+        else:
+            self.after(200, self.poll_log_queue)  # 200 мс
+
+
+    def force_stop_all(self):
+        """Принудительная остановка всех фоновых процессов"""
+        logger.info("Принудительная остановка всех процессов")
+
+        # Останавливаем сканирование каналов
+        self.stop_scanning()
+
+        # Останавливаем tshark
+        if hasattr(self, 'tshark_thread') and self.tshark_thread:
+            _stop.set()
+            self.tshark_thread.join(timeout=1.0)
+
+        # Очищаем буферы
+        with self.flush_lock:
+            self.tree_buffer.clear()
+            while not self.log_queue.empty():
+                try:
+                    self.log_queue.get_nowait()
+                except queue.Empty:
+                    break
+
+        logger.info("Все процессы принудительно остановлены")
+
+
+
+    # def flush_buffers(self):
+    #     # Получаем блокировку (если уже занята — ждём)
+    #     with self.flush_lock:
+    #         # logger.info("Flushing buffers...")
+            
+    #         # Массовое обновление дерева
+    #         while self.tree_buffer:
+    #             mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = self.tree_buffer.popleft()
+    #             self.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
+
+    #         # logger.info("Buffers flushed successfully.")
+            
+    #         # Обработка логов
+    #         messages = []
+    #         while not self.log_queue.empty():
+    #             messages.append(self.log_queue.get())
+    #         if messages:
+    #             self.add_text("\n".join(messages))
+            
+    #         # Плановое повторение (самозапланирование через 1 секунду)
+    #         # Важно: self.after() должен быть вне блока with, чтобы не блокировать поток GUI
+    #         self.update_indicator()
+    #         self.after(5000, lambda: self.flush_buffers())
+
+    #     self.after(30000, lambda: self.monitor_resources())
 
     def flush_buffers(self):
-        # Получаем блокировку (если уже занята — ждём)
         with self.flush_lock:
-            # logger.info("Flushing buffers...")
-            
-            # Массовое обновление дерева
-            while self.tree_buffer:
-                mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes = self.tree_buffer.popleft()
-                self.update_tree(mac_n, mac_vendor, rssi, pretty_time, channel, mac_count, useful_bytes)
+            batch_size = 50  # Увеличиваем размер батча
+            processed = 0
 
-            # logger.info("Buffers flushed successfully.")
-            
-            # Обработка логов
-            messages = []
-            while not self.log_queue.empty():
-                messages.append(self.log_queue.get())
-            if messages:
-                self.add_text("\n".join(messages))
-            
-            # Плановое повторение (самозапланирование через 1 секунду)
-            # Важно: self.after() должен быть вне блока with, чтобы не блокировать поток GUI
-            self.update_indicator()
-            self.after(5000, lambda: self.flush_buffers())
+            while self.tree_buffer and processed < batch_size:
+                try:
+                    item = self.tree_buffer.popleft()
+                    self.update_tree(*item)
+                    processed += 1
+                except IndexError:
+                    break
+                except Exception as e:
+                    logger.error(f"Ошибка обработки элемента буфера: {e}")
 
-        self.after(30000, lambda: self.monitor_resources())
+            # Если остались элементы, планируем следующую итерацию через 50 мс
+            if self.tree_buffer:
+                self.after(50, self.flush_buffers)
+            else:
+                # Быстрая очистка очереди логов
+                while not self.log_queue.empty():
+                    try:
+                        self.log_queue.get_nowait()
+                    except queue.Empty:
+                        break
+
+                self.update_indicator()
+                # Следующая проверка через 2 с (уменьшаем частоту)
+                self.after(2000, self.flush_buffers)
+
 
     def monitor_resources(self, _=None):
         cpu_percent = psutil.cpu_percent()
@@ -390,30 +469,49 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             logger.info("Данные имеются")
             self.open_second_window(data=data)  # Открываем новое окно с деталями устройства
     
-    def open_second_window(self, *, data=None):
-        # Открывает второе окно с информацией о устройстве
-        scanner_was_running = False
-        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
-            _stop.set()  # Устанавливаем флаг остановки
-            self.tshark_thread = None  # Немедленно удаляем ссылку на поток
-            logger.info("Команды на остановку потока даны")
+    # def open_second_window(self, *, data=None):
+    #     # Открывает второе окно с информацией о устройстве
+    #     scanner_was_running = False
+    #     if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+    #         _stop.set()  # Устанавливаем флаг остановки
+    #         self.tshark_thread = None  # Немедленно удаляем ссылку на поток
+    #         logger.info("Команды на остановку потока даны")
         
-        if hasattr(self, 'scanner_thread'):
-            scanner_was_running = True
-        selected_item = self.tree.focus()
-        data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
-        mac_address = data[0]  # Первая колонка — MAC-адрес
-        manufacturer = data[1]  # Вторая колонка — Производитель
+    #     if hasattr(self, 'scanner_thread'):
+    #         scanner_was_running = True
+    #     selected_item = self.tree.focus()
+    #     data = self.tree.item(selected_item)["values"]  # Получаем выбранные значения
+    #     mac_address = data[0]  # Первая колонка — MAC-адрес
+    #     manufacturer = data[1]  # Вторая колонка — Производитель
+    #     channel = data[4]
+    #     self.stop_scanning()
+    #     logger.info("Команды на остановку сканирования каналов даны")
+    #     # self.toggle_scanning()
+    #     self.change_channel(channel)
+    #     logger.info(f"Команды на смену канала на {channel} ")
+    #     SecondWindow(self, mac_address, manufacturer, channel)
+    #     logger.info(f"Команды на смену канала на {channel} ")
+    #     if scanner_was_running == True:
+    #         logger.info("он был запущен, можно перезапускать заново")
+
+    def open_second_window(self, *, data=None):
+        self.force_stop_all()  # Принудительно останавливаем всё
+
+        if data is None:
+            selected_item = self.tree.focus()
+            if not selected_item:
+                logger.warning("Нет выбранного элемента для открытия окна")
+                return
+            data = self.tree.item(selected_item)["values"]
+
+        mac_address = data[0]
+        manufacturer = data[1]
         channel = data[4]
-        self.stop_scanning()
-        logger.info("Команды на остановку сканирования каналов даны")
-        # self.toggle_scanning()
-        self.change_channel(channel)
-        logger.info(f"Команды на смену канала на {channel} ")
-        SecondWindow(self, mac_address, manufacturer, channel)
-        logger.info(f"Команды на смену канала на {channel} ")
-        if scanner_was_running == True:
-            logger.info("он был запущен, можно перезапускать заново")
+
+        if self.change_channel(channel):
+            SecondWindow(self, mac_address, manufacturer, channel)
+            logger.info(f"Открыто второе окно для MAC: {mac_address}")
+
 
     def sort_column(self, column_id):
         # print(f"[SORT] Начало сортировки для столбца {column_id}")
@@ -569,22 +667,49 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
             }
             self.buttons[button_name].configure(**valid_props)
 
+    # def toggle_scanning(self):
+    #     if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+    #         logger.info("Получен запрос на остановку сканирования (кнопка 'Стоп')")
+    #         logger.info(f"Состояние потока перед остановкой: is_alive() = {self.tshark_thread.is_alive() if self.tshark_thread else None}")
+    #         _stop.set()  # Устанавливаем флаг остановки
+    #         # Не удаляем ссылку на поток, а позволяем ему закончить естественно
+    #         logger.debug(f"Активные потоки при остановке: {threading.enumerate()}")
+    #         self.tshark_thread.join(timeout=5.0)  # Ждём завершения потока
+    #         self.tshark_thread = None
+    #         self.set_button_properties('Стоп', {'text': 'Пуск'})  # Меняем текст на "Пуск"
+    #     else:
+    #         _stop.clear()  # Снимаем флаг остановки
+    #         self.start_tshark()
+    #         self.set_button_properties('Стоп', {'text': 'Стоп'})  # Меняем текст на "Стоп"
+    
     def toggle_scanning(self):
-        if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
+        if (hasattr(self, 'tshark_thread') and
+                isinstance(self.tshark_thread, threading.Thread) and
+                self.tshark_thread.is_alive()):
             logger.info("Получен запрос на остановку сканирования (кнопка 'Стоп')")
-            logger.info(f"Состояние потока перед остановкой: is_alive() = {self.tshark_thread.is_alive() if self.tshark_thread else None}")
             _stop.set()  # Устанавливаем флаг остановки
-            # Не удаляем ссылку на поток, а позволяем ему закончить естественно
-            logger.debug(f"Активные потоки при остановке: {threading.enumerate()}")
-            self.tshark_thread.join(timeout=5.0)  # Ждём завершения потока
+
+            # Ждём завершения потока с таймаутом
+            self.tshark_thread.join(timeout=3.0)
+
+            if self.tshark_thread.is_alive():
+                logger.critical("Поток tshark не завершился за 3 с, принудительно прерываем")
+                try:
+                    # Попытка отправить сигнал процессу
+                    if hasattr(self, 'tshark_process') and self.tshark_process:
+                        self.tshark_process.terminate()
+                        self.tshark_process.wait(timeout=1.0)
+                except:
+                    pass
+
             self.tshark_thread = None
-            self.set_button_properties('Стоп', {'text': 'Пуск'})  # Меняем текст на "Пуск"
+            self.set_button_properties('Стоп', {'text': 'Пуск'})
         else:
-            _stop.clear()  # Снимаем флаг остановки
+            _stop.clear()
             self.start_tshark()
-            self.set_button_properties('Стоп', {'text': 'Стоп'})  # Меняем текст на "Стоп"
-    
-    
+            self.set_button_properties('Стоп', {'text': 'Стоп'})
+
+
     def start_tshark(self):
         logger.info("Начинается попытка запуска tshark")
         if hasattr(self, 'tshark_thread') and isinstance(self.tshark_thread, threading.Thread) and self.tshark_thread.is_alive():
@@ -727,42 +852,95 @@ class WifiMonitor(ctk.CTk):  # наследование от Ctk
 
         self.update_scanning_indicator()
     
-    def change_channel(self, channel):
+    # def change_channel(self, channel):
         
-        try:
-            with change_channel_lock:  # Используем контекстный менеджер
-                command = ["sudo", "iw", "dev", config.interface, "set", "channel", str(channel)]
-                process = subprocess.run(
-                    command,
-                    capture_output=True,
-                    text=True,  # Вместо encoding="utf-8"
-                    timeout=30
-                )
+    #     try:
+    #         with change_channel_lock:  # Используем контекстный менеджер
+    #             command = ["sudo", "iw", "dev", config.interface, "set", "channel", str(channel)]
+    #             process = subprocess.run(
+    #                 command,
+    #                 capture_output=True,
+    #                 text=True,  # Вместо encoding="utf-8"
+    #                 timeout=30
+    #             )
+    #             if process.returncode == 0:
+    #                 self.update_channel_indicator()
+    #             else:
+    #                 logger.error(
+    #                     f"Ошибка смены канала {channel}: "
+    #                     f"stdout={process.stdout}, stderr={process.stderr}"
+    #                 )
+    #     except subprocess.TimeoutExpired:
+    #         logger.critical(f"Таймаут при смене канала {channel}")
+    #     except Exception as e:
+    #         logger.critical(f"Неожиданная ошибка: {e}\n{traceback.format_exc()}")
+    #     finally:
+    #         logger.debug(f"change_channel закончен")
+
+    # # def stop_scanning(self):
+    #     """Останавливает сканирование каналов"""
+    #     self.scanning_active = False
+
+    #     # Ждём завершения потока сканирования
+    #     if hasattr(self, 'scanner_thread') and self.scanner_thread.is_alive():
+    #         self.scanner_thread.join(timeout=1.0)
+
+    #     # Обновляем интерфейс
+    #     self.add_text("Процесс сканирования каналов остановлен.\n")
+    #     self.update_scanning_indicator()
+
+    def change_channel(self, channel):
+        def _change_channel_async():
+            try:
+                with change_channel_lock:
+                    command = ["sudo", "iw", "dev", config.interface, "set", "channel", str(channel)]
+                    process = subprocess.run(
+                        command,
+                        capture_output=True,
+                text=True,
+                timeout=10  # Уменьшаем таймаут до 10 с
+            )
+
                 if process.returncode == 0:
-                    self.update_channel_indicator()
+                    logger.info(f"Канал изменён на {channel}")
+                    # Обновляем индикатор в основном потоке
+                    self.channel_label.after(0, lambda: self.channel_label.configure(text=f"Ch:{channel}"))
+                    return True
                 else:
-                    logger.error(
-                        f"Ошибка смены канала {channel}: "
-                        f"stdout={process.stdout}, stderr={process.stderr}"
-                    )
-        except subprocess.TimeoutExpired:
-            logger.critical(f"Таймаут при смене канала {channel}")
-        except Exception as e:
-            logger.critical(f"Неожиданная ошибка: {e}\n{traceback.format_exc()}")
-        finally:
-            logger.debug(f"change_channel закончен")
+                    error_msg = f"Ошибка смены канала {channel}: {process.stderr}"
+                    logger.error(error_msg)
+                    return False
+
+            except subprocess.TimeoutExpired:
+                error_msg = "Таймаут при смене канала"
+                logger.error(error_msg)
+                return False
+
+            except Exception as e:
+                error_msg = f"Неожиданная ошибка при смене канала: {e}"
+                logger.error(error_msg)
+                return False
+
+        # Запускаем смену канала в отдельном потоке
+        threading.Thread(target=_change_channel_async, daemon=True).start()
+        return True
+
+
 
     def stop_scanning(self):
-        """Останавливает сканирование каналов"""
+        """Улучшенная остановка сканирования каналов с принудительным завершением"""
         self.scanning_active = False
 
-        # Ждём завершения потока сканирования
-        if hasattr(self, 'scanner_thread') and self.scanner_thread.is_alive():
-            self.scanner_thread.join(timeout=1.0)
+        if hasattr(self, 'scanner_thread') and self.scanner_thread and self.scanner_thread.is_alive():
+            self.scanner_thread.join(timeout=2.0)
+            if self.scanner_thread.is_alive():
+                logger.warning("Принудительное завершение scanner_thread через _stop_scan_flag")
+                if not hasattr(self, '_stop_scan_flag'):
+                    self._stop_scan_flag = threading.Event()
+                self._stop_scan_flag.set()
 
-        # Обновляем интерфейс
-        self.add_text("Процесс сканирования каналов остановлен.\n")
         self.update_scanning_indicator()
+        logger.info("Сканирование каналов остановлено")
 
             
     def on_running_indicator_click(self, event):

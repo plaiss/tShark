@@ -231,10 +231,12 @@ class SecondWindow(ctk.CTkToplevel):
 
     async def _run_tshark_monitor(self):
         """Этап 2: Мониторинг RSSI с фильтром по роли."""
+        self._update_status(f"Мониторинг RSSI ({self.device_type})", "green")
+        
         if self.device_type == "Access Point (AP)":
             filter_expr = f'wlan.ta=={self.mac_address}  and wlan.fc.subtype==8 and wlan.fc.type==0'
         elif self.device_type == "Station (STA)":
-            filter_expr = f'wlan.ta == {self.mac_address}'
+            filter_expr = f'wlan.ta == {self.mac_address} and wlan.fc.subtype==9 and wlan.fc.type==1'
         else:
             logger.error("Не определена роль устройства, мониторинг невозможен")
             return
@@ -245,6 +247,13 @@ class SecondWindow(ctk.CTkToplevel):
             '-e', 'frame.number', '-e', 'wlan_radio.signal_dbm', '-e', 'wlan.ssid',
             '-Y', filter_expr
         ]
+
+        # cmd = [
+        #     'tshark', '-l', '-i', self.interface,
+        #     '-T', 'fields', '-E', 'separator= ',
+        #     '-e', 'frame.number', '-e', 'wlan_radio.signal_dbm', '-e', 'wlan.ssid',
+        #     '-f', 'wlan host ', self.mac_address
+        # ]
 
         try:
             process = await asyncio.create_subprocess_exec(
